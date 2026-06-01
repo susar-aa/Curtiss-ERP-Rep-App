@@ -143,5 +143,8 @@ $hasRoute = isset($data['active_route']) && $data['active_route'];
         </nav>
 
     </div>
+
+    <!-- CURTISS OFFLINE ENGINE INJECTION -->
+    <?php require_once 'offline_engine.php'; ?>
 </body>
 </html>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#0F172A"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- Dialog Header -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="START DAILY ROUTE"
+        android:textColor="#0066CC"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal"
+        android:letterSpacing="0.05"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Search Input for Territories -->
+    <EditText
+        android:id="@+id/edtRouteSearch"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@android:drawable/editbox_background_normal"
+        android:backgroundTint="#1E293B"
+        android:hint="🔍 Search Territory..."
+        android:textColor="#FFFFFF"
+        android:textColorHint="#64748B"
+        android:textSize="14sp"
+        android:paddingLeft="12dp"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Dynamic Route Selection Container -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Territory:"
+        android:textColor="#94A3B8"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"/>
+
+    <!-- Routes list view -->
+    <ListView
+        android:id="@+id/lstRoutes"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:background="#1E293B"
+        android:divider="#334155"
+        android:dividerHeight="1dp"
+        android:padding="4dp"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Selection Status / Display Selected Route -->
+    <TextView
+        android:id="@+id/txtSelectedRoute"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selected: None"
+        android:textColor="#F59E0B"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Starting Odometer Input with 6 Digit Limit -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Starting Odometer Mileage (KM):"
+        android:textColor="#94A3B8"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"/>
+
+    <EditText
+        android:id="@+id/edtStartOdoDialog"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@android:drawable/editbox_background_normal"
+        android:backgroundTint="#1E293B"
+        android:hint="e.g. 142050"
+        android:inputType="number"
+        android:maxLength="6"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#475569"
+        android:textSize="15sp"
+        android:paddingLeft="12dp"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancelDialog"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:backgroundTint="#1E293B"
+            android:text="Cancel"
+            android:textColor="#94A3B8"
+            android:layout_marginRight="10dp"
+            android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/btnStartTripDialog"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:backgroundTint="#0066CC"
+            android:text="Start Trip"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+</LinearLayout>

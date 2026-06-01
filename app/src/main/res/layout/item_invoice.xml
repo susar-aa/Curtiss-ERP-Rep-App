@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:drawable/dialog_holo_dark_frame"
+    android:backgroundTint="#1E293B"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Top header: invoice number and sync badge -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/lblInvNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="INV-OFFLINE-2839"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lblInvSyncStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:text="✓ Synced"
+            android:textColor="#10B981"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+    <!-- Customer target -->
+    <TextView
+        android:id="@+id/lblInvCustomer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Shops: Lakeside Wholesale"
+        android:textColor="#0066CC"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:layout_marginTop="4dp" />
+
+    <!-- Date/Time of creation -->
+    <TextView
+        android:id="@+id/lblInvDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Billed on: 2026-05-29 19:42"
+        android:textColor="#94A3B8"
+        android:textSize="12sp"
+        android:layout_marginTop="6dp" />
+
+    <!-- Total Sales summary row -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/lblInvPaymentMethod"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Payment: Cheque"
+            android:textColor="#64748B"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/lblInvTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:text="LKR 18,450.00"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+</LinearLayout>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:drawable/dialog_holo_dark_frame"
+    android:backgroundTint="#1E293B"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Top header with Name and Sync status -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/lblCustName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Shop Name"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lblSyncStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:text="✓ Synced"
+            android:textColor="#10B981"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+    <!-- Territory route and address -->
+    <TextView
+        android:id="@+id/lblTerritory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Territory Route: Negombo"
+        android:textColor="#0066CC"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:layout_marginTop="4dp" />
+
+    <TextView
+        android:id="@+id/lblAddress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Shop Address Description"
+        android:textColor="#94A3B8"
+        android:textSize="12sp"
+        android:layout_marginTop="6dp" />
+
+    <!-- Tagged GPS display -->
+    <TextView
+        android:id="@+id/lblGPS"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="GPS Location: Not Tagged"
+        android:textColor="#64748B"
+        android:textSize="11sp"
+        android:layout_marginTop="6dp" />
+
+    <!-- Quick action links -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp"
+        android:gravity="end">
+
+        <!-- Call icon action -->
+        <Button
+            android:id="@+id/btnCall"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:backgroundTint="#334155"
+            android:text="📞 Call"
+            android:textSize="11sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="8dp" />
+
+        <!-- WhatsApp icon action -->
+        <Button
+            android:id="@+id/btnWhatsApp"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:backgroundTint="#10B981"
+            android:text="💬 Chat"
+            android:textSize="11sp"
+            android:textColor="#FFFFFF" />
+
+    </LinearLayout>
+
+</LinearLayout>

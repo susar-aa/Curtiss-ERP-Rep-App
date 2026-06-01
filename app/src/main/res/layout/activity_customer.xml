@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0F172A">
+
+    <!-- Primary Layout List and Search Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header back button + Title -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:drawable/ic_menu_revert"
+                android:backgroundTint="#FFFFFF" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/btnBack"
+                android:layout_marginStart="16dp"
+                android:text="Territory Shops"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </RelativeLayout>
+
+        <!-- Search Bar -->
+        <EditText
+            android:id="@+id/edtSearch"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="16dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:backgroundTint="#1E293B"
+            android:hint="Search shops by name or territory..."
+            android:inputType="text"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#475569"
+            android:textSize="15sp"
+            android:paddingLeft="12dp" />
+
+        <!-- Customers List -->
+        <ListView
+            android:id="@+id/lstCustomers"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:divider="#1E293B"
+            android:dividerHeight="8dp" />
+
+    </LinearLayout>
+
+    <!-- Floating Action Button to add customer -->
+    <Button
+        android:id="@+id/fabAddCustomer"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:backgroundTint="#0066CC"
+        android:elevation="6dp"
+        android:text="+"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <!-- Sleek Overlay: Add Customer Offline Form -->
+    <RelativeLayout
+        android:id="@+id/layoutAddCustomerOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E00F172A"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:padding="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:background="@android:drawable/dialog_holo_dark_frame"
+            android:backgroundTint="#1E293B"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TAG NEW SHOP"
+                android:textColor="#0066CC"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Enter profile details below completely offline"
+                android:textColor="#94A3B8"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp" />
+
+            <!-- Shop name -->
+            <EditText
+                android:id="@+id/edtShopName"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="16dp"
+                android:hint="Shop / Customer Name"
+                android:inputType="textPersonName"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#475569"
+                android:background="@android:drawable/editbox_background_normal"
+                android:paddingLeft="10dp" />
+
+            <!-- Telephone -->
+            <EditText
+                android:id="@+id/edtShopPhone"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:hint="Telephone Number"
+                android:inputType="phone"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#475569"
+                android:background="@android:drawable/editbox_background_normal"
+                android:paddingLeft="10dp" />
+
+            <!-- WhatsApp -->
+            <EditText
+                android:id="@+id/edtShopWhatsApp"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:hint="WhatsApp Number"
+                android:inputType="phone"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#475569"
+                android:background="@android:drawable/editbox_background_normal"
+                android:paddingLeft="10dp" />
+
+            <!-- Address -->
+            <EditText
+                android:id="@+id/edtShopAddress"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:hint="Shop Address"
+                android:inputType="textPostalAddress"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#475569"
+                android:background="@android:drawable/editbox_background_normal"
+                android:paddingLeft="10dp" />
+
+            <!-- Live GPS Status Display -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/txtGPSCoordinates"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="GPS: Location Pending..."
+                    android:textColor="#E2E8F0"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btnCaptureGPS"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:backgroundTint="#0066CC"
+                    android:text="Tag GPS"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"/>
+
+            </LinearLayout>
+
+            <!-- Save / Cancel Actions -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="24dp">
+
+                <Button
+                    android:id="@+id/btnCancelAdd"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:backgroundTint="#EF4444"
+                    android:text="Cancel"
+                    android:textColor="#FFFFFF" />
+
+                <Button
+                    android:id="@+id/btnSaveCustomer"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:backgroundTint="#10B981"
+                    android:text="Save Shop"
+                    android:textColor="#FFFFFF" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+</FrameLayout>
