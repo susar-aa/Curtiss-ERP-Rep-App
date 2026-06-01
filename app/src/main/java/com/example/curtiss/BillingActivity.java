@@ -4,6 +4,10 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.BitmapFactory;
+import android.graphics.Bitmap;
+import android.app.Dialog;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -33,8 +37,8 @@ import java.util.Locale;
 
 public class BillingActivity extends AppCompatActivity {
 
-    private Spinner spinnerPaymentMethod, spinnerCategory;
-    private EditText edtProductSearch, edtDiscount;
+    private Spinner spinnerPaymentMethod, spinnerCategory, spinnerPaymentTerm;
+    private EditText edtProductSearch, edtDiscount, edtDirectDiscountPct;
     private ListView lstProducts, lstCartSummary;
     private TextView txtCartItemsCount, txtCartSalesSum, txtSubtotal, txtTax, txtNetTotal;
 
@@ -42,6 +46,7 @@ public class BillingActivity extends AppCompatActivity {
     private Button btnChangeCustomer;
     private CustomerModel selectedCustomer = null;
     private List<String> categoryList = new ArrayList<>();
+    private List<PaymentTermModel> paymentTermList = new ArrayList<>();
 
     private RelativeLayout layoutCartOverlay;
     private Button btnViewCart, btnCancelCart, btnConfirmCheckout;
@@ -72,9 +77,11 @@ public class BillingActivity extends AppCompatActivity {
         btnChangeCustomer = findViewById(R.id.btnChangeCustomer);
         spinnerCategory = findViewById(R.id.spinnerCategory);
         spinnerPaymentMethod = findViewById(R.id.spinnerPaymentMethod);
+        spinnerPaymentTerm = findViewById(R.id.spinnerPaymentTerm);
 
         edtProductSearch = findViewById(R.id.edtProductSearch);
         edtDiscount = findViewById(R.id.edtDiscount);
+        edtDirectDiscountPct = findViewById(R.id.edtDirectDiscountPct);
         lstProducts = findViewById(R.id.lstProducts);
         lstCartSummary = findViewById(R.id.lstCartSummary);
 
@@ -186,17 +193,54 @@ public class BillingActivity extends AppCompatActivity {
             }
         });
 
-        // Discount input watcher
-        edtDiscount.addTextChangedListener(new TextWatcher() {
+        // Double-mode direct discount interactive text watchers
+        final TextWatcher directDiscountWatcher = new TextWatcher() {
+            private boolean isUpdating = false;
+
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (isUpdating) return;
+                isUpdating = true;
+                try {
+                    // Get current subtotal before global discount
+                    double subtotal = 0.0;
+                    for (CartItemModel item : cartList) {
+                        subtotal += item.total;
+                    }
+
+                    if (edtDirectDiscountPct.hasFocus()) {
+                        String pctStr = edtDirectDiscountPct.getText().toString().trim();
+                        if (!pctStr.isEmpty()) {
+                            double pct = Double.parseDouble(pctStr);
+                            double discountVal = subtotal * (pct / 100.0);
+                            edtDiscount.setText(String.format(Locale.getDefault(), "%.2f", discountVal));
+                        } else {
+                            edtDiscount.setText("");
+                        }
+                    } else if (edtDiscount.hasFocus()) {
+                        String amtStr = edtDiscount.getText().toString().trim();
+                        if (!amtStr.isEmpty() && subtotal > 0) {
+                            double amt = Double.parseDouble(amtStr);
+                            double pct = (amt / subtotal) * 100.0;
+                            edtDirectDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", pct));
+                        } else {
+                            edtDirectDiscountPct.setText("");
+                        }
+                    }
+                } catch (Exception ignored) {}
+                isUpdating = false;
                 recalculateCart();
             }
+
             @Override
             public void afterTextChanged(Editable s) {}
-        });
+        };
+
+        edtDirectDiscountPct.addTextChangedListener(directDiscountWatcher);
+        edtDiscount.addTextChangedListener(directDiscountWatcher);
 
         // Checkout Button Trigger
         btnConfirmCheckout.setOnClickListener(new View.OnClickListener() {
@@ -215,13 +259,13 @@ public class BillingActivity extends AppCompatActivity {
 
     private void loadCustomers() {
         customerList.clear();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT id, server_id, name, outstanding FROM customers ORDER BY name ASC", null);
+        Cursor cursor = dbHelper.getCustomersByActiveRouteMainTerritory();
         while (cursor.moveToNext()) {
             CustomerModel c = new CustomerModel();
             c.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
             c.serverId = cursor.getInt(cursor.getColumnIndexOrThrow("server_id"));
             c.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+            c.phone = cursor.getString(cursor.getColumnIndexOrThrow("phone"));
             c.outstanding = cursor.getDouble(cursor.getColumnIndexOrThrow("outstanding"));
             customerList.add(c);
         }
@@ -229,15 +273,86 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     private void setupSpinners() {
-        // Load Payment Methods inside Checkout Overlay Spinner
+        // Load Payment Methods inside Checkout Overlay Spinner (Premium white text styling)
         List<String> payments = new ArrayList<>();
         payments.add("Cash");
         payments.add("Cheque");
         payments.add("Bank Transfer");
 
-        ArrayAdapter<String> payAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, payments);
+        ArrayAdapter<String> payAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, payments) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View v = super.getView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                    ((TextView) v).setTextSize(14);
+                }
+                return v;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View v = super.getDropDownView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                    v.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+                    v.setPadding(16, 16, 16, 16);
+                }
+                return v;
+            }
+        };
         payAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerPaymentMethod.setAdapter(payAdapter);
+
+        // Load Payment Terms from Database dynamically
+        paymentTermList.clear();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        try {
+            Cursor cursor = db.rawQuery("SELECT id, name, days_due FROM payment_terms ORDER BY days_due ASC", null);
+            while (cursor.moveToNext()) {
+                PaymentTermModel term = new PaymentTermModel();
+                term.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                term.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+                term.daysDue = cursor.getInt(cursor.getColumnIndexOrThrow("days_due"));
+                paymentTermList.add(term);
+            }
+            cursor.close();
+        } catch (Exception e) {
+            android.util.Log.e("BillingActivity", "Error loading payment terms: " + e.getMessage());
+        }
+
+        List<String> termNames = new ArrayList<>();
+        for (PaymentTermModel pt : paymentTermList) {
+            termNames.add(pt.name);
+        }
+        if (termNames.isEmpty()) {
+            termNames.add("Due on Receipt");
+        }
+
+        ArrayAdapter<String> termAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, termNames) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View v = super.getView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                    ((TextView) v).setTextSize(14);
+                }
+                return v;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View v = super.getDropDownView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                    v.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+                    v.setPadding(16, 16, 16, 16);
+                }
+                return v;
+            }
+        };
+        termAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerPaymentTerm.setAdapter(termAdapter);
     }
 
     private void loadCatalogItems(String filter) {
@@ -362,13 +477,21 @@ public class BillingActivity extends AppCompatActivity {
         }
 
         CustomerModel customer = selectedCustomer;
-        String payment = spinnerPaymentMethod.getSelectedItem().toString();
+        String payment = "Term";
 
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
         try {
-            // Generate offline invoice number e.g. INV-OFF-1709283928
-            String invoiceNum = "INV-OFF-" + (System.currentTimeMillis() / 1000);
+            // Generate sequential offline invoice number, e.g. INV 20260601invoice0001
+            String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+            String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+            int seq = 1;
+            Cursor seqCursor = db.rawQuery("SELECT COUNT(*) FROM invoices WHERE invoice_date LIKE '" + todayDate + "%'", null);
+            if (seqCursor.moveToFirst()) {
+                seq = seqCursor.getInt(0) + 1;
+            }
+            seqCursor.close();
+            String invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
             String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
             double subtotal = 0.0;
@@ -386,13 +509,34 @@ public class BillingActivity extends AppCompatActivity {
             if (netTotal < 0) netTotal = 0;
             double tax = netTotal * 0.18;
 
+            // Fetch dynamic payment term and calculate offset due date
+            Integer paymentTermId = null;
+            int daysOffset = 0;
+            int termPos = spinnerPaymentTerm.getSelectedItemPosition();
+            if (!paymentTermList.isEmpty() && termPos >= 0 && termPos < paymentTermList.size()) {
+                PaymentTermModel selectedTerm = paymentTermList.get(termPos);
+                paymentTermId = selectedTerm.id;
+                daysOffset = selectedTerm.daysDue;
+            }
+
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            if (daysOffset > 0) {
+                cal.add(java.util.Calendar.DAY_OF_YEAR, daysOffset);
+            }
+            String dueDateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(cal.getTime());
+
             // 1. Insert Invoice Header
             ContentValues cvHeader = new ContentValues();
             cvHeader.put("invoice_number", invoiceNum);
             cvHeader.put("customer_id", customer.id); // Save local SQLite customer_id
             cvHeader.put("route_id", currentRouteLocalId);
             cvHeader.put("invoice_date", dateString);
-            cvHeader.put("due_date", dateString);
+            cvHeader.put("due_date", dueDateString);
+            if (paymentTermId != null) {
+                cvHeader.put("payment_term_id", paymentTermId);
+            } else {
+                cvHeader.putNull("payment_term_id");
+            }
             cvHeader.put("subtotal", subtotal);
             cvHeader.put("discount", discount);
             cvHeader.put("tax", tax);
@@ -422,8 +566,7 @@ public class BillingActivity extends AppCompatActivity {
             }
 
             db.setTransactionSuccessful();
-            Toast.makeText(this, "Bill Saved Offline! " + invoiceNum, Toast.LENGTH_LONG).show();
-            finish();
+            showShareBillDialog(invoiceNum, customer.name, customer.phone);
 
         } catch (Exception e) {
             Toast.makeText(this, "Checkout failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -432,10 +575,205 @@ public class BillingActivity extends AppCompatActivity {
         }
     }
 
+    private void showShareBillDialog(final String invoiceNum, final String customerName, final String customerPhone) {
+        final Dialog dialog = new Dialog(this, android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar);
+        dialog.setCancelable(false);
+
+        // Main Container
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setBackgroundColor(android.graphics.Color.parseColor("#0F172A")); // Slate 900
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        container.setPadding(padding, padding, padding, padding);
+        container.setGravity(android.view.Gravity.CENTER);
+
+        // Success Icon
+        TextView txtCheck = new TextView(this);
+        txtCheck.setText("✓");
+        txtCheck.setTextColor(android.graphics.Color.parseColor("#22C55E")); // Green 500
+        txtCheck.setTextSize(48);
+        txtCheck.setGravity(android.view.Gravity.CENTER);
+        container.addView(txtCheck);
+
+        // Success Title
+        TextView txtTitle = new TextView(this);
+        txtTitle.setText("Checkout Successful!");
+        txtTitle.setTextColor(android.graphics.Color.WHITE);
+        txtTitle.setTextSize(20);
+        txtTitle.setGravity(android.view.Gravity.CENTER);
+        txtTitle.setPadding(0, 8, 0, 4);
+        txtTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        container.addView(txtTitle);
+
+        // Invoice Number Label
+        TextView txtInvoice = new TextView(this);
+        txtInvoice.setText(invoiceNum);
+        txtInvoice.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtInvoice.setTextSize(16);
+        txtInvoice.setGravity(android.view.Gravity.CENTER);
+        txtInvoice.setPadding(0, 0, 0, 16);
+        container.addView(txtInvoice);
+
+        // Reserved Stock Quantities Breakdown Display
+        LinearLayout reservationSummaryLayout = new LinearLayout(this);
+        reservationSummaryLayout.setOrientation(LinearLayout.VERTICAL);
+        reservationSummaryLayout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Dark slate card background
+        reservationSummaryLayout.setPadding(24, 20, 24, 20);
+        LinearLayout.LayoutParams resParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        resParams.setMargins(0, 0, 0, 24);
+        reservationSummaryLayout.setLayoutParams(resParams);
+
+        TextView txtResHeader = new TextView(this);
+        txtResHeader.setText("⚡ OFFLINE RESERVED QUANTITIES");
+        txtResHeader.setTextColor(android.graphics.Color.parseColor("#38BDF8")); // Bright blue accent
+        txtResHeader.setTextSize(11);
+        txtResHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+        txtResHeader.setPadding(0, 0, 0, 8);
+        reservationSummaryLayout.addView(txtResHeader);
+
+        for (CartItemModel cartItem : cartList) {
+            TextView txtItemDetail = new TextView(this);
+            txtItemDetail.setText("• " + cartItem.name + "\n  Reserved: " + cartItem.quantity + " qty");
+            txtItemDetail.setTextColor(android.graphics.Color.WHITE);
+            txtItemDetail.setTextSize(13);
+            txtItemDetail.setPadding(0, 4, 0, 4);
+            reservationSummaryLayout.addView(txtItemDetail);
+        }
+        container.addView(reservationSummaryLayout);
+
+        // QR Code Card View / Frame
+        LinearLayout qrFrame = new LinearLayout(this);
+        qrFrame.setOrientation(LinearLayout.VERTICAL);
+        qrFrame.setBackgroundColor(android.graphics.Color.WHITE);
+        qrFrame.setPadding(16, 16, 16, 16);
+        qrFrame.setGravity(android.view.Gravity.CENTER);
+        
+        final ImageView imgQr = new ImageView(this);
+        int qrSize = (int) (200 * getResources().getDisplayMetrics().density);
+        LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(qrSize, qrSize);
+        imgQr.setLayoutParams(qrParams);
+        imgQr.setImageResource(android.R.drawable.stat_sys_download); // Downloading icon
+        qrFrame.addView(imgQr);
+        container.addView(qrFrame);
+
+        // QR Code Label
+        TextView txtQrDesc = new TextView(this);
+        txtQrDesc.setText("Scan QR to View Bill Online");
+        txtQrDesc.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtQrDesc.setTextSize(12);
+        txtQrDesc.setGravity(android.view.Gravity.CENTER);
+        txtQrDesc.setPadding(0, 8, 0, 24);
+        container.addView(txtQrDesc);
+
+        // Buttons Container
+        LinearLayout btnLayout = new LinearLayout(this);
+        btnLayout.setOrientation(LinearLayout.VERTICAL);
+        btnLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // 1. WhatsApp Button
+        Button btnWhatsApp = new Button(this);
+        btnWhatsApp.setText("Share via WhatsApp");
+        btnWhatsApp.setTextColor(android.graphics.Color.WHITE);
+        btnWhatsApp.setBackgroundColor(android.graphics.Color.parseColor("#22C55E")); // Green 500
+        btnWhatsApp.setAllCaps(false);
+        LinearLayout.LayoutParams btnWaParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnWaParams.setMargins(0, 0, 0, 12);
+        btnWhatsApp.setLayoutParams(btnWaParams);
+        btnWhatsApp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String cleanPhone = customerPhone;
+                if (cleanPhone != null) {
+                    cleanPhone = cleanPhone.replaceAll("[^0-9]", "");
+                    if (cleanPhone.startsWith("0")) {
+                        cleanPhone = "94" + cleanPhone.substring(1);
+                    }
+                } else {
+                    cleanPhone = "";
+                }
+                String msg = "Dear " + customerName + ", thank you for your business. Here is the link to view your invoice " + invoiceNum + " online: https://curtiss.suzxlabs.com/sales/show/" + invoiceNum;
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + Uri.encode(msg)));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(BillingActivity.this, "WhatsApp is not installed on this device.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        btnLayout.addView(btnWhatsApp);
+
+        // 2. Done Button
+        Button btnClose = new Button(this);
+        btnClose.setText("Back to Dashboard");
+        btnClose.setTextColor(android.graphics.Color.WHITE);
+        btnClose.setBackgroundColor(android.graphics.Color.parseColor("#475569")); // Slate 600
+        btnClose.setAllCaps(false);
+        btnClose.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        btnClose.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                finish();
+            }
+        });
+        btnLayout.addView(btnClose);
+
+        container.addView(btnLayout);
+        dialog.setContentView(container);
+
+        // Set layout params for Dialog window
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        dialog.show();
+
+        // Load QR Code in background thread
+        String qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + Uri.encode("https://curtiss.suzxlabs.com/sales/show/" + invoiceNum);
+        loadQrCode(qrApiUrl, imgQr);
+    }
+
+    private void loadQrCode(final String url, final ImageView imageView) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    java.net.URL qrUrl = new java.net.URL(url);
+                    java.net.HttpURLConnection connection = (java.net.HttpURLConnection) qrUrl.openConnection();
+                    connection.setDoInput(true);
+                    connection.connect();
+                    java.io.InputStream input = connection.getInputStream();
+                    final android.graphics.Bitmap myBitmap = android.graphics.BitmapFactory.decodeStream(input);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            imageView.setImageBitmap(myBitmap);
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
     // Helper Models
+    private static class PaymentTermModel {
+        int id;
+        String name;
+        int daysDue;
+    }
+
     private static class CustomerModel {
         int id, serverId;
         String name;
+        String phone;
         double outstanding;
     }
 
@@ -958,16 +1296,47 @@ public class BillingActivity extends AppCompatActivity {
 
         try {
             SQLiteDatabase db = dbHelper.getReadableDatabase();
-            Cursor cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' ORDER BY category_name ASC", null);
+            // Try querying the dedicated categories table loaded directly from item_categories
+            Cursor cursor = db.rawQuery("SELECT name FROM categories ORDER BY name ASC", null);
             while (cursor.moveToNext()) {
                 categoryList.add(cursor.getString(0));
             }
             cursor.close();
+
+            // Fallback to distinct product category names if categories table is not yet seeded
+            if (categoryList.size() <= 1) {
+                cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' AND category_name != 'null' ORDER BY category_name ASC", null);
+                while (cursor.moveToNext()) {
+                    categoryList.add(cursor.getString(0));
+                }
+                cursor.close();
+            }
         } catch (Exception e) {
             android.util.Log.e("BillingCategory", "Error loading categories: " + e.getMessage());
         }
 
-        ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
+        ArrayAdapter<String> catAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, categoryList) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View v = super.getView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                    ((TextView) v).setTextSize(14);
+                }
+                return v;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View v = super.getDropDownView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                    v.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+                    v.setPadding(16, 16, 16, 16);
+                }
+                return v;
+            }
+        };
         catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCategory.setAdapter(catAdapter);
 

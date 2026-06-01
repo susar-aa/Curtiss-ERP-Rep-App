@@ -301,25 +301,46 @@
 
                 </RelativeLayout>
 
-                <!-- Offline custom discounts entry -->
-                <RelativeLayout
+                <!-- Offline custom discounts entry (Double-mode) -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
+                    android:orientation="horizontal"
                     android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Direct Disc (%):"
+                        android:textColor="#94A3B8"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/edtDirectDiscountPct"
+                        android:layout_width="70dp"
+                        android:layout_height="36dp"
+                        android:background="@android:drawable/editbox_background_normal"
+                        android:backgroundTint="#334155"
+                        android:gravity="center"
+                        android:hint="0.0%"
+                        android:inputType="numberDecimal"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#475569"
+                        android:textSize="13sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Direct Discount (LKR):"
+                        android:text="  Amt (LKR):"
                         android:textColor="#94A3B8"
                         android:textSize="13sp" />
 
                     <EditText
                         android:id="@+id/edtDiscount"
-                        android:layout_width="100dp"
+                        android:layout_width="85dp"
                         android:layout_height="36dp"
-                        android:layout_alignParentEnd="true"
                         android:background="@android:drawable/editbox_background_normal"
                         android:backgroundTint="#334155"
                         android:gravity="center"
@@ -329,13 +350,14 @@
                         android:textColorHint="#475569"
                         android:textSize="13sp" />
 
-                </RelativeLayout>
+                </LinearLayout>
 
-                <!-- Tax row -->
+                <!-- Tax row (Hidden per user request) -->
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp">
+                    android:layout_marginTop="10dp"
+                    android:visibility="gone">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -389,7 +411,7 @@
 
             </LinearLayout>
 
-            <!-- Payment Mode Selection inside Review Dialog -->
+            <!-- Payment Mode Selection (Hidden per user request, orders are term sales orders) -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -397,10 +419,30 @@
                 android:textColor="#94A3B8"
                 android:textSize="12sp"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="4dp"/>
+                android:layout_marginBottom="4dp"
+                android:visibility="gone"/>
 
             <Spinner
                 android:id="@+id/spinnerPaymentMethod"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:backgroundTint="#FFFFFF"
+                android:spinnerMode="dropdown"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone" />
+
+            <!-- Payment Term Selection inside Review Dialog -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select Payment Term:"
+                android:textColor="#94A3B8"
+                android:textSize="12sp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"/>
+
+            <Spinner
+                android:id="@+id/spinnerPaymentTerm"
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:backgroundTint="#FFFFFF"

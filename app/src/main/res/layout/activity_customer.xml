@@ -152,13 +152,39 @@
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
-            <!-- Address -->
+            <!-- Address Line 1: Address with Number -->
             <EditText
-                android:id="@+id/edtShopAddress"
+                android:id="@+id/edtShopAddressLine1"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="12dp"
-                android:hint="Shop Address"
+                android:hint="Address with Number (e.g. 123 Galle Rd)"
+                android:inputType="textPostalAddress"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#475569"
+                android:background="@android:drawable/editbox_background_normal"
+                android:paddingLeft="10dp" />
+
+            <!-- Address Line 2: Area / State -->
+            <EditText
+                android:id="@+id/edtShopAddressLine2"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="Area / State (e.g. Kollupitiya)"
+                android:inputType="textPostalAddress"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#475569"
+                android:background="@android:drawable/editbox_background_normal"
+                android:paddingLeft="10dp" />
+
+            <!-- Address Line 3: City -->
+            <EditText
+                android:id="@+id/edtShopAddressLine3"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="City (e.g. Colombo)"
                 android:inputType="textPostalAddress"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#475569"

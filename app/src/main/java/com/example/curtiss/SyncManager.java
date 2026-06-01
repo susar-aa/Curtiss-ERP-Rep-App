@@ -112,7 +112,13 @@ public class SyncManager {
                             JSONObject p = products.getJSONObject(i);
                             int id = p.getInt("id");
                             String name = p.getString("name");
-                            String catName = p.optString("category_name", "General");
+                            String catName = "General";
+                            if (!p.isNull("category_name")) {
+                                String rawCat = p.optString("category_name", "General");
+                                if (rawCat != null && !rawCat.trim().isEmpty() && !rawCat.equalsIgnoreCase("null")) {
+                                    catName = rawCat;
+                                }
+                            }
                             double price = p.optDouble("selling_price", 0.0);
                             double wholesale = p.optDouble("wholesale_price", price);
                             int qty = p.optInt("quantity_on_hand", 0);
@@ -124,6 +130,26 @@ public class SyncManager {
                             // Trigger background image download cache
                             if (!imgUrl.isEmpty()) {
                                 ImageDownloadManager.getInstance(context).downloadProductImage(context, id, imgUrl);
+                            }
+                        }
+
+                        // 1.5 Sync Categories directly from server
+                        if (response.has("categories")) {
+                            try {
+                                JSONArray cats = response.getJSONArray("categories");
+                                for (int i = 0; i < cats.length(); i++) {
+                                    JSONObject cObj = cats.getJSONObject(i);
+                                    int catId = cObj.getInt("id");
+                                    String cName = cObj.getString("name");
+                                    if (cName != null && !cName.equalsIgnoreCase("null") && !cName.trim().isEmpty()) {
+                                        ContentValues cv = new ContentValues();
+                                        cv.put("id", catId);
+                                        cv.put("name", cName);
+                                        db.insertWithOnConflict("categories", null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.e("SyncManager", "Error syncing categories: " + e.getMessage());
                             }
                         }
 
@@ -166,16 +192,18 @@ public class SyncManager {
                         // 3. Sync Server Master Routes (Territories)
                         JSONArray routes = response.optJSONArray("routes");
                         if (routes != null) {
-                            db.execSQL("CREATE TABLE IF NOT EXISTS server_routes (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+                            db.execSQL("CREATE TABLE IF NOT EXISTS server_routes (id INTEGER PRIMARY KEY, name TEXT NOT NULL, main_area_id INTEGER DEFAULT 0)");
                             db.execSQL("DELETE FROM server_routes");
                             for (int i = 0; i < routes.length(); i++) {
                                 JSONObject r = routes.getJSONObject(i);
                                 int routeId = r.getInt("id");
                                 String routeName = r.getString("name");
+                                int mainAreaId = r.optInt("main_area_id", 0);
 
                                 ContentValues rCv = new ContentValues();
                                 rCv.put("id", routeId);
                                 rCv.put("name", routeName);
+                                rCv.put("main_area_id", mainAreaId);
                                 db.insert("server_routes", null, rCv);
                             }
                         }
@@ -202,6 +230,25 @@ public class SyncManager {
                                 repCv.put("first_name", fName);
                                 repCv.put("last_name", lName);
                                 db.insert("representatives", null, repCv);
+                            }
+                        }
+
+                        // 5. Sync Payment Terms
+                        JSONArray terms = response.optJSONArray("payment_terms");
+                        if (terms != null) {
+                            db.execSQL("CREATE TABLE IF NOT EXISTS payment_terms (id INTEGER PRIMARY KEY, name TEXT NOT NULL, days_due INTEGER DEFAULT 0)");
+                            db.execSQL("DELETE FROM payment_terms");
+                            for (int i = 0; i < terms.length(); i++) {
+                                JSONObject t = terms.getJSONObject(i);
+                                int termId = t.getInt("id");
+                                String termName = t.getString("name");
+                                int daysDue = t.optInt("days_due", 0);
+
+                                ContentValues tCv = new ContentValues();
+                                tCv.put("id", termId);
+                                tCv.put("name", termName);
+                                tCv.put("days_due", daysDue);
+                                db.insert("payment_terms", null, tCv);
                             }
                         }
 
@@ -274,7 +321,17 @@ public class SyncManager {
                 int localInvId = invCursor.getInt(invCursor.getColumnIndexOrThrow("id"));
                 inv.put("local_id", localInvId);
                 inv.put("invoice_number", invCursor.getString(invCursor.getColumnIndexOrThrow("invoice_number")));
-                inv.put("customer_id", invCursor.getInt(invCursor.getColumnIndexOrThrow("customer_id")));
+                int localCustId = invCursor.getInt(invCursor.getColumnIndexOrThrow("customer_id"));
+                int serverCustId = localCustId;
+                Cursor cCust = db.rawQuery("SELECT server_id FROM customers WHERE id = " + localCustId, null);
+                if (cCust.moveToFirst()) {
+                    int sid = cCust.getInt(0);
+                    if (sid > 0) {
+                        serverCustId = sid;
+                    }
+                }
+                cCust.close();
+                inv.put("customer_id", serverCustId);
                 inv.put("invoice_date", invCursor.getString(invCursor.getColumnIndexOrThrow("invoice_date")));
                 inv.put("due_date", invCursor.getString(invCursor.getColumnIndexOrThrow("due_date")));
                 inv.put("subtotal", invCursor.getDouble(invCursor.getColumnIndexOrThrow("subtotal")));
@@ -284,6 +341,13 @@ public class SyncManager {
                 inv.put("payment_method", invCursor.getString(invCursor.getColumnIndexOrThrow("payment_method")));
                 inv.put("latitude", invCursor.getDouble(invCursor.getColumnIndexOrThrow("latitude")));
                 inv.put("longitude", invCursor.getDouble(invCursor.getColumnIndexOrThrow("longitude")));
+                
+                int ptIdx = invCursor.getColumnIndexOrThrow("payment_term_id");
+                if (invCursor.isNull(ptIdx)) {
+                    inv.put("payment_term_id", JSONObject.NULL);
+                } else {
+                    inv.put("payment_term_id", invCursor.getInt(ptIdx));
+                }
 
                 // Load invoice items
                 JSONArray itemsArray = new JSONArray();

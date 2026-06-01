@@ -32,7 +32,7 @@ import java.util.List;
 
 public class CustomerActivity extends AppCompatActivity {
 
-    private EditText edtSearch, edtShopName, edtShopPhone, edtShopWhatsApp, edtShopAddress;
+    private EditText edtSearch, edtShopName, edtShopPhone, edtShopWhatsApp, edtShopAddressLine1, edtShopAddressLine2, edtShopAddressLine3;
     private ListView lstCustomers;
     private RelativeLayout layoutAddCustomerOverlay;
     private TextView txtGPSCoordinates;
@@ -62,7 +62,9 @@ public class CustomerActivity extends AppCompatActivity {
         edtShopName = findViewById(R.id.edtShopName);
         edtShopPhone = findViewById(R.id.edtShopPhone);
         edtShopWhatsApp = findViewById(R.id.edtShopWhatsApp);
-        edtShopAddress = findViewById(R.id.edtShopAddress);
+        edtShopAddressLine1 = findViewById(R.id.edtShopAddressLine1);
+        edtShopAddressLine2 = findViewById(R.id.edtShopAddressLine2);
+        edtShopAddressLine3 = findViewById(R.id.edtShopAddressLine3);
         txtGPSCoordinates = findViewById(R.id.txtGPSCoordinates);
 
         btnCaptureGPS = findViewById(R.id.btnCaptureGPS);
@@ -129,7 +131,9 @@ public class CustomerActivity extends AppCompatActivity {
         edtShopName.setText("");
         edtShopPhone.setText("");
         edtShopWhatsApp.setText("");
-        edtShopAddress.setText("");
+        edtShopAddressLine1.setText("");
+        edtShopAddressLine2.setText("");
+        edtShopAddressLine3.setText("");
         txtGPSCoordinates.setText("GPS: Location Pending...");
         capturedLatitude = 0.0;
         capturedLongitude = 0.0;
@@ -137,16 +141,7 @@ public class CustomerActivity extends AppCompatActivity {
 
     private void loadCustomersFromLocal(String filter) {
         customerList.clear();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        
-        String query = "SELECT * FROM customers";
-        String[] args = null;
-        if (filter != null && !filter.trim().isEmpty()) {
-            query = "SELECT * FROM customers WHERE name LIKE ? OR territory LIKE ?";
-            args = new String[]{"%" + filter + "%", "%" + filter + "%"};
-        }
-        
-        Cursor cursor = db.rawQuery(query, args);
+        Cursor cursor = dbHelper.getCustomersByActiveRouteMainTerritory(filter);
         while (cursor.moveToNext()) {
             CustomerModel c = new CustomerModel();
             c.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
@@ -222,7 +217,22 @@ public class CustomerActivity extends AppCompatActivity {
         String name = edtShopName.getText().toString().trim();
         String phone = edtShopPhone.getText().toString().trim();
         String whatsapp = edtShopWhatsApp.getText().toString().trim();
-        String address = edtShopAddress.getText().toString().trim();
+        
+        String adr1 = edtShopAddressLine1.getText().toString().trim();
+        String adr2 = edtShopAddressLine2.getText().toString().trim();
+        String adr3 = edtShopAddressLine3.getText().toString().trim();
+        
+        StringBuilder addressBuilder = new StringBuilder();
+        if (!adr1.isEmpty()) addressBuilder.append(adr1);
+        if (!adr2.isEmpty()) {
+            if (addressBuilder.length() > 0) addressBuilder.append(", ");
+            addressBuilder.append(adr2);
+        }
+        if (!adr3.isEmpty()) {
+            if (addressBuilder.length() > 0) addressBuilder.append(", ");
+            addressBuilder.append(adr3);
+        }
+        String address = addressBuilder.toString();
 
         if (name.isEmpty()) {
             Toast.makeText(this, "Customer Shop Name is mandatory.", Toast.LENGTH_SHORT).show();

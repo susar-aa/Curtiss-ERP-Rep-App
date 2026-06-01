@@ -32,6 +32,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "local_image_path TEXT" +
                 ")");
 
+        // 8. Categories Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS categories (" +
+                "id INTEGER PRIMARY KEY," +
+                "name TEXT NOT NULL UNIQUE" +
+                ")");
+
         // 2. Customers Table
         db.execSQL("CREATE TABLE customers (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -73,6 +79,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "route_id INTEGER," +
                 "invoice_date TEXT," +
                 "due_date TEXT," +
+                "payment_term_id INTEGER," +
                 "subtotal REAL DEFAULT 0.0," +
                 "discount REAL DEFAULT 0.0," +
                 "tax REAL DEFAULT 0.0," +
@@ -99,6 +106,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE server_routes (" +
                 "id INTEGER PRIMARY KEY," +
                 "name TEXT NOT NULL" +
+                ")");
+
+        // 7. Payment Terms Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS payment_terms (" +
+                "id INTEGER PRIMARY KEY," +
+                "name TEXT NOT NULL," +
+                "days_due INTEGER DEFAULT 0" +
                 ")");
     }
 
@@ -220,7 +234,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<String> list = new ArrayList<>();
         SQLiteDatabase db = this.getWritableDatabase();
         // Self-healing guard: dynamically create table if missing to prevent SQLiteException crashes
-        db.execSQL("CREATE TABLE IF NOT EXISTS server_routes (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS server_routes (id INTEGER PRIMARY KEY, name TEXT NOT NULL, main_area_id INTEGER DEFAULT 0)");
 
         Cursor cursor = db.rawQuery("SELECT name FROM server_routes ORDER BY name ASC", null);
         while (cursor.moveToNext()) {
@@ -239,6 +253,99 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return list;
     }
 
+    // Dynamic Helper: Fetch shops/customers in active route's parent main territory
+    public Cursor getCustomersByActiveRouteMainTerritory() {
+        return getCustomersByActiveRouteMainTerritory(null);
+    }
+
+    public Cursor getCustomersByActiveRouteMainTerritory(String filter) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        // 1. Get active route name
+        Cursor cActive = db.rawQuery("SELECT route_name FROM daily_routes WHERE status = 'Active' ORDER BY id DESC LIMIT 1", null);
+        String activeRouteName = null;
+        if (cActive.moveToFirst()) {
+            activeRouteName = cActive.getString(0);
+        }
+        cActive.close();
+        
+        StringBuilder queryBuilder = new StringBuilder();
+        List<String> selectionArgs = new ArrayList<>();
+        
+        if (activeRouteName == null) {
+            // No active route, return all customers matching filter
+            queryBuilder.append("SELECT * FROM customers");
+            if (filter != null && !filter.trim().isEmpty()) {
+                queryBuilder.append(" WHERE name LIKE ? OR territory LIKE ?");
+                selectionArgs.add("%" + filter + "%");
+                selectionArgs.add("%" + filter + "%");
+            }
+            queryBuilder.append(" ORDER BY name ASC");
+            return db.rawQuery(queryBuilder.toString(), selectionArgs.toArray(new String[0]));
+        }
+        
+        // 2. Get main_area_id for the active route
+        Cursor cArea = db.rawQuery("SELECT main_area_id FROM server_routes WHERE name = ?", new String[]{activeRouteName});
+        int mainAreaId = -1;
+        if (cArea.moveToFirst()) {
+            mainAreaId = cArea.getInt(0);
+        }
+        cArea.close();
+        
+        if (mainAreaId <= 0) {
+            // Fallback: Filter by active route name
+            queryBuilder.append("SELECT * FROM customers WHERE LOWER(territory) = ?");
+            selectionArgs.add(activeRouteName.toLowerCase());
+            if (filter != null && !filter.trim().isEmpty()) {
+                queryBuilder.append(" AND (name LIKE ? OR territory LIKE ?)");
+                selectionArgs.add("%" + filter + "%");
+                selectionArgs.add("%" + filter + "%");
+            }
+            queryBuilder.append(" ORDER BY name ASC");
+            return db.rawQuery(queryBuilder.toString(), selectionArgs.toArray(new String[0]));
+        }
+        
+        // 3. Get all route names under this main_area_id
+        Cursor cRoutes = db.rawQuery("SELECT name FROM server_routes WHERE main_area_id = ?", new String[]{String.valueOf(mainAreaId)});
+        List<String> routeNames = new ArrayList<>();
+        while (cRoutes.moveToNext()) {
+            routeNames.add(cRoutes.getString(0));
+        }
+        cRoutes.close();
+        
+        if (routeNames.isEmpty()) {
+            queryBuilder.append("SELECT * FROM customers WHERE LOWER(territory) = ?");
+            selectionArgs.add(activeRouteName.toLowerCase());
+            if (filter != null && !filter.trim().isEmpty()) {
+                queryBuilder.append(" AND (name LIKE ? OR territory LIKE ?)");
+                selectionArgs.add("%" + filter + "%");
+                selectionArgs.add("%" + filter + "%");
+            }
+            queryBuilder.append(" ORDER BY name ASC");
+            return db.rawQuery(queryBuilder.toString(), selectionArgs.toArray(new String[0]));
+        }
+        
+        // 4. Construct IN query for customer territory
+        queryBuilder.append("SELECT * FROM customers WHERE LOWER(territory) IN (");
+        for (int i = 0; i < routeNames.size(); i++) {
+            queryBuilder.append("?");
+            if (i < routeNames.size() - 1) {
+                queryBuilder.append(",");
+            }
+            selectionArgs.add(routeNames.get(i).toLowerCase());
+        }
+        queryBuilder.append(")");
+        
+        if (filter != null && !filter.trim().isEmpty()) {
+            queryBuilder.append(" AND (name LIKE ? OR territory LIKE ?)");
+            selectionArgs.add("%" + filter + "%");
+            selectionArgs.add("%" + filter + "%");
+        }
+        queryBuilder.append(" ORDER BY name ASC");
+        
+        return db.rawQuery(queryBuilder.toString(), selectionArgs.toArray(new String[0]));
+    }
+
     @Override
     public void onOpen(SQLiteDatabase db) {
         super.onOpen(db);
@@ -247,6 +354,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE customers ADD COLUMN outstanding REAL DEFAULT 0.0");
         } catch (Exception e) {
             // Already exists, ignore safely
+        }
+        try {
+            db.execSQL("ALTER TABLE server_routes ADD COLUMN main_area_id INTEGER DEFAULT 0");
+        } catch (Exception e) {
+            // Already exists, ignore safely
+        }
+        try {
+            db.execSQL("ALTER TABLE invoices ADD COLUMN payment_term_id INTEGER");
+        } catch (Exception e) {
+            // Already exists, ignore safely
+        }
+        try {
+            db.execSQL("UPDATE products SET category_name = 'General' WHERE category_name IS NULL OR category_name = 'null' OR category_name = ''");
+        } catch (Exception e) {
+            // Ignore safely
+        }
+        try {
+            db.execSQL("CREATE TABLE IF NOT EXISTS categories (" +
+                    "id INTEGER PRIMARY KEY," +
+                    "name TEXT NOT NULL UNIQUE" +
+                    ")");
+        } catch (Exception e) {
+            // Ignore safely
         }
         try {
             db.execSQL("CREATE TABLE IF NOT EXISTS representatives (" +
@@ -280,6 +410,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         } catch (Exception e) {
             android.util.Log.e("DatabaseHelper", "Seeding fallback representative error: " + e.getMessage());
+        }
+
+        try {
+            db.execSQL("CREATE TABLE IF NOT EXISTS payment_terms (" +
+                    "id INTEGER PRIMARY KEY," +
+                    "name TEXT NOT NULL," +
+                    "days_due INTEGER DEFAULT 0" +
+                    ")");
+        } catch (Exception e) {
+            android.util.Log.e("DatabaseHelper", "Creating payment_terms error: " + e.getMessage());
         }
     }
 }

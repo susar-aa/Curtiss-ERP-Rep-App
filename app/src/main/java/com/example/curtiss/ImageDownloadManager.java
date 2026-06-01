@@ -49,7 +49,18 @@ public class ImageDownloadManager {
                     // Form absolute download URL
                     String absoluteUrl = imageUrlString;
                     if (!imageUrlString.startsWith("http")) {
-                        absoluteUrl = "https://curtiss.suzxlabs.com/" + imageUrlString;
+                        // Extract filename from the path to avoid double public/webroot folder references
+                        String filename = imageUrlString;
+                        int lastSlash = imageUrlString.lastIndexOf('/');
+                        if (lastSlash != -1) {
+                            filename = imageUrlString.substring(lastSlash + 1);
+                        }
+                        absoluteUrl = "https://curtiss.suzxlabs.com/uploads/products/" + filename;
+                    } else {
+                        // If it starts with http, clean any erroneous "public/uploads/products" reference
+                        if (imageUrlString.contains("public/uploads/products/")) {
+                            absoluteUrl = imageUrlString.replace("public/uploads/products/", "uploads/products/");
+                        }
                     }
 
                     Log.d(TAG, "Starting download for Product " + productId + " URL: " + absoluteUrl);

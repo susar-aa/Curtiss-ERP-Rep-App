@@ -169,10 +169,17 @@ if ($successInvoiceId && !$successCustomer) {
             // JSON Encode the product safely so it can be passed directly into JS
             $jsonProd = htmlspecialchars(json_encode($prod), ENT_QUOTES, 'UTF-8');
         ?>
-        <div class="product-card cat-<?= $prod->category_id ?: 'none' ?>" data-id="<?= $prod->id ?>" onclick="openProductModal('<?= $jsonProd ?>')">
+        <div class="product-card cat-<?= $prod->category_id ?: 'none' ?>" data-id="<?= $prod->id ?>" data-product="<?= $jsonProd ?>" onclick="openProductModal(this)">
             <div class="img-wrapper">
-                <?php if($prod->image_path): ?>
-                    <img src="<?= APP_URL ?>/uploads/products/<?= htmlspecialchars($prod->image_path) ?>" alt="Product">
+                <?php 
+                $img_src = '';
+                if ($prod->image_path) {
+                    $filename = basename($prod->image_path);
+                    $img_src = APP_URL . '/uploads/products/' . $filename;
+                }
+                ?>
+                <?php if($img_src): ?>
+                    <img src="<?= $img_src ?>" alt="Product" onerror="this.src='https://placehold.co/300?text=No+Image'">
                 <?php else: ?>
                     <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#aaa; font-size:12px;">No Image</div>
                 <?php endif; ?>
@@ -396,7 +403,14 @@ if ($successInvoiceId && !$successCustomer) {
 
     // --- PRODUCT MODAL LOGIC ---
 
-    function openProductModal(prodStr, bypassCustomerCheck = false) {
+    function openProductModal(trigger, bypassCustomerCheck = false) {
+        let prodStr = '';
+        if (typeof trigger === 'object' && trigger !== null && trigger.getAttribute) {
+            prodStr = trigger.getAttribute('data-product');
+        } else {
+            prodStr = trigger;
+        }
+
         // INTERCEPT: Force customer selection before allowing items to be added
         if (!globalSelectedCustomerId && !bypassCustomerCheck) {
             pendingProductModalStr = prodStr;
@@ -406,6 +420,7 @@ if ($successInvoiceId && !$successCustomer) {
 
         // Fix: Gracefully parse only if it is passed as a string configuration
         const prod = (typeof prodStr === 'string') ? JSON.parse(prodStr) : prodStr;
+        console.log('[DEBUG] openProductModal opened. Product ID:', prod.id, 'Name:', prod.name, 'Image Path:', prod.image_path);
         currentProd = prod;
         
         document.getElementById('pmTitle').innerText = prod.name;
