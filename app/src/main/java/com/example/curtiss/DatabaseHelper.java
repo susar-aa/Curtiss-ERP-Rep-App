@@ -11,7 +11,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "curtiss_offline.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 5;
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -50,6 +50,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "latitude REAL," +
                 "longitude REAL," +
                 "outstanding REAL DEFAULT 0.0," +
+                "mca_id INTEGER DEFAULT 0," +
+                "mca_name TEXT," +
                 "is_synced INTEGER DEFAULT 0" +
                 ")");
 
@@ -114,6 +116,33 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "name TEXT NOT NULL," +
                 "days_due INTEGER DEFAULT 0" +
                 ")");
+
+        // 9. Payments (POS Collection Cache) Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS payments (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "customer_id INTEGER," +
+                "server_route_id INTEGER," +
+                "payment_method TEXT NOT NULL," +
+                "amount REAL NOT NULL," +
+                "bank_name TEXT," +
+                "cheque_number TEXT," +
+                "cheque_date TEXT," +
+                "latitude REAL," +
+                "longitude REAL," +
+                "is_synced INTEGER DEFAULT 0," +
+                "created_at TEXT DEFAULT CURRENT_TIMESTAMP" +
+                ")");
+
+        // 10. Credit Outstanding Invoices Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS credit_invoices (" +
+                "id INTEGER PRIMARY KEY," +
+                "invoice_number TEXT NOT NULL," +
+                "customer_id INTEGER," +
+                "invoice_date TEXT," +
+                "true_grand_total REAL," +
+                "customer_name TEXT," +
+                "customer_address TEXT" +
+                ")");
     }
 
     @Override
@@ -124,6 +153,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS invoices");
         db.execSQL("DROP TABLE IF EXISTS invoice_items");
         db.execSQL("DROP TABLE IF EXISTS server_routes");
+        db.execSQL("DROP TABLE IF EXISTS payments");
+        db.execSQL("DROP TABLE IF EXISTS credit_invoices");
         onCreate(db);
     }
 
@@ -141,7 +172,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         cv.put("image_url", imgUrl);
 
         // Check if item exists to keep local image caching paths
-        Cursor cursor = db.rawQuery("SELECT local_image_path FROM products WHERE id = " + id, null);
+        Cursor cursor = db.rawQuery("SELECT local_image_path FROM products WHERE id = ?", new String[]{String.valueOf(id)});
         if (cursor.moveToFirst()) {
             db.update("products", cv, "id = ?", new String[]{String.valueOf(id)});
         } else {
@@ -346,24 +377,53 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.rawQuery(queryBuilder.toString(), selectionArgs.toArray(new String[0]));
     }
 
+    private boolean hasColumn(SQLiteDatabase db, String tableName, String columnName) {
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("PRAGMA table_info(" + tableName + ")", null);
+            if (cursor != null) {
+                int nameIndex = cursor.getColumnIndex("name");
+                while (cursor.moveToNext()) {
+                    String name = cursor.getString(nameIndex);
+                    if (columnName.equalsIgnoreCase(name)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("DatabaseHelper", "Error checking column " + columnName + " in " + tableName + ": " + e.getMessage());
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return false;
+    }
+
     @Override
     public void onOpen(SQLiteDatabase db) {
         super.onOpen(db);
-        // Self-healing database mechanism: dynamically add outstanding column to customers if missing
+        // Self-healing database mechanism: dynamically add column if missing without throwing warnings/errors
         try {
-            db.execSQL("ALTER TABLE customers ADD COLUMN outstanding REAL DEFAULT 0.0");
+            if (!hasColumn(db, "customers", "outstanding")) {
+                db.execSQL("ALTER TABLE customers ADD COLUMN outstanding REAL DEFAULT 0.0");
+            }
         } catch (Exception e) {
-            // Already exists, ignore safely
+            android.util.Log.e("DatabaseHelper", "Error adding column outstanding to customers: " + e.getMessage());
         }
         try {
-            db.execSQL("ALTER TABLE server_routes ADD COLUMN main_area_id INTEGER DEFAULT 0");
+            if (!hasColumn(db, "server_routes", "main_area_id")) {
+                db.execSQL("ALTER TABLE server_routes ADD COLUMN main_area_id INTEGER DEFAULT 0");
+            }
         } catch (Exception e) {
-            // Already exists, ignore safely
+            android.util.Log.e("DatabaseHelper", "Error adding column main_area_id to server_routes: " + e.getMessage());
         }
         try {
-            db.execSQL("ALTER TABLE invoices ADD COLUMN payment_term_id INTEGER");
+            if (!hasColumn(db, "invoices", "payment_term_id")) {
+                db.execSQL("ALTER TABLE invoices ADD COLUMN payment_term_id INTEGER");
+            }
         } catch (Exception e) {
-            // Already exists, ignore safely
+            android.util.Log.e("DatabaseHelper", "Error adding column payment_term_id to invoices: " + e.getMessage());
         }
         try {
             db.execSQL("UPDATE products SET category_name = 'General' WHERE category_name IS NULL OR category_name = 'null' OR category_name = ''");
@@ -397,16 +457,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             cursor.close();
 
             if (count == 0) {
-                ContentValues cv = new ContentValues();
-                cv.put("id", 12);
-                cv.put("username", "rep");
-                // Password '123' hashed with BCrypt
-                cv.put("password_hash", "$2a$10$tM78Fm9nCqS8/DkP7M3U2e4k9F10q7F6B6X.2U19xO6Xz1Y2S4Vmu");
-                cv.put("employee_id", 1);
-                cv.put("first_name", "Susara");
-                cv.put("last_name", "Senarathne");
-                db.insert("representatives", null, cv);
-                android.util.Log.d("DatabaseHelper", "Successfully seeded default offline representative account: rep / 123");
+                // Seeding of offline test credentials removed for security
             }
         } catch (Exception e) {
             android.util.Log.e("DatabaseHelper", "Seeding fallback representative error: " + e.getMessage());
@@ -420,6 +471,246 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     ")");
         } catch (Exception e) {
             android.util.Log.e("DatabaseHelper", "Creating payment_terms error: " + e.getMessage());
+        }
+
+        try {
+            db.execSQL("CREATE TABLE IF NOT EXISTS payments (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "customer_id INTEGER," +
+                    "server_route_id INTEGER," +
+                    "payment_method TEXT NOT NULL," +
+                    "amount REAL NOT NULL," +
+                    "bank_name TEXT," +
+                    "cheque_number TEXT," +
+                    "cheque_date TEXT," +
+                    "is_synced INTEGER DEFAULT 0," +
+                    "created_at TEXT DEFAULT CURRENT_TIMESTAMP" +
+                    ")");
+        } catch (Exception e) {
+            android.util.Log.e("DatabaseHelper", "Creating payments table error: " + e.getMessage());
+        }
+
+        try {
+            db.execSQL("CREATE TABLE IF NOT EXISTS credit_invoices (" +
+                    "id INTEGER PRIMARY KEY," +
+                    "invoice_number TEXT NOT NULL," +
+                    "customer_id INTEGER," +
+                    "invoice_date TEXT," +
+                    "true_grand_total REAL," +
+                    "customer_name TEXT," +
+                    "customer_address TEXT" +
+                    ")");
+        } catch (Exception e) {
+            android.util.Log.e("DatabaseHelper", "Creating credit_invoices table error: " + e.getMessage());
+        }
+    }
+
+    // --- PAYMENTS & CREDIT INVOICES HELPERS ---
+    public boolean savePayment(int customerId, int serverRouteId, String method, double amount, String bank, String chqNum, String chqDate, double latitude, double longitude) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("customer_id", customerId);
+        cv.put("server_route_id", serverRouteId);
+        cv.put("payment_method", method);
+        cv.put("amount", amount);
+        cv.put("bank_name", bank);
+        cv.put("cheque_number", chqNum);
+        cv.put("cheque_date", chqDate);
+        cv.put("latitude", latitude);
+        cv.put("longitude", longitude);
+        cv.put("is_synced", 0);
+
+        long id = db.insert("payments", null, cv);
+        return id != -1;
+    }
+
+    public Cursor getUnsyncedPayments() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM payments WHERE is_synced = 0", null);
+    }
+
+    public void markPaymentsSynced() {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.execSQL("UPDATE payments SET is_synced = 1 WHERE is_synced = 0");
+    }
+
+    public Cursor getCreditInvoices() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM credit_invoices WHERE customer_id NOT IN (SELECT customer_id FROM payments WHERE is_synced = 0) ORDER BY invoice_date ASC", null);
+    }
+
+    public Cursor getOutstandingCustomersByActiveRouteMainTerritory() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        // 1. Get active route name (Ongoing MCA Area name)
+        Cursor cActive = db.rawQuery("SELECT route_name FROM daily_routes WHERE status = 'Active' ORDER BY id DESC LIMIT 1", null);
+        String activeRouteName = null;
+        if (cActive.moveToFirst()) {
+            activeRouteName = cActive.getString(0);
+        }
+        cActive.close();
+        
+        android.util.Log.d("DatabaseHelper", "Active Route Name gathered from daily_routes: " + activeRouteName);
+
+        if (activeRouteName == null) {
+            android.util.Log.w("DatabaseHelper", "No active route started! Returning empty cursor.");
+            return db.rawQuery("SELECT 0 AS customer_id, '' AS customer_name, '' AS customer_address, 0.0 AS total_outstanding WHERE 0", null);
+        }
+
+        // 2. Get main_area_id for the active route
+        Cursor cArea = db.rawQuery("SELECT main_area_id FROM server_routes WHERE name = ?", new String[]{activeRouteName});
+        int mainAreaId = -1;
+        if (cArea.moveToFirst()) {
+            mainAreaId = cArea.getInt(0);
+        }
+        cArea.close();
+        
+        android.util.Log.d("DatabaseHelper", "Resolved Main Area ID for '" + activeRouteName + "': " + mainAreaId);
+
+        List<String> territoryNames = new ArrayList<>();
+        territoryNames.add(activeRouteName.toLowerCase()); // Always include the current active route
+
+        if (mainAreaId > 0) {
+            // 3. Get all route names under this main_area_id to include the whole territory/main area
+            Cursor cRoutes = db.rawQuery("SELECT name FROM server_routes WHERE main_area_id = ?", new String[]{String.valueOf(mainAreaId)});
+            while (cRoutes.moveToNext()) {
+                String rName = cRoutes.getString(0);
+                if (rName != null && !rName.trim().isEmpty()) {
+                    territoryNames.add(rName.toLowerCase());
+                }
+            }
+            cRoutes.close();
+        }
+        
+        android.util.Log.d("DatabaseHelper", "List of territories to query outstanding customers: " + territoryNames.toString());
+
+        StringBuilder queryBuilder = new StringBuilder();
+        List<String> selectionArgs = new ArrayList<>();
+        
+        queryBuilder.append("SELECT customer_id, customer_name, customer_address, SUM(true_grand_total) AS total_outstanding " +
+                            "FROM credit_invoices " +
+                            "WHERE customer_id NOT IN (SELECT customer_id FROM payments WHERE is_synced = 0)");
+
+        // 4. Construct IN query for customer territory or mca_name
+        queryBuilder.append(" AND customer_id IN (SELECT server_id FROM customers WHERE LOWER(territory) IN (");
+        for (int i = 0; i < territoryNames.size(); i++) {
+            queryBuilder.append("?");
+            if (i < territoryNames.size() - 1) {
+                queryBuilder.append(",");
+            }
+            selectionArgs.add(territoryNames.get(i));
+        }
+        queryBuilder.append(") OR LOWER(mca_name) IN (");
+        for (int i = 0; i < territoryNames.size(); i++) {
+            queryBuilder.append("?");
+            if (i < territoryNames.size() - 1) {
+                queryBuilder.append(",");
+            }
+            selectionArgs.add(territoryNames.get(i));
+        }
+        queryBuilder.append("))");
+
+        queryBuilder.append(" GROUP BY customer_id, customer_name, customer_address ORDER BY customer_name ASC");
+        
+        String sql = queryBuilder.toString();
+        android.util.Log.d("DatabaseHelper", "Constructed credit outstanding SQL: " + sql);
+        android.util.Log.d("DatabaseHelper", "Selection arguments: " + selectionArgs.toString());
+
+        Cursor result = db.rawQuery(sql, selectionArgs.toArray(new String[0]));
+        android.util.Log.d("DatabaseHelper", "Number of outstanding customers matched in DB: " + (result != null ? result.getCount() : 0));
+        
+        // Print all available rows for detailed logcat debugging
+        if (result != null) {
+            int count = 0;
+            while (result.moveToNext()) {
+                count++;
+                int id = result.getInt(result.getColumnIndexOrThrow("customer_id"));
+                String name = result.getString(result.getColumnIndexOrThrow("customer_name"));
+                double bal = result.getDouble(result.getColumnIndexOrThrow("total_outstanding"));
+                android.util.Log.d("DatabaseHelper", "Row " + count + " -> Customer ID: " + id + ", Name: " + name + ", Balance: LKR " + bal);
+            }
+            result.moveToPosition(-1); // Reset cursor position for caller
+        }
+
+        return result;
+    }
+
+    // Check if there are any pending uploads in the offline database
+    public boolean hasPendingUploads() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        // 1. Check unsynced customers
+        Cursor c1 = db.rawQuery("SELECT COUNT(*) FROM customers WHERE is_synced = 0", null);
+        if (c1.moveToFirst() && c1.getInt(0) > 0) { c1.close(); return true; }
+        c1.close();
+
+        // 2. Check unsynced daily routes
+        Cursor c2 = db.rawQuery("SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0", null);
+        if (c2.moveToFirst() && c2.getInt(0) > 0) { c2.close(); return true; }
+        c2.close();
+
+        // 3. Check unsynced invoices
+        Cursor c3 = db.rawQuery("SELECT COUNT(*) FROM invoices WHERE is_synced = 0", null);
+        if (c3.moveToFirst() && c3.getInt(0) > 0) { c3.close(); return true; }
+        c3.close();
+
+        // 4. Check unsynced payments
+        try {
+            Cursor c4 = db.rawQuery("SELECT COUNT(*) FROM payments WHERE is_synced = 0", null);
+            if (c4.moveToFirst() && c4.getInt(0) > 0) { c4.close(); return true; }
+            c4.close();
+        } catch (Exception e) {
+            // payments table might not exist
+        }
+
+        return false;
+    }
+
+    // Clear local cache to allow clean redownload from online server
+    public void clearLocalData(boolean force) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.beginTransaction();
+        try {
+            // Delete configuration, catalog and clean static data
+            db.execSQL("DELETE FROM products");
+            db.execSQL("DELETE FROM categories");
+            db.execSQL("DELETE FROM server_routes");
+            db.execSQL("DELETE FROM payment_terms");
+            db.execSQL("DELETE FROM credit_invoices");
+            
+            try {
+                db.execSQL("DELETE FROM representatives");
+            } catch (Exception e) {}
+
+            if (force) {
+                db.execSQL("DELETE FROM customers");
+                db.execSQL("DELETE FROM daily_routes");
+                db.execSQL("DELETE FROM invoices");
+                db.execSQL("DELETE FROM invoice_items");
+                try {
+                    db.execSQL("DELETE FROM payments");
+                } catch (Exception e) {}
+            } else {
+                // Delete ONLY synced data, preserving offline pending items and the active ongoing route progress
+                db.execSQL("DELETE FROM customers WHERE is_synced = 1");
+                
+                // Preserve the active route and only delete completed routes
+                db.execSQL("DELETE FROM daily_routes WHERE is_synced = 1 AND status = 'Completed'");
+                
+                // Preserve invoices created on the active route
+                db.execSQL("DELETE FROM invoices WHERE is_synced = 1 AND route_id NOT IN (SELECT id FROM daily_routes WHERE status = 'Active')");
+                db.execSQL("DELETE FROM invoice_items WHERE invoice_id NOT IN (SELECT id FROM invoices)");
+                try {
+                    db.execSQL("DELETE FROM payments WHERE is_synced = 1 AND server_route_id NOT IN (SELECT server_id FROM daily_routes WHERE status = 'Active')");
+                } catch (Exception e) {}
+            }
+
+            db.setTransactionSuccessful();
+            android.util.Log.d("DatabaseHelper", "Successfully cleared local database cache (Force: " + force + ")");
+        } catch (Exception e) {
+            android.util.Log.e("DatabaseHelper", "Error clearing local database cache: " + e.getMessage());
+        } finally {
+            db.endTransaction();
         }
     }
 }

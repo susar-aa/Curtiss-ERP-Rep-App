@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121824"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <!-- App Logo & Title Container -->
+        <ImageView
+            android:id="@+id/imgSplashLogo"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginBottom="24dp"
+            android:src="@android:drawable/sym_def_app_icon"
+            android:tint="#3B82F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="CURTISS ERP"
+            android:textColor="#FFFFFF"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.05" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="48dp"
+            android:fontFamily="sans-serif-light"
+            android:text="Real-Time Field Portal"
+            android:textColor="#CBD5E1"
+            android:textSize="15sp"
+            android:letterSpacing="0.1" />
+
+        <!-- Sync Progress Card -->
+        <LinearLayout
+            android:id="@+id/syncCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1E293B"
+            android:elevation="6dp"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center"
+            android:visibility="visible">
+
+            <ProgressBar
+                android:id="@+id/splashProgress"
+                style="?android:attr/progressBarStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginBottom="20dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#3B82F6" />
+
+            <TextView
+                android:id="@+id/txtSplashStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="Syncing offline database..."
+                android:textColor="#F1F5F9"
+                android:textSize="16sp"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/txtSplashDetail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="sans-serif"
+                android:text="Checking local changes..."
+                android:textColor="#CBD5E1"
+                android:textSize="13sp"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/txtSplashFooter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:gravity="center"
+            android:text="Secure connection encrypted with SSL/TLS"
+            android:textColor="#94A3B8"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+</RelativeLayout>

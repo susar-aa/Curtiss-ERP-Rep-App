@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipeRefreshLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#0F172A"
-    android:fillViewport="true">
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0F172A"
+        android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -28,7 +33,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="CURTISS ERP"
-                    android:textColor="#0066CC"
+                    android:textColor="#3B82F6"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:letterSpacing="0.05"/>
@@ -37,7 +42,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Mobile Representative Terminal"
-                    android:textColor="#94A3B8"
+                    android:textColor="#CBD5E1"
                     android:textSize="12sp"
                     android:layout_marginTop="2dp" />
 
@@ -85,7 +90,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="TODAY'S SALES"
-                    android:textColor="#64748B"
+                    android:textColor="#CBD5E1"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -116,7 +121,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="BILLS GENERATED"
-                    android:textColor="#64748B"
+                    android:textColor="#CBD5E1"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -135,6 +140,34 @@
         </LinearLayout>
 
         <!-- 3. Dynamic Daily Route / Odometer Panel -->
+        <!-- Credit Collections Banner -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@android:drawable/dialog_holo_dark_frame"
+            android:backgroundTint="#0B1220"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/txtCreditPendingMsg"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="You have 0 Pending Payment Collections"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btnOpenCreditBills"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:backgroundTint="#10B981"
+                android:text="Open Collections"
+                android:textColor="#FFFFFF" />
+
+        </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -148,7 +181,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="DAILY TRIP RADAR"
-                android:textColor="#0066CC"
+                android:textColor="#3B82F6"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
@@ -166,7 +199,7 @@
                     android:id="@+id/btnStartRoute"
                     android:layout_width="match_parent"
                     android:layout_height="55dp"
-                    android:backgroundTint="#0066CC"
+                    android:backgroundTint="#3B82F6"
                     android:text="Start Territory Route"
                     android:textColor="#FFFFFF"
                     android:textSize="15sp"
@@ -197,7 +230,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Started At: 2026-05-29 08:30 AM"
-                    android:textColor="#94A3B8"
+                    android:textColor="#CBD5E1"
                     android:textSize="13sp"
                     android:layout_marginTop="4dp"/>
 
@@ -205,7 +238,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Enter End Odometer (KM):"
-                    android:textColor="#94A3B8"
+                    android:textColor="#CBD5E1"
                     android:textSize="13sp"
                     android:layout_marginTop="16dp"/>
 
@@ -218,7 +251,7 @@
                     android:hint="e.g. 14350"
                     android:inputType="numberDecimal"
                     android:textColor="#FFFFFF"
-                    android:textColorHint="#475569"
+                    android:textColorHint="#94A3B8"
                     android:textSize="15sp"
                     android:paddingLeft="10dp"
                     android:background="@android:drawable/editbox_background_normal"/>
@@ -277,7 +310,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Last synced: Today 18:00"
-                android:textColor="#94A3B8"
+                android:textColor="#CBD5E1"
                 android:textSize="13sp"
                 android:layout_marginTop="10dp" />
 
@@ -307,7 +340,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:columnCount="2"
-            android:rowCount="2"
+            android:rowCount="3"
             android:alignmentMode="alignMargins"
             android:columnOrderPreserved="false"
             android:layout_marginBottom="20dp">
@@ -347,7 +380,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Add &amp; tag customers"
-                    android:textColor="#64748B"
+                    android:textColor="#CBD5E1"
                     android:layout_marginTop="4dp"
                     android:textSize="11sp" />
 
@@ -388,7 +421,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Visual invoice catalog"
-                    android:textColor="#64748B"
+                    android:textColor="#CBD5E1"
                     android:layout_marginTop="4dp"
                     android:textSize="11sp" />
 
@@ -429,7 +462,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Local logs &amp; audits"
-                    android:textColor="#64748B"
+                    android:textColor="#CBD5E1"
                     android:layout_marginTop="4dp"
                     android:textSize="11sp" />
 
@@ -470,7 +503,48 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Targets &amp; limits"
-                    android:textColor="#64748B"
+                    android:textColor="#CBD5E1"
+                    android:layout_marginTop="4dp"
+                    android:textSize="11sp" />
+
+            </LinearLayout>
+
+            <!-- Card E: Product Catalog -->
+            <LinearLayout
+                android:id="@+id/navCatalog"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_rowWeight="1"
+                android:layout_margin="6dp"
+                android:background="@android:drawable/dialog_holo_dark_frame"
+                android:backgroundTint="#1E293B"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📖"
+                    android:textSize="32sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Product Catalog"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginTop="10dp"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Browse items &amp; stock"
+                    android:textColor="#CBD5E1"
                     android:layout_marginTop="4dp"
                     android:textSize="11sp" />
 
@@ -480,3 +554,4 @@
 
     </LinearLayout>
 </ScrollView>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -55,7 +55,9 @@ public class ImageDownloadManager {
                         if (lastSlash != -1) {
                             filename = imageUrlString.substring(lastSlash + 1);
                         }
-                        absoluteUrl = "https://curtiss.suzxlabs.com/uploads/products/" + filename;
+                        android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+                        String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+                        absoluteUrl = baseUrl + "/uploads/products/" + filename;
                     } else {
                         // If it starts with http, clean any erroneous "public/uploads/products" reference
                         if (imageUrlString.contains("public/uploads/products/")) {

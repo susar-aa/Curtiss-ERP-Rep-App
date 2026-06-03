@@ -46,7 +46,7 @@
             android:backgroundTint="#1E293B"
             android:hint="Search invoices by customer or number..."
             android:textColor="#FFFFFF"
-            android:textColorHint="#475569"
+            android:textColorHint="#94A3B8"
             android:textSize="14sp"
             android:paddingLeft="10dp" />
 
@@ -85,7 +85,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="INVOICE: INV-OFFLINE-XXXX"
-                android:textColor="#0066CC"
+                android:textColor="#3B82F6"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -94,7 +94,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Customer Name"
-                android:textColor="#94A3B8"
+                android:textColor="#CBD5E1"
                 android:textSize="13sp"
                 android:layout_marginTop="4dp" />
 
@@ -122,7 +122,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Subtotal:"
-                        android:textColor="#94A3B8"
+                        android:textColor="#CBD5E1"
                         android:textSize="13sp" />
 
                     <TextView
@@ -145,7 +145,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Discounts Given:"
-                        android:textColor="#94A3B8"
+                        android:textColor="#CBD5E1"
                         android:textSize="13sp" />
 
                     <TextView
@@ -168,7 +168,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="VAT (18% included):"
-                        android:textColor="#94A3B8"
+                        android:textColor="#CBD5E1"
                         android:textSize="13sp" />
 
                     <TextView
@@ -221,7 +221,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="20dp"
-                android:backgroundTint="#0066CC"
+                android:backgroundTint="#3B82F6"
                 android:text="Close Details"
                 android:textColor="#FFFFFF" />
 

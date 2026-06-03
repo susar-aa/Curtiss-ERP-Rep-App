@@ -28,6 +28,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 import androidx.appcompat.app.AppCompatActivity;
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationManager;
+import androidx.core.content.ContextCompat;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -107,10 +113,10 @@ public class BillingActivity extends AppCompatActivity {
                 isVisualMode = false;
                 lstProducts.setVisibility(View.VISIBLE);
                 gridProducts.setVisibility(View.GONE);
-                btnModeStandard.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#0066CC")));
+                btnModeStandard.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3B82F6")));
                 btnModeStandard.setTextColor(android.graphics.Color.WHITE);
                 btnModeVisual.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
-                btnModeVisual.setTextColor(android.graphics.Color.parseColor("#94A3B8"));
+                btnModeVisual.setTextColor(android.graphics.Color.parseColor("#CBD5E1"));
             }
         });
 
@@ -120,10 +126,10 @@ public class BillingActivity extends AppCompatActivity {
                 isVisualMode = true;
                 lstProducts.setVisibility(View.GONE);
                 gridProducts.setVisibility(View.VISIBLE);
-                btnModeVisual.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#0066CC")));
+                btnModeVisual.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3B82F6")));
                 btnModeVisual.setTextColor(android.graphics.Color.WHITE);
                 btnModeStandard.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
-                btnModeStandard.setTextColor(android.graphics.Color.parseColor("#94A3B8"));
+                btnModeStandard.setTextColor(android.graphics.Color.parseColor("#CBD5E1"));
             }
         });
 
@@ -449,8 +455,8 @@ public class BillingActivity extends AppCompatActivity {
         double netTotal = subtotal - discount;
         if (netTotal < 0) netTotal = 0;
 
-        // Sri Lanka inclusive VAT is standard, but display 18% tax breakdown for auditing
-        double taxBreakdown = netTotal * 0.18;
+        // VAT is disabled per user request
+        double taxBreakdown = 0.0;
 
         txtCartItemsCount.setText(totalItemsCount + " Items in Cart");
         txtCartSalesSum.setText(String.format(Locale.getDefault(), "LKR %.2f", netTotal));
@@ -482,15 +488,36 @@ public class BillingActivity extends AppCompatActivity {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
         try {
-            // Generate sequential offline invoice number, e.g. INV 20260601invoice0001
-            String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+            // Generate sequential offline invoice number, e.g. YYYYMMDDXXXX
             String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
-            int seq = 1;
-            Cursor seqCursor = db.rawQuery("SELECT COUNT(*) FROM invoices WHERE invoice_date LIKE '" + todayDate + "%'", null);
-            if (seqCursor.moveToFirst()) {
-                seq = seqCursor.getInt(0) + 1;
+            
+            android.content.SharedPreferences seqPrefs = getSharedPreferences("CurtissPrefs", android.content.Context.MODE_PRIVATE);
+            int seq = seqPrefs.getInt("global_invoice_seq", 0);
+            
+            if (seq == 0) {
+                // Try to find the highest suffix from local invoices as fallback
+                Cursor maxCursor = db.rawQuery(
+                    "SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1", null
+                );
+                if (maxCursor != null) {
+                    if (maxCursor.moveToFirst()) {
+                        String lastInvoiceNum = maxCursor.getString(0);
+                        if (lastInvoiceNum.length() >= 4) {
+                            try {
+                                String suffix = lastInvoiceNum.substring(lastInvoiceNum.length() - 4);
+                                seq = Integer.parseInt(suffix);
+                            } catch (Exception e) {
+                                seq = 0;
+                            }
+                        }
+                    }
+                    maxCursor.close();
+                }
             }
-            seqCursor.close();
+            
+            seq++;
+            seqPrefs.edit().putInt("global_invoice_seq", seq).apply();
+            
             String invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
             String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
@@ -507,7 +534,7 @@ public class BillingActivity extends AppCompatActivity {
 
             double netTotal = subtotal - discount;
             if (netTotal < 0) netTotal = 0;
-            double tax = netTotal * 0.18;
+            double tax = 0.0;
 
             // Fetch dynamic payment term and calculate offset due date
             Integer paymentTermId = null;
@@ -524,6 +551,29 @@ public class BillingActivity extends AppCompatActivity {
                 cal.add(java.util.Calendar.DAY_OF_YEAR, daysOffset);
             }
             String dueDateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(cal.getTime());
+
+            // Capture dynamic GPS location
+            double capturedLat = 7.1824;
+            double capturedLng = 79.8801;
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                    Location loc = null;
+                    if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                        loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                    }
+                    if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                        loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                    }
+                    if (loc != null) {
+                        capturedLat = loc.getLatitude();
+                        capturedLng = loc.getLongitude();
+                        android.util.Log.d("BillingActivity", "GPS location acquired: " + capturedLat + ", " + capturedLng);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("BillingActivity", "Location capture exception: " + e.getMessage());
+                }
+            }
 
             // 1. Insert Invoice Header
             ContentValues cvHeader = new ContentValues();
@@ -542,8 +592,8 @@ public class BillingActivity extends AppCompatActivity {
             cvHeader.put("tax", tax);
             cvHeader.put("grand_total", netTotal);
             cvHeader.put("payment_method", payment);
-            cvHeader.put("latitude", 7.1824); // Tag location offline
-            cvHeader.put("longitude", 79.8801);
+            cvHeader.put("latitude", capturedLat); // Tag location offline
+            cvHeader.put("longitude", capturedLng);
             cvHeader.put("is_synced", 0);
 
             long localInvId = db.insert("invoices", null, cvHeader);
@@ -608,7 +658,7 @@ public class BillingActivity extends AppCompatActivity {
         // Invoice Number Label
         TextView txtInvoice = new TextView(this);
         txtInvoice.setText(invoiceNum);
-        txtInvoice.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtInvoice.setTextColor(android.graphics.Color.parseColor("#CBD5E1")); // Slate 400
         txtInvoice.setTextSize(16);
         txtInvoice.setGravity(android.view.Gravity.CENTER);
         txtInvoice.setPadding(0, 0, 0, 16);
@@ -660,7 +710,7 @@ public class BillingActivity extends AppCompatActivity {
         // QR Code Label
         TextView txtQrDesc = new TextView(this);
         txtQrDesc.setText("Scan QR to View Bill Online");
-        txtQrDesc.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtQrDesc.setTextColor(android.graphics.Color.parseColor("#CBD5E1")); // Slate 400
         txtQrDesc.setTextSize(12);
         txtQrDesc.setGravity(android.view.Gravity.CENTER);
         txtQrDesc.setPadding(0, 8, 0, 24);
@@ -710,7 +760,7 @@ public class BillingActivity extends AppCompatActivity {
         Button btnClose = new Button(this);
         btnClose.setText("Back to Dashboard");
         btnClose.setTextColor(android.graphics.Color.WHITE);
-        btnClose.setBackgroundColor(android.graphics.Color.parseColor("#475569")); // Slate 600
+        btnClose.setBackgroundColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 600
         btnClose.setAllCaps(false);
         btnClose.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -936,7 +986,7 @@ public class BillingActivity extends AppCompatActivity {
         // Subtitle
         TextView txtSub = new TextView(this);
         txtSub.setText("Original Price: LKR " + String.format(Locale.getDefault(), "%,.2f", p.price));
-        txtSub.setTextColor(android.graphics.Color.parseColor("#94A3B8"));
+        txtSub.setTextColor(android.graphics.Color.parseColor("#CBD5E1"));
         txtSub.setTextSize(12);
         txtSub.setPadding(0, 8, 0, 24);
         layout.addView(txtSub);
@@ -944,7 +994,7 @@ public class BillingActivity extends AppCompatActivity {
         // 1. Price override input
         TextView lblOverride = new TextView(this);
         lblOverride.setText("UNIT PRICE (LKR):");
-        lblOverride.setTextColor(android.graphics.Color.parseColor("#0066CC"));
+        lblOverride.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
         lblOverride.setTextSize(11);
         lblOverride.setTypeface(null, android.graphics.Typeface.BOLD);
         layout.addView(lblOverride);
@@ -952,7 +1002,7 @@ public class BillingActivity extends AppCompatActivity {
         final EditText edtOverridePrice = new EditText(this);
         edtOverridePrice.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
         edtOverridePrice.setTextColor(android.graphics.Color.WHITE);
-        edtOverridePrice.setHintTextColor(android.graphics.Color.parseColor("#475569"));
+        edtOverridePrice.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
         edtOverridePrice.setText(String.valueOf(p.price));
         edtOverridePrice.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         layout.addView(edtOverridePrice);
@@ -960,7 +1010,7 @@ public class BillingActivity extends AppCompatActivity {
         // 2. Quantity input
         TextView lblQty = new TextView(this);
         lblQty.setText("QUANTITY:");
-        lblQty.setTextColor(android.graphics.Color.parseColor("#0066CC"));
+        lblQty.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
         lblQty.setTextSize(11);
         lblQty.setTypeface(null, android.graphics.Typeface.BOLD);
         lblQty.setPadding(0, 16, 0, 0);
@@ -969,7 +1019,7 @@ public class BillingActivity extends AppCompatActivity {
         final EditText edtQtyInput = new EditText(this);
         edtQtyInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         edtQtyInput.setTextColor(android.graphics.Color.WHITE);
-        edtQtyInput.setHintTextColor(android.graphics.Color.parseColor("#475569"));
+        edtQtyInput.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
         edtQtyInput.setText("1");
         edtQtyInput.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         layout.addView(edtQtyInput);
@@ -994,7 +1044,7 @@ public class BillingActivity extends AppCompatActivity {
         final EditText edtDiscountPct = new EditText(this);
         edtDiscountPct.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
         edtDiscountPct.setTextColor(android.graphics.Color.WHITE);
-        edtDiscountPct.setHintTextColor(android.graphics.Color.parseColor("#475569"));
+        edtDiscountPct.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
         edtDiscountPct.setHint("0.0%");
         edtDiscountPct.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         colPct.addView(edtDiscountPct);
@@ -1021,7 +1071,7 @@ public class BillingActivity extends AppCompatActivity {
         final EditText edtDiscountAmt = new EditText(this);
         edtDiscountAmt.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
         edtDiscountAmt.setTextColor(android.graphics.Color.WHITE);
-        edtDiscountAmt.setHintTextColor(android.graphics.Color.parseColor("#475569"));
+        edtDiscountAmt.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
         edtDiscountAmt.setHint("Rs 0.00");
         edtDiscountAmt.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         colAmt.addView(edtDiscountAmt);
@@ -1113,7 +1163,7 @@ public class BillingActivity extends AppCompatActivity {
         Button btnCancel = new Button(this);
         btnCancel.setText("Cancel");
         btnCancel.setTextColor(android.graphics.Color.WHITE);
-        btnCancel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#475569")));
+        btnCancel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#94A3B8")));
         btnRow.addView(btnCancel);
 
         View spacerBtn = new View(this);

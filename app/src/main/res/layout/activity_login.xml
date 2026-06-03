@@ -47,7 +47,7 @@
                 android:layout_marginBottom="32dp"
                 android:fontFamily="sans-serif-light"
                 android:text="Field Representative POS Portal"
-                android:textColor="#94A3B8"
+                android:textColor="#CBD5E1"
                 android:textSize="14sp" />
 
             <!-- Login Credentials Input Card -->
@@ -76,7 +76,7 @@
                     android:layout_marginBottom="6dp"
                     android:fontFamily="sans-serif-medium"
                     android:text="USERNAME"
-                    android:textColor="#94A3B8"
+                    android:textColor="#CBD5E1"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -91,7 +91,7 @@
                     android:paddingLeft="12dp"
                     android:paddingRight="12dp"
                     android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
+                    android:textColorHint="#94A3B8"
                     android:textSize="15sp" />
 
                 <!-- Password input wrapper -->
@@ -101,7 +101,7 @@
                     android:layout_marginBottom="6dp"
                     android:fontFamily="sans-serif-medium"
                     android:text="PASSWORD"
-                    android:textColor="#94A3B8"
+                    android:textColor="#CBD5E1"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -116,7 +116,7 @@
                     android:paddingLeft="12dp"
                     android:paddingRight="12dp"
                     android:textColor="#FFFFFF"
-                    android:textColorHint="#64748B"
+                    android:textColorHint="#94A3B8"
                     android:textSize="15sp" />
 
                 <!-- Primary Login Button -->

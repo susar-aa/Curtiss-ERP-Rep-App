@@ -48,7 +48,7 @@
             android:hint="Search shops by name or territory..."
             android:inputType="text"
             android:textColor="#FFFFFF"
-            android:textColorHint="#475569"
+            android:textColorHint="#94A3B8"
             android:textSize="15sp"
             android:paddingLeft="12dp" />
 
@@ -70,7 +70,7 @@
         android:layout_height="60dp"
         android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
-        android:backgroundTint="#0066CC"
+        android:backgroundTint="#3B82F6"
         android:elevation="6dp"
         android:text="+"
         android:textColor="#FFFFFF"
@@ -101,7 +101,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="TAG NEW SHOP"
-                android:textColor="#0066CC"
+                android:textColor="#3B82F6"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -109,7 +109,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Enter profile details below completely offline"
-                android:textColor="#94A3B8"
+                android:textColor="#CBD5E1"
                 android:textSize="12sp"
                 android:layout_marginTop="4dp" />
 
@@ -122,7 +122,7 @@
                 android:hint="Shop / Customer Name"
                 android:inputType="textPersonName"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#475569"
+                android:textColorHint="#94A3B8"
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
@@ -135,7 +135,7 @@
                 android:hint="Telephone Number"
                 android:inputType="phone"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#475569"
+                android:textColorHint="#94A3B8"
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
@@ -148,7 +148,7 @@
                 android:hint="WhatsApp Number"
                 android:inputType="phone"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#475569"
+                android:textColorHint="#94A3B8"
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
@@ -161,7 +161,7 @@
                 android:hint="Address with Number (e.g. 123 Galle Rd)"
                 android:inputType="textPostalAddress"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#475569"
+                android:textColorHint="#94A3B8"
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
@@ -174,7 +174,7 @@
                 android:hint="Area / State (e.g. Kollupitiya)"
                 android:inputType="textPostalAddress"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#475569"
+                android:textColorHint="#94A3B8"
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
@@ -187,7 +187,7 @@
                 android:hint="City (e.g. Colombo)"
                 android:inputType="textPostalAddress"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#475569"
+                android:textColorHint="#94A3B8"
                 android:background="@android:drawable/editbox_background_normal"
                 android:paddingLeft="10dp" />
 
@@ -212,7 +212,7 @@
                     android:id="@+id/btnCaptureGPS"
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
-                    android:backgroundTint="#0066CC"
+                    android:backgroundTint="#3B82F6"
                     android:text="Tag GPS"
                     android:textSize="11sp"
                     android:textColor="#FFFFFF"/>

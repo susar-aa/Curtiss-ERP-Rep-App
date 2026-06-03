@@ -22,6 +22,7 @@ public class SyncManager {
 
     private static final String TAG = "SyncManager";
     private static SyncManager instance;
+    private final Context context;
     private final DatabaseHelper dbHelper;
     private final ExecutorService executorService;
     private final Handler mainHandler;
@@ -33,7 +34,8 @@ public class SyncManager {
     }
 
     private SyncManager(Context context) {
-        this.dbHelper = new DatabaseHelper(context.getApplicationContext());
+        this.context = context.getApplicationContext();
+        this.dbHelper = new DatabaseHelper(this.context);
         this.executorService = Executors.newSingleThreadExecutor();
         this.mainHandler = new Handler(Looper.getMainLooper());
     }
@@ -57,7 +59,7 @@ public class SyncManager {
                 try {
                     // --- STEP 1: PULL DATA FROM SERVER ---
                     updateProgress(listener, "Downloading items & customer registry...");
-                    boolean pullSuccess = executePull(context);
+                    boolean pullSuccess = executePull(context, userId);
                     
                     if (!pullSuccess) {
                         completeSync(listener, false, "Pull sync failed. Server unreachable.");
@@ -82,10 +84,58 @@ public class SyncManager {
         });
     }
 
+    // Special Clean Sync: Push pending, wipe cache, pull fresh data
+    public void startCleanSync(final Context context, final int userId, final SyncListener listener) {
+        if (listener != null) {
+            listener.onSyncStarted();
+        }
+
+        executorService.submit(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // 1. Check for pending uploads
+                    updateProgress(listener, "Checking offline unsynced data...");
+                    boolean hasPending = dbHelper.hasPendingUploads();
+                    
+                    if (hasPending) {
+                        updateProgress(listener, "Found unsynced changes! Uploading to server first...");
+                        boolean pushSuccess = executePush(userId);
+                        if (!pushSuccess) {
+                            // If push fails, DO NOT clear the database to protect user offline changes
+                            completeSync(listener, false, "Unable to upload offline changes. Preserving database cache.");
+                            return;
+                        }
+                    }
+
+                    // 2. Clear local synced database safely
+                    updateProgress(listener, "Wiping old cache database...");
+                    dbHelper.clearLocalData(false); // Preserves unsynced if any remained
+
+                    // 3. Pull fresh data from online server
+                    updateProgress(listener, "Downloading fresh catalog, routes & customers...");
+                    boolean pullSuccess = executePull(context, userId);
+                    
+                    if (pullSuccess) {
+                        completeSync(listener, true, "Database refreshed successfully!");
+                    } else {
+                        completeSync(listener, false, "Pull sync failed. Server unreachable.");
+                    }
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Clean Sync exception: " + e.getMessage());
+                    completeSync(listener, false, "Exception: " + e.getMessage());
+                }
+            }
+        });
+    }
+
     // Execute server Pull
-    private boolean executePull(Context context) {
+    private boolean executePull(Context context, int userId) {
         try {
-            URL url = new URL("https://curtiss.suzxlabs.com/rep/RepDashboard/sync_pull?api_sync=1");
+            android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+            String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+            URL url = new URL(baseUrl + "/rep/RepDashboard/sync_pull?api_sync=1&user_id=" + userId);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(15000);
@@ -166,9 +216,11 @@ public class SyncManager {
                             double lat = c.optDouble("latitude", 0.0);
                             double lng = c.optDouble("longitude", 0.0);
                             double outstanding = c.optDouble("outstanding", c.optDouble("outstanding_amount", c.optDouble("balance", 0.0)));
+                            int mcaId = c.optInt("mca_id", 0);
+                            String mcaName = c.optString("mca_name", "");
 
                             // Check if this serverId is already in SQLite
-                            Cursor cursor = db.rawQuery("SELECT id FROM customers WHERE server_id = " + serverId, null);
+                            Cursor cursor = db.rawQuery("SELECT id FROM customers WHERE server_id = ?", new String[]{String.valueOf(serverId)});
                             ContentValues cv = new ContentValues();
                             cv.put("server_id", serverId);
                             cv.put("name", name);
@@ -179,6 +231,8 @@ public class SyncManager {
                             cv.put("latitude", lat);
                             cv.put("longitude", lng);
                             cv.put("outstanding", outstanding);
+                            cv.put("mca_id", mcaId);
+                            cv.put("mca_name", mcaName);
                             cv.put("is_synced", 1);
 
                             if (cursor.moveToFirst()) {
@@ -252,6 +306,138 @@ public class SyncManager {
                             }
                         }
 
+                        // 6. Sync Outstanding Credit Invoices
+                        if (response.has("credit_invoices") && !response.isNull("credit_invoices")) {
+                            db.execSQL("CREATE TABLE IF NOT EXISTS credit_invoices (id INTEGER PRIMARY KEY, invoice_number TEXT NOT NULL, customer_id INTEGER, invoice_date TEXT, true_grand_total REAL, customer_name TEXT, customer_address TEXT)");
+                            db.execSQL("DELETE FROM credit_invoices");
+                            JSONArray cInvs = response.getJSONArray("credit_invoices");
+                            for (int i = 0; i < cInvs.length(); i++) {
+                                JSONObject cObj = cInvs.getJSONObject(i);
+                                ContentValues cv = new ContentValues();
+                                cv.put("id", cObj.getInt("id"));
+                                cv.put("invoice_number", cObj.getString("invoice_number"));
+                                cv.put("customer_id", cObj.getInt("customer_id"));
+                                cv.put("invoice_date", cObj.optString("invoice_date", ""));
+                                cv.put("true_grand_total", cObj.optDouble("true_grand_total", 0.0));
+                                cv.put("customer_name", cObj.optString("customer_name", ""));
+                                cv.put("customer_address", cObj.optString("customer_address", ""));
+                                db.insertWithOnConflict("credit_invoices", null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+                            }
+                        }
+
+                        // 7. Sync Ongoing Active Route (if representative has one started on server)
+                        if (response.has("active_route") && !response.isNull("active_route") && response.optJSONObject("active_route") != null) {
+                            JSONObject act = response.getJSONObject("active_route");
+                            int serverRouteId = act.getInt("id");
+                            String routeName = act.getString("route_name");
+                            double startMeter = act.optDouble("start_meter", 0.0);
+                            String startTime = act.optString("start_time", "");
+                            double startLat = act.optDouble("start_lat", 0.0);
+                            double startLng = act.optDouble("start_lng", 0.0);
+                            String status = act.optString("status", "Active");
+
+                            // Check if this route is already in the SQLite database
+                            Cursor routeCursor = db.rawQuery("SELECT id, is_synced FROM daily_routes WHERE server_id = ?", new String[]{String.valueOf(serverRouteId)});
+                            ContentValues rCv = new ContentValues();
+                            rCv.put("server_id", serverRouteId);
+                            rCv.put("route_name", routeName);
+                            rCv.put("start_meter", startMeter);
+                            rCv.put("start_time", startTime);
+                            rCv.put("start_lat", startLat);
+                            rCv.put("start_lng", startLng);
+                            rCv.put("status", status);
+                            rCv.put("is_synced", 1);
+
+                            long localRouteId;
+                            if (routeCursor.moveToFirst()) {
+                                localRouteId = routeCursor.getLong(0);
+                                int localIsSynced = routeCursor.getInt(1);
+                                // ONLY update status and fields if local route changes are already pushed/synced to server
+                                if (localIsSynced == 1) {
+                                    db.update("daily_routes", rCv, "id = ?", new String[]{String.valueOf(localRouteId)});
+                                }
+                            } else {
+                                localRouteId = db.insert("daily_routes", null, rCv);
+                            }
+                            routeCursor.close();
+
+                            // 8. Sync Invoices associated with this active route
+                            if (response.has("active_route_invoices") && !response.isNull("active_route_invoices")) {
+                                JSONArray invs = response.getJSONArray("active_route_invoices");
+                                for (int j = 0; j < invs.length(); j++) {
+                                    JSONObject invObj = invs.getJSONObject(j);
+                                    int serverInvId = invObj.getInt("id");
+                                    String invNumber = invObj.getString("invoice_number");
+                                    int serverCustId = invObj.getInt("customer_id");
+                                    String invDate = invObj.optString("invoice_date", "");
+                                    String dueDate = invObj.optString("due_date", "");
+                                    int payTermId = invObj.optInt("payment_term_id", 0);
+                                    double subtotal = invObj.optDouble("total_amount", 0.0);
+                                    double discount = invObj.optDouble("global_discount_val", 0.0);
+                                    double tax = invObj.optDouble("tax_amount", 0.0);
+                                    double grandTotal = subtotal - discount + tax;
+
+                                    // Resolve local customer ID
+                                    int localCustId = serverCustId;
+                                    Cursor custCursor = db.rawQuery("SELECT id FROM customers WHERE server_id = ?", new String[]{String.valueOf(serverCustId)});
+                                    if (custCursor.moveToFirst()) {
+                                        localCustId = custCursor.getInt(0);
+                                    }
+                                    custCursor.close();
+
+                                    // Check if invoice exists locally
+                                    Cursor invCursor = db.rawQuery("SELECT id, is_synced FROM invoices WHERE server_id = ?", new String[]{String.valueOf(serverInvId)});
+                                    ContentValues iCv = new ContentValues();
+                                    iCv.put("server_id", serverInvId);
+                                    iCv.put("invoice_number", invNumber);
+                                    iCv.put("customer_id", localCustId);
+                                    iCv.put("route_id", localRouteId);
+                                    iCv.put("invoice_date", invDate);
+                                    iCv.put("due_date", dueDate);
+                                    iCv.put("payment_term_id", payTermId > 0 ? payTermId : null);
+                                    iCv.put("subtotal", subtotal);
+                                    iCv.put("discount", discount);
+                                    iCv.put("tax", tax);
+                                    iCv.put("grand_total", grandTotal);
+                                    iCv.put("payment_method", "Credit");
+                                    iCv.put("is_synced", 1);
+
+                                    long localInvId;
+                                    if (invCursor.moveToFirst()) {
+                                        localInvId = invCursor.getLong(0);
+                                        int localInvSynced = invCursor.getInt(1);
+                                        // ONLY update invoice locally if changes are already pushed/synced
+                                        if (localInvSynced == 1) {
+                                            db.update("invoices", iCv, "id = ?", new String[]{String.valueOf(localInvId)});
+                                        }
+                                    } else {
+                                        localInvId = db.insert("invoices", null, iCv);
+                                    }
+                                    invCursor.close();
+
+                                    // 9. Sync Invoice Items for this invoice
+                                    if (response.has("active_route_invoice_items") && !response.isNull("active_route_invoice_items")) {
+                                        JSONArray items = response.getJSONArray("active_route_invoice_items");
+                                        db.execSQL("DELETE FROM invoice_items WHERE invoice_id = " + localInvId);
+                                        for (int k = 0; k < items.length(); k++) {
+                                            JSONObject itemObj = items.getJSONObject(k);
+                                            if (itemObj.getInt("invoice_id") == serverInvId) {
+                                                ContentValues itCv = new ContentValues();
+                                                itCv.put("invoice_id", localInvId);
+                                                itCv.put("product_id", itemObj.getInt("item_id"));
+                                                itCv.put("product_name", itemObj.getString("description"));
+                                                itCv.put("quantity", itemObj.getInt("quantity"));
+                                                itCv.put("unit_price", itemObj.getDouble("unit_price"));
+                                                itCv.put("discount_val", itemObj.optDouble("discount_value", 0.0));
+                                                itCv.put("total", itemObj.getDouble("total"));
+                                                db.insert("invoice_items", null, itCv);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         db.setTransactionSuccessful();
                         Log.d(TAG, "Pull Sync Successful");
                         return true;
@@ -316,6 +502,7 @@ public class SyncManager {
             // 3. Fetch local unsynced Invoices
             JSONArray invArray = new JSONArray();
             Cursor invCursor = db.rawQuery("SELECT * FROM invoices WHERE is_synced = 0", null);
+            Log.d(TAG, "SyncManager: Found " + invCursor.getCount() + " unsynced local invoices.");
             while (invCursor.moveToNext()) {
                 JSONObject inv = new JSONObject();
                 int localInvId = invCursor.getInt(invCursor.getColumnIndexOrThrow("id"));
@@ -332,6 +519,12 @@ public class SyncManager {
                 }
                 cCust.close();
                 inv.put("customer_id", serverCustId);
+                
+                // Track associated route_id in payload for precise server side route matching
+                int localRouteId = invCursor.getInt(invCursor.getColumnIndexOrThrow("route_id"));
+                inv.put("local_route_id", localRouteId);
+                Log.d(TAG, "SyncManager: Staging invoice " + invCursor.getString(invCursor.getColumnIndexOrThrow("invoice_number")) + " (local_id: " + localInvId + ", local_route_id: " + localRouteId + ", server_customer_id: " + serverCustId + ")");
+                
                 inv.put("invoice_date", invCursor.getString(invCursor.getColumnIndexOrThrow("invoice_date")));
                 inv.put("due_date", invCursor.getString(invCursor.getColumnIndexOrThrow("due_date")));
                 inv.put("subtotal", invCursor.getDouble(invCursor.getColumnIndexOrThrow("subtotal")));
@@ -369,13 +562,41 @@ public class SyncManager {
             invCursor.close();
             payload.put("invoices", invArray);
 
+            // 4. Fetch local unsynced Payments (Outstanding collections)
+            JSONArray payArray = new JSONArray();
+            try {
+                Cursor payCursor = db.rawQuery("SELECT * FROM payments WHERE is_synced = 0", null);
+                while (payCursor.moveToNext()) {
+                    JSONObject payObj = new JSONObject();
+                    payObj.put("customer_id", payCursor.getInt(payCursor.getColumnIndexOrThrow("customer_id")));
+                    payObj.put("server_route_id", payCursor.getInt(payCursor.getColumnIndexOrThrow("server_route_id")));
+                    payObj.put("payment_method", payCursor.getString(payCursor.getColumnIndexOrThrow("payment_method")));
+                    payObj.put("amount", payCursor.getDouble(payCursor.getColumnIndexOrThrow("amount")));
+                    payObj.put("bank_name", payCursor.getString(payCursor.getColumnIndexOrThrow("bank_name")));
+                    payObj.put("cheque_number", payCursor.getString(payCursor.getColumnIndexOrThrow("cheque_number")));
+                    payObj.put("cheque_date", payCursor.getString(payCursor.getColumnIndexOrThrow("cheque_date")));
+                    payObj.put("latitude", payCursor.getDouble(payCursor.getColumnIndexOrThrow("latitude")));
+                    payObj.put("longitude", payCursor.getDouble(payCursor.getColumnIndexOrThrow("longitude")));
+                    payArray.put(payObj);
+                }
+                payCursor.close();
+            } catch (Exception e) {
+                // Table might not exist, ignore
+            }
+            payload.put("payments", payArray);
+
             // Skip API post if there's nothing to upload
-            if (custArray.length() == 0 && routeArray.length() == 0 && invArray.length() == 0) {
+            if (custArray.length() == 0 && routeArray.length() == 0 && invArray.length() == 0 && payArray.length() == 0) {
                 return true;
             }
 
             // POST unified payload to Plesk Sync API
-            URL url = new URL("https://curtiss.suzxlabs.com/rep/RepDashboard/sync_push?api_sync=1");
+            android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+            String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+            URL url = new URL(baseUrl + "/rep/RepDashboard/sync_push?api_sync=1");
+            Log.d(TAG, "Starting Push Sync POST to: " + url.toString());
+            Log.d(TAG, "Push Payload details: " + payload.toString());
+
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
@@ -389,7 +610,10 @@ public class SyncManager {
             os.flush();
             os.close();
 
-            if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            int responseCode = conn.getResponseCode();
+            Log.d(TAG, "Push server responded with code: " + responseCode);
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder sb = new StringBuilder();
                 String line;
@@ -397,6 +621,8 @@ public class SyncManager {
                     sb.append(line);
                 }
                 reader.close();
+
+                Log.d(TAG, "Push raw server response body: " + sb.toString());
 
                 JSONObject response = new JSONObject(sb.toString());
                 if (response.optBoolean("success", false)) {
@@ -440,20 +666,57 @@ public class SyncManager {
                             ContentValues cv = new ContentValues();
                             cv.put("server_id", serverId);
                             cv.put("is_synced", 1);
+                            if (map.has("invoice_number")) {
+                                String mappedNum = map.getString("invoice_number");
+                                cv.put("invoice_number", mappedNum);
+
+                                // Parse suffix and update SharedPreferences so next invoice starts from here!
+                                if (mappedNum.length() >= 4) {
+                                    try {
+                                        String suffix = mappedNum.substring(mappedNum.length() - 4);
+                                        int parsedSeq = Integer.parseInt(suffix);
+                                        android.content.SharedPreferences seqPrefs = context.getSharedPreferences("CurtissPrefs", Context.MODE_PRIVATE);
+                                        int currentSeq = seqPrefs.getInt("global_invoice_seq", 0);
+                                        if (parsedSeq > currentSeq) {
+                                            seqPrefs.edit().putInt("global_invoice_seq", parsedSeq).apply();
+                                        }
+                                    } catch (Exception e) {
+                                        // Ignore parsing errors
+                                    }
+                                }
+                            }
                             db.update("invoices", cv, "id = ?", new String[]{String.valueOf(localId)});
                         }
 
+                        // 4. Mark payment collections synced
+                        try {
+                            db.execSQL("UPDATE payments SET is_synced = 1 WHERE is_synced = 0");
+                        } catch (Exception e) {
+                            Log.e(TAG, "Failed updating local payments is_synced: " + e.getMessage());
+                        }
+
                         db.setTransactionSuccessful();
-                        Log.d(TAG, "Push Sync Successful");
+                        Log.d(TAG, "Push Sync Successful: Staged payments & invoices committed successfully!");
                         return true;
                     } finally {
                         db.endTransaction();
                     }
+                } else {
+                    Log.e(TAG, "Push Sync rejected by server business logic: " + response.optString("message"));
                 }
+            } else {
+                BufferedReader errorReader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                StringBuilder errorSb = new StringBuilder();
+                String errLine;
+                while ((errLine = errorReader.readLine()) != null) {
+                    errorSb.append(errLine);
+                }
+                errorReader.close();
+                Log.e(TAG, "Push Sync server error response (" + responseCode + "): " + errorSb.toString());
             }
             conn.disconnect();
         } catch (Exception e) {
-            Log.e(TAG, "Push error: " + e.getMessage());
+            Log.e(TAG, "Push error crash/exception: " + e.getMessage(), e);
         }
         return false;
     }

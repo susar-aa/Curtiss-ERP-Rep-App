@@ -30,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Category Name"
-            android:textColor="#64748B"
+            android:textColor="#94A3B8"
             android:textSize="11sp"
             android:layout_marginTop="2dp" />
 
@@ -40,7 +40,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="LKR 1,250.00"
-            android:textColor="#0066CC"
+            android:textColor="#3B82F6"
             android:textSize="13sp"
             android:textStyle="bold"
             android:layout_marginTop="6dp" />

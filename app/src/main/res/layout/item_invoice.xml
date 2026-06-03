@@ -39,7 +39,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Shops: Lakeside Wholesale"
-        android:textColor="#0066CC"
+        android:textColor="#3B82F6"
         android:textSize="13sp"
         android:textStyle="bold"
         android:layout_marginTop="4dp" />
@@ -50,7 +50,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Billed on: 2026-05-29 19:42"
-        android:textColor="#94A3B8"
+        android:textColor="#CBD5E1"
         android:textSize="12sp"
         android:layout_marginTop="6dp" />
 
@@ -65,7 +65,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Payment: Cheque"
-            android:textColor="#64748B"
+            android:textColor="#94A3B8"
             android:textSize="12sp" />
 
         <TextView

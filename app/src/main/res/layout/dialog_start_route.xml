@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="START DAILY ROUTE"
-        android:textColor="#0066CC"
+        android:textColor="#3B82F6"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_gravity="center_horizontal"
@@ -27,7 +27,7 @@
         android:backgroundTint="#1E293B"
         android:hint="🔍 Search Territory..."
         android:textColor="#FFFFFF"
-        android:textColorHint="#64748B"
+        android:textColorHint="#94A3B8"
         android:textSize="14sp"
         android:paddingLeft="12dp"
         android:layout_marginBottom="12dp"/>
@@ -37,7 +37,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Select Territory:"
-        android:textColor="#94A3B8"
+        android:textColor="#CBD5E1"
         android:textSize="12sp"
         android:textStyle="bold"
         android:layout_marginBottom="6dp"/>
@@ -70,7 +70,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Starting Odometer Mileage (KM):"
-        android:textColor="#94A3B8"
+        android:textColor="#CBD5E1"
         android:textSize="12sp"
         android:textStyle="bold"
         android:layout_marginBottom="6dp"/>
@@ -85,7 +85,7 @@
         android:inputType="number"
         android:maxLength="6"
         android:textColor="#FFFFFF"
-        android:textColorHint="#475569"
+        android:textColorHint="#94A3B8"
         android:textSize="15sp"
         android:paddingLeft="12dp"
         android:layout_marginBottom="24dp"/>
@@ -103,7 +103,7 @@
             android:layout_height="48dp"
             android:backgroundTint="#1E293B"
             android:text="Cancel"
-            android:textColor="#94A3B8"
+            android:textColor="#CBD5E1"
             android:layout_marginRight="10dp"
             android:textStyle="bold"/>
 
@@ -111,7 +111,7 @@
             android:id="@+id/btnStartTripDialog"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
-            android:backgroundTint="#0066CC"
+            android:backgroundTint="#3B82F6"
             android:text="Start Trip"
             android:textColor="#FFFFFF"
             android:textStyle="bold"/>

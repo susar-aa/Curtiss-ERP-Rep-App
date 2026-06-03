@@ -90,18 +90,30 @@ public class LoginActivity extends AppCompatActivity {
                         userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
                         if (userObj != null) {
                             authenticated = true;
+                            prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
                         }
                     } catch (Exception e) {
                         android.util.Log.e("LoginActivity", "Production auth failed: " + e.getMessage());
                         // Try localhost emulator backup fallback
                         try {
-                            userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
+                            userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/rep/RepDashboard/api_login?api_sync=1");
                             if (userObj != null) {
                                 authenticated = true;
+                                prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP").apply();
                             }
                         } catch (Exception ex) {
                             android.util.Log.e("LoginActivity", "Localhost backup auth failed: " + ex.getMessage());
-                            errorMsg = e.getMessage();
+                            // Try localhost public subfolder fallback
+                            try {
+                                userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
+                                if (userObj != null) {
+                                    authenticated = true;
+                                    prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP/public").apply();
+                                }
+                            } catch (Exception ex2) {
+                                android.util.Log.e("LoginActivity", "Localhost public auth failed: " + ex2.getMessage());
+                                errorMsg = e.getMessage();
+                            }
                         }
                     }
                 }
@@ -150,8 +162,8 @@ public class LoginActivity extends AppCompatActivity {
                             txtSyncDetails.setText("Authentication successful! Populating offline databases...");
                             Toast.makeText(LoginActivity.this, "Welcome, " + firstName + " " + lastName + "! Syncing products...", Toast.LENGTH_LONG).show();
 
-                            // Trigger immediate post-login background sync
-                            SyncManager.getInstance(LoginActivity.this).startSync(LoginActivity.this, repUserId, new SyncManager.SyncListener() {
+                            // Trigger immediate post-login background clean sync
+                            SyncManager.getInstance(LoginActivity.this).startCleanSync(LoginActivity.this, repUserId, new SyncManager.SyncListener() {
                                 @Override
                                 public void onSyncStarted() {
                                     txtSyncDetails.setText("Initializing offline database synchronization...");
@@ -231,19 +243,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private boolean performLocalAuthentication(String username, String password) {
-        // Developer hardcoded bypass for testing resilience on physical device
-        if (username.equalsIgnoreCase("rep") && password.equals("123")) {
-            android.util.Log.d("LoginActivity", "Local developer bypass triggered successfully for rep / 123");
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putInt("user_id", 12);
-            editor.putString("username", "rep");
-            editor.putInt("employee_id", 1);
-            editor.putString("first_name", "Susara");
-            editor.putString("last_name", "Senarathne");
-            editor.apply();
-            return true;
-        }
-
+        // Local developer bypass removed for production security
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cursor = null;
         try {
