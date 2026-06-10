@@ -481,21 +481,116 @@ public class BillingActivity extends AppCompatActivity {
             Toast.makeText(this, "Please select a valid customer shop.", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (cartList.isEmpty()) {
+            Toast.makeText(this, "Your shopping cart is empty.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        processDiscountPromptsAndCheckout();
+    }
 
+    private void processDiscountPromptsAndCheckout() {
+        final List<DiscountCheckResult> itemDiscounts = evaluateItemDiscounts();
+        final DiscountCheckResult billDiscount = evaluateBillDiscount();
+        showItemDiscountPrompts(itemDiscounts, 0, billDiscount);
+    }
+
+    private void showItemDiscountPrompts(final List<DiscountCheckResult> itemDiscounts, final int index, final DiscountCheckResult billDiscount) {
+        if (index < itemDiscounts.size()) {
+            final DiscountCheckResult rule = itemDiscounts.get(index);
+            final int freeQty = (int) rule.rewardVal;
+
+            androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+            builder.setTitle("Free Issue Offer!");
+            builder.setMessage("You qualify for " + freeQty + " free unit(s) of \"" + rule.targetItemName + "\" under promotional rule \"" + rule.name + "\".\n\nWould you like to accept this offer?");
+            builder.setPositiveButton("Accept", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    // Add free item to cart
+                    CartItemModel freeItem = new CartItemModel();
+                    freeItem.productId = rule.targetItemId;
+                    freeItem.name = rule.targetItemName + " (Free Issue)";
+                    freeItem.price = 0.0;
+                    freeItem.wholesalePrice = 0.0;
+                    freeItem.activePrice = 0.0;
+                    freeItem.quantity = freeQty;
+                    freeItem.customPrice = 0.0;
+                    freeItem.discountPercent = 0.0;
+                    freeItem.discountAmount = 0.0;
+                    freeItem.discountVal = 0.0;
+                    freeItem.total = 0.0;
+                    cartList.add(freeItem);
+
+                    recalculateCart();
+                    
+                    // Show next prompt
+                    showItemDiscountPrompts(itemDiscounts, index + 1, billDiscount);
+                }
+            });
+            builder.setNegativeButton("Reject", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                    // Show next prompt
+                    showItemDiscountPrompts(itemDiscounts, index + 1, billDiscount);
+                }
+            });
+            builder.create().show();
+        } else {
+            showBillDiscountPrompt(billDiscount);
+        }
+    }
+
+    private void showBillDiscountPrompt(final DiscountCheckResult billDiscount) {
+        if (billDiscount != null) {
+            String currentDiscountText = edtDiscount.getText().toString().trim();
+            double currentDiscount = currentDiscountText.isEmpty() ? 0.0 : Double.parseDouble(currentDiscountText);
+
+            if (currentDiscount == 0.0) {
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("Discount Offer!");
+                builder.setMessage("Your subtotal qualifies for a " + String.format(Locale.getDefault(), "%.1f", billDiscount.rewardVal) + "% global discount under \"" + billDiscount.name + "\".\n\nWould you like to apply this discount?");
+                builder.setPositiveButton("Accept", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        double subtotal = 0.0;
+                        for (CartItemModel item : cartList) {
+                            subtotal += item.total;
+                        }
+                        double discountAmt = subtotal * (billDiscount.rewardVal / 100.0);
+                        edtDiscount.setText(String.format(Locale.getDefault(), "%.2f", discountAmt));
+                        edtDirectDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", billDiscount.rewardVal));
+
+                        recalculateCart();
+                        executeDatabaseCheckout();
+                    }
+                });
+                builder.setNegativeButton("Reject", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        executeDatabaseCheckout();
+                    }
+                });
+                builder.create().show();
+                return;
+            }
+        }
+        executeDatabaseCheckout();
+    }
+
+    private void executeDatabaseCheckout() {
         CustomerModel customer = selectedCustomer;
         String payment = "Term";
 
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
         try {
-            // Generate sequential offline invoice number, e.g. YYYYMMDDXXXX
             String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
-            
+
             android.content.SharedPreferences seqPrefs = getSharedPreferences("CurtissPrefs", android.content.Context.MODE_PRIVATE);
             int seq = seqPrefs.getInt("global_invoice_seq", 0);
-            
+
             if (seq == 0) {
-                // Try to find the highest suffix from local invoices as fallback
                 Cursor maxCursor = db.rawQuery(
                     "SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1", null
                 );
@@ -514,10 +609,10 @@ public class BillingActivity extends AppCompatActivity {
                     maxCursor.close();
                 }
             }
-            
+
             seq++;
             seqPrefs.edit().putInt("global_invoice_seq", seq).apply();
-            
+
             String invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
             String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
@@ -536,7 +631,6 @@ public class BillingActivity extends AppCompatActivity {
             if (netTotal < 0) netTotal = 0;
             double tax = 0.0;
 
-            // Fetch dynamic payment term and calculate offset due date
             Integer paymentTermId = null;
             int daysOffset = 0;
             int termPos = spinnerPaymentTerm.getSelectedItemPosition();
@@ -552,7 +646,6 @@ public class BillingActivity extends AppCompatActivity {
             }
             String dueDateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(cal.getTime());
 
-            // Capture dynamic GPS location
             double capturedLat = 7.1824;
             double capturedLng = 79.8801;
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -568,17 +661,15 @@ public class BillingActivity extends AppCompatActivity {
                     if (loc != null) {
                         capturedLat = loc.getLatitude();
                         capturedLng = loc.getLongitude();
-                        android.util.Log.d("BillingActivity", "GPS location acquired: " + capturedLat + ", " + capturedLng);
                     }
                 } catch (Exception e) {
                     android.util.Log.e("BillingActivity", "Location capture exception: " + e.getMessage());
                 }
             }
 
-            // 1. Insert Invoice Header
             ContentValues cvHeader = new ContentValues();
             cvHeader.put("invoice_number", invoiceNum);
-            cvHeader.put("customer_id", customer.id); // Save local SQLite customer_id
+            cvHeader.put("customer_id", customer.id);
             cvHeader.put("route_id", currentRouteLocalId);
             cvHeader.put("invoice_date", dateString);
             cvHeader.put("due_date", dueDateString);
@@ -592,13 +683,12 @@ public class BillingActivity extends AppCompatActivity {
             cvHeader.put("tax", tax);
             cvHeader.put("grand_total", netTotal);
             cvHeader.put("payment_method", payment);
-            cvHeader.put("latitude", capturedLat); // Tag location offline
+            cvHeader.put("latitude", capturedLat);
             cvHeader.put("longitude", capturedLng);
             cvHeader.put("is_synced", 0);
 
             long localInvId = db.insert("invoices", null, cvHeader);
 
-            // 2. Insert Invoice Items & Update Stocks
             for (CartItemModel item : cartList) {
                 ContentValues cvItem = new ContentValues();
                 cvItem.put("invoice_id", localInvId);
@@ -610,8 +700,6 @@ public class BillingActivity extends AppCompatActivity {
                 cvItem.put("total", item.total);
 
                 db.insert("invoice_items", null, cvItem);
-
-                // Reserve quantity in local SQLite to block over-selling offline
                 db.execSQL("UPDATE products SET quantity_reserved = quantity_reserved + " + item.quantity + " WHERE id = " + item.productId);
             }
 
@@ -623,6 +711,107 @@ public class BillingActivity extends AppCompatActivity {
         } finally {
             db.endTransaction();
         }
+    }
+
+    private List<DiscountCheckResult> evaluateItemDiscounts() {
+        List<DiscountCheckResult> qualified = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(
+                "SELECT r.id, r.name, r.rule_type, r.target_item_id, p.name as target_item_name, " +
+                "t.min_threshold, t.reward_val " +
+                "FROM discount_rules r " +
+                "JOIN discount_rule_tiers t ON r.id = t.rule_id " +
+                "LEFT JOIN products p ON r.target_item_id = p.id " +
+                "WHERE r.status = 'Active' AND r.rule_type = 'item_wise' " +
+                "ORDER BY r.id ASC, t.min_threshold DESC", null
+            );
+
+            List<Integer> processedRules = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                int ruleId = cursor.getInt(0);
+                if (processedRules.contains(ruleId)) {
+                    continue;
+                }
+
+                String name = cursor.getString(1);
+                String type = cursor.getString(2);
+                int targetId = cursor.getInt(3);
+                String itemName = cursor.getString(4);
+                double minThresh = cursor.getDouble(5);
+                double rewardVal = cursor.getDouble(6);
+
+                int cartQty = 0;
+                boolean alreadyHasFree = false;
+                for (CartItemModel item : cartList) {
+                    if (item.productId == targetId) {
+                        if (item.customPrice == 0.0 && item.total == 0.0) {
+                            alreadyHasFree = true;
+                        } else {
+                            cartQty += item.quantity;
+                        }
+                    }
+                }
+
+                if (cartQty >= minThresh && !alreadyHasFree) {
+                    processedRules.add(ruleId);
+                    DiscountCheckResult res = new DiscountCheckResult();
+                    res.ruleId = ruleId;
+                    res.name = name;
+                    res.ruleType = type;
+                    res.targetItemId = targetId;
+                    res.targetItemName = itemName != null ? itemName : "Product";
+                    res.minThreshold = minThresh;
+                    res.rewardVal = rewardVal;
+                    qualified.add(res);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("BillingActivity", "Error evaluating item discounts: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return qualified;
+    }
+
+    private DiscountCheckResult evaluateBillDiscount() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            double subtotal = 0.0;
+            for (CartItemModel item : cartList) {
+                subtotal += item.total;
+            }
+
+            cursor = db.rawQuery(
+                "SELECT r.id, r.name, r.rule_type, t.min_threshold, t.reward_val " +
+                "FROM discount_rules r " +
+                "JOIN discount_rule_tiers t ON r.id = t.rule_id " +
+                "WHERE r.status = 'Active' AND r.rule_type = 'bill_wise' " +
+                "ORDER BY t.min_threshold DESC", null
+            );
+
+            while (cursor.moveToNext()) {
+                double minThresh = cursor.getDouble(3);
+                double rewardVal = cursor.getDouble(4);
+
+                if (subtotal >= minThresh) {
+                    DiscountCheckResult res = new DiscountCheckResult();
+                    res.ruleId = cursor.getInt(0);
+                    res.name = cursor.getString(1);
+                    res.ruleType = cursor.getString(2);
+                    res.minThreshold = minThresh;
+                    res.rewardVal = rewardVal;
+                    return res;
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("BillingActivity", "Error evaluating bill discounts: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return null;
     }
 
     private void showShareBillDialog(final String invoiceNum, final String customerName, final String customerPhone) {
@@ -814,6 +1003,16 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     // Helper Models
+    private static class DiscountCheckResult {
+        int ruleId;
+        String name;
+        String ruleType;
+        int targetItemId;
+        String targetItemName;
+        double minThreshold;
+        double rewardVal;
+    }
+
     private static class PaymentTermModel {
         int id;
         String name;

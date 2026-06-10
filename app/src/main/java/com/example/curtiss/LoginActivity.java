@@ -193,53 +193,88 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private JSONObject performNetworkLogin(String username, String password, String endpoint) throws Exception {
-        URL url = new URL(endpoint);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept", "application/json");
-        conn.setDoOutput(true);
-        conn.setConnectTimeout(8000);
-        conn.setReadTimeout(8000);
+        int maxRetries = 3;
+        int attempt = 0;
+        Exception lastException = null;
 
-        JSONObject payload = new JSONObject();
-        payload.put("username", username);
-        payload.put("password", password);
-
-        OutputStream os = conn.getOutputStream();
-        os.write(payload.toString().getBytes("UTF-8"));
-        os.flush();
-        os.close();
-
-        int responseCode = conn.getResponseCode();
-        if (responseCode == 200) {
-            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = in.readLine()) != null) {
-                sb.append(line);
-            }
-            in.close();
-
-            String responseText = sb.toString();
-            if (responseText.trim().startsWith("<!DOCTYPE") || responseText.trim().startsWith("<html")) {
-                android.util.Log.e("LoginActivity", "Server returned HTML instead of JSON: " + responseText);
-                throw new Exception("Plesk Server is offline (HTTP 503 Service Unavailable).");
-            }
-
+        while (attempt < maxRetries) {
+            attempt++;
+            HttpURLConnection conn = null;
             try {
-                JSONObject res = new JSONObject(responseText);
-                if (res.getBoolean("success")) {
-                    return res.getJSONObject("user");
+                URL url = new URL(endpoint);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+
+                JSONObject payload = new JSONObject();
+                payload.put("username", username);
+                payload.put("password", password);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(payload.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200) {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    in.close();
+
+                    String responseText = sb.toString();
+                    if (responseText.trim().startsWith("<!DOCTYPE") || responseText.trim().startsWith("<html")) {
+                        android.util.Log.e("LoginActivity", "Server returned HTML instead of JSON: " + responseText);
+                        throw new Exception("Plesk Server is offline (HTTP 503 Service Unavailable) or redirected.");
+                    }
+
+                    try {
+                        JSONObject res = new JSONObject(responseText);
+                        if (res.getBoolean("success")) {
+                            return res.getJSONObject("user");
+                        } else {
+                            throw new Exception(res.optString("message", "Invalid credentials."));
+                        }
+                    } catch (org.json.JSONException je) {
+                        android.util.Log.e("LoginActivity", "JSON parsing failed for: " + responseText);
+                        throw new Exception("Invalid server JSON response.");
+                    }
                 } else {
-                    throw new Exception(res.optString("message", "Invalid credentials."));
+                    throw new Exception("HTTP Error: " + responseCode);
                 }
-            } catch (org.json.JSONException je) {
-                android.util.Log.e("LoginActivity", "JSON parsing failed for: " + responseText);
-                throw new Exception("Invalid server JSON response.");
+            } catch (Exception e) {
+                lastException = e;
+                android.util.Log.e("LoginActivity", "Login network attempt " + attempt + " failed: " + e.getMessage());
+                // If it is a credentials failure or business logic error, we should NOT retry
+                if (e.getMessage() != null && (e.getMessage().contains("credentials") || e.getMessage().contains("Password") || e.getMessage().contains("username"))) {
+                    throw e;
+                }
+                if (attempt >= maxRetries) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw ie;
+                }
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }
-        throw new Exception("HTTP Error: " + responseCode);
+        if (lastException != null) {
+            throw lastException;
+        }
+        throw new Exception("Authentication request failed.");
     }
 
     private boolean performLocalAuthentication(String username, String password) {

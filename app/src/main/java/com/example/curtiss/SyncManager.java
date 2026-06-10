@@ -132,30 +132,71 @@ public class SyncManager {
 
     // Execute server Pull
     private boolean executePull(Context context, int userId) {
-        try {
-            android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
-            String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
-            URL url = new URL(baseUrl + "/rep/RepDashboard/sync_pull?api_sync=1&user_id=" + userId);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(15000);
-            conn.connect();
+        String responseBody = null;
+        android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+        String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        String urlString = baseUrl + "/rep/RepDashboard/sync_pull?api_sync=1&user_id=" + userId;
 
-            if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
+        int maxRetries = 3;
+        int attempt = 0;
+        while (attempt < maxRetries) {
+            attempt++;
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(urlString);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(15000);
+                conn.connect();
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    reader.close();
+
+                    String resText = sb.toString().trim();
+                    if (resText.startsWith("<!DOCTYPE") || resText.startsWith("<html")) {
+                        throw new Exception("Server returned HTML redirect/login page instead of JSON.");
+                    }
+                    responseBody = resText;
+                    break;
+                } else {
+                    throw new Exception("HTTP Response Code " + responseCode);
                 }
-                reader.close();
+            } catch (Exception e) {
+                Log.e(TAG, "Pull Sync connection attempt " + attempt + " failed: " + e.getMessage());
+                if (attempt >= maxRetries) {
+                    return false;
+                }
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }
 
-                JSONObject response = new JSONObject(sb.toString());
-                if (response.optBoolean("success", false)) {
-                    SQLiteDatabase db = dbHelper.getWritableDatabase();
-                    db.beginTransaction();
-                    try {
+        if (responseBody == null) {
+            return false;
+        }
+
+        try {
+            JSONObject response = new JSONObject(responseBody);
+            if (response.optBoolean("success", false)) {
+                SQLiteDatabase db = dbHelper.getWritableDatabase();
+                db.beginTransaction();
+                try {
                         // 1. Sync Products
                         JSONArray products = response.getJSONArray("products");
                         for (int i = 0; i < products.length(); i++) {
@@ -443,12 +484,10 @@ public class SyncManager {
                         return true;
                     } finally {
                         db.endTransaction();
-                    }
                 }
             }
-            conn.disconnect();
         } catch (Exception e) {
-            Log.e(TAG, "Pull error: " + e.getMessage());
+            Log.e(TAG, "Pull error during database insertion: " + e.getMessage());
         }
         return false;
     }
@@ -593,38 +632,77 @@ public class SyncManager {
             // POST unified payload to Plesk Sync API
             android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
             String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
-            URL url = new URL(baseUrl + "/rep/RepDashboard/sync_push?api_sync=1");
-            Log.d(TAG, "Starting Push Sync POST to: " + url.toString());
+            String urlString = baseUrl + "/rep/RepDashboard/sync_push?api_sync=1";
+            Log.d(TAG, "Starting Push Sync POST to: " + urlString);
             Log.d(TAG, "Push Payload details: " + payload.toString());
 
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(15000);
-
+            String responseBody = null;
+            int maxRetries = 3;
+            int attempt = 0;
             byte[] jsonBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
-            OutputStream os = conn.getOutputStream();
-            os.write(jsonBytes, 0, jsonBytes.length);
-            os.flush();
-            os.close();
 
-            int responseCode = conn.getResponseCode();
-            Log.d(TAG, "Push server responded with code: " + responseCode);
+            while (attempt < maxRetries) {
+                attempt++;
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(urlString);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(15000);
 
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
+                    OutputStream os = conn.getOutputStream();
+                    os.write(jsonBytes, 0, jsonBytes.length);
+                    os.flush();
+                    os.close();
+
+                    int responseCode = conn.getResponseCode();
+                    Log.d(TAG, "Push server responded with code: " + responseCode);
+
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            sb.append(line);
+                        }
+                        reader.close();
+
+                        String resText = sb.toString().trim();
+                        if (resText.startsWith("<!DOCTYPE") || resText.startsWith("<html")) {
+                            throw new Exception("Server returned HTML redirect/login page instead of JSON.");
+                        }
+                        responseBody = resText;
+                        break;
+                    } else {
+                        throw new Exception("HTTP Response Code " + responseCode);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Push Sync connection attempt " + attempt + " failed: " + e.getMessage());
+                    if (attempt >= maxRetries) {
+                        return false;
+                    }
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                } finally {
+                    if (conn != null) {
+                        conn.disconnect();
+                    }
                 }
-                reader.close();
+            }
 
-                Log.d(TAG, "Push raw server response body: " + sb.toString());
+            if (responseBody == null) {
+                return false;
+            }
 
-                JSONObject response = new JSONObject(sb.toString());
+            try {
+                JSONObject response = new JSONObject(responseBody);
                 if (response.optBoolean("success", false)) {
                     JSONObject mappings = response.getJSONObject("mappings");
 
@@ -704,17 +782,9 @@ public class SyncManager {
                 } else {
                     Log.e(TAG, "Push Sync rejected by server business logic: " + response.optString("message"));
                 }
-            } else {
-                BufferedReader errorReader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-                StringBuilder errorSb = new StringBuilder();
-                String errLine;
-                while ((errLine = errorReader.readLine()) != null) {
-                    errorSb.append(errLine);
-                }
-                errorReader.close();
-                Log.e(TAG, "Push Sync server error response (" + responseCode + "): " + errorSb.toString());
+            } catch (Exception e) {
+                Log.e(TAG, "Push error parsing server JSON response: " + e.getMessage());
             }
-            conn.disconnect();
         } catch (Exception e) {
             Log.e(TAG, "Push error crash/exception: " + e.getMessage(), e);
         }

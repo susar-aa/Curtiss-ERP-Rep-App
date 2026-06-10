@@ -11,7 +11,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "curtiss_offline.db";
-    private static final int DATABASE_VERSION = 5;
+    private static final int DATABASE_VERSION = 6;
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -143,6 +143,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "customer_name TEXT," +
                 "customer_address TEXT" +
                 ")");
+
+        // 11. Discount Rules Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS discount_rules (" +
+                "id INTEGER PRIMARY KEY," +
+                "name TEXT NOT NULL," +
+                "rule_type TEXT NOT NULL," +
+                "target_item_id INTEGER," +
+                "status TEXT" +
+                ")");
+
+        // 12. Discount Rule Tiers Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS discount_rule_tiers (" +
+                "id INTEGER PRIMARY KEY," +
+                "rule_id INTEGER," +
+                "min_threshold REAL," +
+                "max_threshold REAL," +
+                "reward_val REAL" +
+                ")");
     }
 
     @Override
@@ -155,6 +173,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS server_routes");
         db.execSQL("DROP TABLE IF EXISTS payments");
         db.execSQL("DROP TABLE IF EXISTS credit_invoices");
+        db.execSQL("DROP TABLE IF EXISTS discount_rules");
+        db.execSQL("DROP TABLE IF EXISTS discount_rule_tiers");
         onCreate(db);
     }
 
@@ -677,6 +697,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL("DELETE FROM server_routes");
             db.execSQL("DELETE FROM payment_terms");
             db.execSQL("DELETE FROM credit_invoices");
+            db.execSQL("DELETE FROM discount_rules");
+            db.execSQL("DELETE FROM discount_rule_tiers");
             
             try {
                 db.execSQL("DELETE FROM representatives");
