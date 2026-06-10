@@ -151,23 +151,36 @@ public class SyncManager {
                 conn.connect();
 
                 int responseCode = conn.getResponseCode();
+                BufferedReader reader;
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                } else {
+                    java.io.InputStream errStream = conn.getErrorStream();
+                    reader = errStream != null ? new BufferedReader(new InputStreamReader(errStream, StandardCharsets.UTF_8)) : null;
+                }
+
+                if (reader != null) {
                     StringBuilder sb = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        sb.append(line);
+                        sb.append(line).append("\n");
                     }
                     reader.close();
 
                     String resText = sb.toString().trim();
-                    if (resText.startsWith("<!DOCTYPE") || resText.startsWith("<html")) {
-                        throw new Exception("Server returned HTML redirect/login page instead of JSON.");
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        if (!resText.startsWith("{") && !resText.startsWith("[")) {
+                            Log.e(TAG, "Pull Sync response is not valid JSON. Response starts with: " + (resText.length() > 100 ? resText.substring(0, 100) : resText));
+                            throw new Exception("Server response is not valid JSON. Starts with: " + (resText.length() > 60 ? resText.substring(0, 60) : resText));
+                        }
+                        responseBody = resText;
+                        break;
+                    } else {
+                        Log.e(TAG, "Server error during pull (HTTP " + responseCode + "): " + resText);
+                        throw new Exception("HTTP Response Code " + responseCode + " - Error: " + (resText.length() > 200 ? resText.substring(0, 200) : resText));
                     }
-                    responseBody = resText;
-                    break;
                 } else {
-                    throw new Exception("HTTP Response Code " + responseCode);
+                    throw new Exception("HTTP Response Code " + responseCode + " (No response stream available)");
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Pull Sync connection attempt " + attempt + " failed: " + e.getMessage());
@@ -488,6 +501,7 @@ public class SyncManager {
             }
         } catch (Exception e) {
             Log.e(TAG, "Pull error during database insertion: " + e.getMessage());
+            Log.e(TAG, "Pull response body was: " + (responseBody != null ? responseBody : "NULL"));
         }
         return false;
     }
@@ -495,6 +509,7 @@ public class SyncManager {
     // Compile local changes and push to server
     private boolean executePush(int userId) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
+        String responseBody = null;
         try {
             JSONObject payload = new JSONObject();
             payload.put("user_id", userId);
@@ -636,7 +651,7 @@ public class SyncManager {
             Log.d(TAG, "Starting Push Sync POST to: " + urlString);
             Log.d(TAG, "Push Payload details: " + payload.toString());
 
-            String responseBody = null;
+            responseBody = null;
             int maxRetries = 3;
             int attempt = 0;
             byte[] jsonBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
@@ -661,23 +676,36 @@ public class SyncManager {
                     int responseCode = conn.getResponseCode();
                     Log.d(TAG, "Push server responded with code: " + responseCode);
 
+                    BufferedReader reader;
                     if (responseCode == HttpURLConnection.HTTP_OK) {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    } else {
+                        java.io.InputStream errStream = conn.getErrorStream();
+                        reader = errStream != null ? new BufferedReader(new InputStreamReader(errStream, StandardCharsets.UTF_8)) : null;
+                    }
+
+                    if (reader != null) {
                         StringBuilder sb = new StringBuilder();
                         String line;
                         while ((line = reader.readLine()) != null) {
-                            sb.append(line);
+                            sb.append(line).append("\n");
                         }
                         reader.close();
 
                         String resText = sb.toString().trim();
-                        if (resText.startsWith("<!DOCTYPE") || resText.startsWith("<html")) {
-                            throw new Exception("Server returned HTML redirect/login page instead of JSON.");
+                        if (responseCode == HttpURLConnection.HTTP_OK) {
+                            if (!resText.startsWith("{") && !resText.startsWith("[")) {
+                                Log.e(TAG, "Push Sync response is not valid JSON. Response starts with: " + (resText.length() > 100 ? resText.substring(0, 100) : resText));
+                                throw new Exception("Server response is not valid JSON. Starts with: " + (resText.length() > 60 ? resText.substring(0, 60) : resText));
+                            }
+                            responseBody = resText;
+                            break;
+                        } else {
+                            Log.e(TAG, "Server error during push (HTTP " + responseCode + "): " + resText);
+                            throw new Exception("HTTP Response Code " + responseCode + " - Error: " + (resText.length() > 200 ? resText.substring(0, 200) : resText));
                         }
-                        responseBody = resText;
-                        break;
                     } else {
-                        throw new Exception("HTTP Response Code " + responseCode);
+                        throw new Exception("HTTP Response Code " + responseCode + " (No response stream available)");
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Push Sync connection attempt " + attempt + " failed: " + e.getMessage());
@@ -784,9 +812,11 @@ public class SyncManager {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Push error parsing server JSON response: " + e.getMessage());
+                Log.e(TAG, "Push response body was: " + (responseBody != null ? responseBody : "NULL"));
             }
         } catch (Exception e) {
             Log.e(TAG, "Push error crash/exception: " + e.getMessage(), e);
+            Log.e(TAG, "Push response body was: " + (responseBody != null ? responseBody : "NULL"));
         }
         return false;
     }

@@ -84,35 +84,36 @@ public class LoginActivity extends AppCompatActivity {
                 JSONObject userObj = null;
                 String errorMsg = "Unable to connect to server.";
 
-                // 1. Try production real-time login first if network is available
+                // 1. Try localhost emulator backups first for local development, then fall back to production
                 if (isNetworkAvailable()) {
                     try {
-                        userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
+                        // Try localhost public subfolder fallback
+                        userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
                         if (userObj != null) {
                             authenticated = true;
-                            prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
+                            prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP/public").apply();
                         }
                     } catch (Exception e) {
-                        android.util.Log.e("LoginActivity", "Production auth failed: " + e.getMessage());
-                        // Try localhost emulator backup fallback
+                        android.util.Log.e("LoginActivity", "Localhost public auth failed, trying backup: " + e.getMessage());
                         try {
+                            // Try localhost emulator backup fallback
                             userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/rep/RepDashboard/api_login?api_sync=1");
                             if (userObj != null) {
                                 authenticated = true;
                                 prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP").apply();
                             }
                         } catch (Exception ex) {
-                            android.util.Log.e("LoginActivity", "Localhost backup auth failed: " + ex.getMessage());
-                            // Try localhost public subfolder fallback
+                            android.util.Log.e("LoginActivity", "Localhost backup auth failed, trying production: " + ex.getMessage());
                             try {
-                                userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
+                                // Fall back to production real-time login
+                                userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
                                 if (userObj != null) {
                                     authenticated = true;
-                                    prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP/public").apply();
+                                    prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
                                 }
                             } catch (Exception ex2) {
-                                android.util.Log.e("LoginActivity", "Localhost public auth failed: " + ex2.getMessage());
-                                errorMsg = e.getMessage();
+                                android.util.Log.e("LoginActivity", "Production auth failed: " + ex2.getMessage());
+                                errorMsg = ex2.getMessage();
                             }
                         }
                     }
