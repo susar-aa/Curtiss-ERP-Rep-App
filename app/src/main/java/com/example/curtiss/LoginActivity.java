@@ -62,6 +62,14 @@ public class LoginActivity extends AppCompatActivity {
                 attemptAuthentication();
             }
         });
+
+        txtSyncDetails.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                showBaseUrlDialog();
+                return true;
+            }
+        });
     }
 
     private void attemptAuthentication() {
@@ -84,36 +92,46 @@ public class LoginActivity extends AppCompatActivity {
                 JSONObject userObj = null;
                 String errorMsg = "Unable to connect to server.";
 
-                // 1. Try localhost emulator backups first for local development, then fall back to production
+                // 1. Try saved base_url first (if set), otherwise fall back to sequence
                 if (isNetworkAvailable()) {
+                    String savedBaseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
                     try {
-                        // Try localhost public subfolder fallback
-                        userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
+                        userObj = performNetworkLogin(username, password, savedBaseUrl + "/rep/RepDashboard/api_login?api_sync=1");
                         if (userObj != null) {
                             authenticated = true;
-                            prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP/public").apply();
+                            prefs.edit().putString("base_url", savedBaseUrl).apply();
                         }
                     } catch (Exception e) {
-                        android.util.Log.e("LoginActivity", "Localhost public auth failed, trying backup: " + e.getMessage());
+                        android.util.Log.e("LoginActivity", "Saved base URL auth failed, trying backups: " + e.getMessage());
                         try {
-                            // Try localhost emulator backup fallback
-                            userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/rep/RepDashboard/api_login?api_sync=1");
+                            // Try localhost public subfolder fallback
+                            userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
                             if (userObj != null) {
                                 authenticated = true;
-                                prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP").apply();
+                                prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP/public").apply();
                             }
                         } catch (Exception ex) {
-                            android.util.Log.e("LoginActivity", "Localhost backup auth failed, trying production: " + ex.getMessage());
+                            android.util.Log.e("LoginActivity", "Localhost public auth failed, trying backup: " + ex.getMessage());
                             try {
-                                // Fall back to production real-time login
-                                userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
+                                // Try localhost emulator backup fallback
+                                userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/rep/RepDashboard/api_login?api_sync=1");
                                 if (userObj != null) {
                                     authenticated = true;
-                                    prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
+                                    prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP").apply();
                                 }
                             } catch (Exception ex2) {
-                                android.util.Log.e("LoginActivity", "Production auth failed: " + ex2.getMessage());
-                                errorMsg = ex2.getMessage();
+                                android.util.Log.e("LoginActivity", "Localhost backup auth failed, trying production: " + ex2.getMessage());
+                                try {
+                                    // Fall back to production real-time login
+                                    userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
+                                    if (userObj != null) {
+                                        authenticated = true;
+                                        prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
+                                    }
+                                } catch (Exception ex3) {
+                                    android.util.Log.e("LoginActivity", "Production auth failed: " + ex3.getMessage());
+                                    errorMsg = ex3.getMessage();
+                                }
                             }
                         }
                     }
@@ -333,5 +351,29 @@ public class LoginActivity extends AppCompatActivity {
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    private void showBaseUrlDialog() {
+        final EditText input = new EditText(this);
+        String currentUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        input.setText(currentUrl);
+        input.setSelection(currentUrl.length());
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Configure Base URL")
+            .setMessage("Enter the server base URL (e.g., http://192.168.1.6/Curtiss-ERP/public):")
+            .setView(input)
+            .setPositiveButton("Save", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    String newUrl = input.getText().toString().trim();
+                    if (!newUrl.isEmpty()) {
+                        prefs.edit().putString("base_url", newUrl).apply();
+                        Toast.makeText(LoginActivity.this, "Base URL updated: " + newUrl, Toast.LENGTH_LONG).show();
+                    }
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 }
