@@ -19,6 +19,7 @@ import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.LinearLayout;
@@ -46,12 +47,14 @@ public class BillingActivity extends AppCompatActivity {
     private Spinner spinnerPaymentMethod, spinnerCategory, spinnerPaymentTerm;
     private EditText edtProductSearch, edtDiscount, edtDirectDiscountPct;
     private ListView lstProducts, lstCartSummary;
-    private TextView txtCartItemsCount, txtCartSalesSum, txtSubtotal, txtTax, txtNetTotal;
+    private TextView txtCartItemsCount, txtCartSalesSum, txtSubtotal, txtTax, txtNetTotal, txtRoundingAdjustment;
+    private RelativeLayout layoutRoundingAdjustment;
 
     private TextView txtSelectedCustomerName;
     private Button btnChangeCustomer;
     private CustomerModel selectedCustomer = null;
     private List<String> categoryList = new ArrayList<>();
+    private String selectedCategoryName = "All Categories";
     private List<PaymentTermModel> paymentTermList = new ArrayList<>();
 
     private RelativeLayout layoutCartOverlay;
@@ -71,16 +74,22 @@ public class BillingActivity extends AppCompatActivity {
     private CartAdapter cartAdapter;
     private long currentRouteLocalId = -1;
 
+    // Redesigned layouts and controls
+    private LinearLayout layoutCartViewMode, layoutCartCheckoutMode, layoutCheckoutDetails, layoutExpandedSearch;
+    private TextView txtCartOverlayTitle, txtOverlayCustomerName, txtOverlayCustomerBalance, txtOverlayTotalItems, txtOverlayTotalValue, txtCheckoutCustomerName, txtCheckoutItemSummary;
+    private Button btnOverlayChangeCustomer, btnOverlayEditCustomer, btnCheckout;
+    private ImageButton btnSearchToggle, btnClearSearch;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_billing);
 
-        dbHelper = new DatabaseHelper(this);
+        dbHelper = DatabaseHelper.getInstance(this);
 
         // Bind layouts
-        txtSelectedCustomerName = findViewById(R.id.txtSelectedCustomerName);
-        btnChangeCustomer = findViewById(R.id.btnChangeCustomer);
+        txtSelectedCustomerName = findViewById(R.id.txtOverlayCustomerName);
+        btnChangeCustomer = findViewById(R.id.btnOverlayChangeCustomer);
         spinnerCategory = findViewById(R.id.spinnerCategory);
         spinnerPaymentMethod = findViewById(R.id.spinnerPaymentMethod);
         spinnerPaymentTerm = findViewById(R.id.spinnerPaymentTerm);
@@ -90,12 +99,26 @@ public class BillingActivity extends AppCompatActivity {
         edtDirectDiscountPct = findViewById(R.id.edtDirectDiscountPct);
         lstProducts = findViewById(R.id.lstProducts);
         lstCartSummary = findViewById(R.id.lstCartSummary);
+        lstCartSummary.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                CartItemModel cartItem = cartList.get(position);
+                ProductModel product = getProductById(cartItem.productId);
+                if (product != null) {
+                    showProductConfigDialog(product, cartItem);
+                } else {
+                    Toast.makeText(BillingActivity.this, "Product details not found.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
 
-        txtCartItemsCount = findViewById(R.id.txtCartItemsCount);
-        txtCartSalesSum = findViewById(R.id.txtCartSalesSum);
+        txtCartItemsCount = findViewById(R.id.txtOverlayTotalItems);
+        txtCartSalesSum = findViewById(R.id.txtOverlayTotalValue);
         txtSubtotal = findViewById(R.id.txtSubtotal);
         txtTax = findViewById(R.id.txtTax);
         txtNetTotal = findViewById(R.id.txtNetTotal);
+        txtRoundingAdjustment = findViewById(R.id.txtRoundingAdjustment);
+        layoutRoundingAdjustment = findViewById(R.id.layoutRoundingAdjustment);
 
         layoutCartOverlay = findViewById(R.id.layoutCartOverlay);
         btnViewCart = findViewById(R.id.btnViewCart);
@@ -105,6 +128,67 @@ public class BillingActivity extends AppCompatActivity {
         btnModeStandard = findViewById(R.id.btnModeStandard);
         btnModeVisual = findViewById(R.id.btnModeVisual);
         gridProducts = findViewById(R.id.gridProducts);
+
+        // Bind redesigned layouts and controls
+        layoutExpandedSearch = findViewById(R.id.layoutExpandedSearch);
+        btnSearchToggle = findViewById(R.id.btnSearchToggle);
+        btnClearSearch = findViewById(R.id.btnClearSearch);
+        btnCheckout = findViewById(R.id.btnCheckout);
+
+        txtCartOverlayTitle = findViewById(R.id.txtCartOverlayTitle);
+        layoutCartViewMode = findViewById(R.id.layoutCartViewMode);
+        txtOverlayCustomerName = findViewById(R.id.txtOverlayCustomerName);
+        txtOverlayCustomerBalance = findViewById(R.id.txtOverlayCustomerBalance);
+        btnOverlayChangeCustomer = findViewById(R.id.btnOverlayChangeCustomer);
+        btnOverlayEditCustomer = findViewById(R.id.btnOverlayEditCustomer);
+        txtOverlayTotalItems = findViewById(R.id.txtOverlayTotalItems);
+        txtOverlayTotalValue = findViewById(R.id.txtOverlayTotalValue);
+
+        layoutCartCheckoutMode = findViewById(R.id.layoutCartCheckoutMode);
+        txtCheckoutCustomerName = findViewById(R.id.txtCheckoutCustomerName);
+        txtCheckoutItemSummary = findViewById(R.id.txtCheckoutItemSummary);
+        layoutCheckoutDetails = findViewById(R.id.layoutCheckoutDetails);
+
+        // Bind Search Expand/Collapse actions
+        if (btnSearchToggle != null) {
+            btnSearchToggle.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (layoutExpandedSearch != null) {
+                        if (layoutExpandedSearch.getVisibility() == View.GONE) {
+                            layoutExpandedSearch.setVisibility(View.VISIBLE);
+                            if (edtProductSearch != null) {
+                                edtProductSearch.requestFocus();
+                                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                                if (imm != null) {
+                                    imm.showSoftInput(edtProductSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                                }
+                            }
+                        } else {
+                            layoutExpandedSearch.setVisibility(View.GONE);
+                            if (edtProductSearch != null) {
+                                edtProductSearch.setText("");
+                                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                                if (imm != null) {
+                                    imm.hideSoftInputFromWindow(edtProductSearch.getWindowToken(), 0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (btnClearSearch != null) {
+            btnClearSearch.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (edtProductSearch != null) {
+                        edtProductSearch.setText("");
+                    }
+                }
+            });
+        }
 
         // Mode Selectors Toggle Actions
         btnModeStandard.setOnClickListener(new View.OnClickListener() {
@@ -140,12 +224,32 @@ public class BillingActivity extends AppCompatActivity {
             }
         });
 
-        btnChangeCustomer.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showCustomerSelectionDialog();
-            }
-        });
+        if (btnChangeCustomer != null) {
+            btnChangeCustomer.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showCustomerSelectionDialog();
+                }
+            });
+        }
+
+        if (btnOverlayChangeCustomer != null) {
+            btnOverlayChangeCustomer.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showCustomerSelectionDialog();
+                }
+            });
+        }
+
+        if (btnOverlayEditCustomer != null) {
+            btnOverlayEditCustomer.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showEditCustomerDialog();
+                }
+            });
+        }
 
         // Resolve Active Route
         Cursor cRoute = dbHelper.getActiveRoute();
@@ -164,7 +268,17 @@ public class BillingActivity extends AppCompatActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                loadCatalogItems(s.toString());
+                String query = s.toString();
+                View catScroll = findViewById(R.id.categoryHorizontalScroll);
+                View tabSelection = findViewById(R.id.layoutSegmentedTabs);
+                if (query.trim().isEmpty()) {
+                    if (catScroll != null) catScroll.setVisibility(View.VISIBLE);
+                    if (tabSelection != null) tabSelection.setVisibility(View.VISIBLE);
+                } else {
+                    if (catScroll != null) catScroll.setVisibility(View.GONE);
+                    if (tabSelection != null) tabSelection.setVisibility(View.GONE);
+                }
+                loadCatalogItems(query);
             }
 
             @Override
@@ -174,23 +288,46 @@ public class BillingActivity extends AppCompatActivity {
         // Setup dynamic categories first, then let it trigger catalog loading
         setupCategorySpinner();
 
-        // 🚨 Immediately trigger Customer Selection Dialog at startup
-        showCustomerSelectionDialog();
-
-
+        // 🚨 Immediately trigger Customer Selection Dialog or draft resume at startup
+        if (hasDraftBill()) {
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Resume Invoice?")
+                .setMessage("An unfinished bill exists. Would you like to resume it?")
+                .setCancelable(false)
+                .setPositiveButton("Resume", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        resumeDraftBill();
+                    }
+                })
+                .setNegativeButton("Clear and New", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        clearDraftBill();
+                        showCustomerSelectionDialog();
+                    }
+                })
+                .show();
+        } else {
+            showCustomerSelectionDialog();
+        }
 
         // View Cart overlay
         btnViewCart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (cartList.isEmpty()) {
-                    Toast.makeText(BillingActivity.this, "Your shopping cart is empty.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                layoutCartOverlay.setVisibility(View.VISIBLE);
-                setupCartSummary();
+                showCartOverlay(false);
             }
         });
+
+        if (btnCheckout != null) {
+            btnCheckout.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showCartOverlay(true);
+                }
+            });
+        }
 
         btnCancelCart.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -212,25 +349,25 @@ public class BillingActivity extends AppCompatActivity {
                 isUpdating = true;
                 try {
                     // Get current subtotal before global discount
-                    double subtotal = 0.0;
+                    java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
                     for (CartItemModel item : cartList) {
-                        subtotal += item.total;
+                        subtotal = subtotal.add(item.total);
                     }
 
                     if (edtDirectDiscountPct.hasFocus()) {
                         String pctStr = edtDirectDiscountPct.getText().toString().trim();
                         if (!pctStr.isEmpty()) {
-                            double pct = Double.parseDouble(pctStr);
-                            double discountVal = subtotal * (pct / 100.0);
+                            java.math.BigDecimal pct = CurrencyUtils.toBigDecimal(pctStr);
+                            java.math.BigDecimal discountVal = CurrencyUtils.calculatePercentage(subtotal, pct);
                             edtDiscount.setText(String.format(Locale.getDefault(), "%.2f", discountVal));
                         } else {
                             edtDiscount.setText("");
                         }
                     } else if (edtDiscount.hasFocus()) {
                         String amtStr = edtDiscount.getText().toString().trim();
-                        if (!amtStr.isEmpty() && subtotal > 0) {
-                            double amt = Double.parseDouble(amtStr);
-                            double pct = (amt / subtotal) * 100.0;
+                        if (!amtStr.isEmpty() && subtotal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                            java.math.BigDecimal amt = CurrencyUtils.toBigDecimal(amtStr);
+                            java.math.BigDecimal pct = amt.multiply(java.math.BigDecimal.valueOf(100)).divide(subtotal, 1, java.math.RoundingMode.HALF_UP);
                             edtDirectDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", pct));
                         } else {
                             edtDirectDiscountPct.setText("");
@@ -257,10 +394,69 @@ public class BillingActivity extends AppCompatActivity {
         });
     }
 
+    private void showCartOverlay(boolean checkoutMode) {
+        if (cartList.isEmpty()) {
+            Toast.makeText(this, "Your shopping cart is empty.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        layoutCartOverlay.setVisibility(View.VISIBLE);
+        recalculateCart();
+
+        // Bind Customer info
+        String custName = selectedCustomer != null ? selectedCustomer.name : "Select Customer...";
+        java.math.BigDecimal balance = selectedCustomer != null ? selectedCustomer.outstanding : java.math.BigDecimal.ZERO;
+        String balText = "Outstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", balance.doubleValue());
+
+        if (txtOverlayCustomerName != null) txtOverlayCustomerName.setText(custName);
+        if (txtOverlayCustomerBalance != null) txtOverlayCustomerBalance.setText(balText);
+        if (txtCheckoutCustomerName != null) txtCheckoutCustomerName.setText(custName);
+
+        // Cart totals
+        java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
+        int totalItemsCount = 0;
+        for (CartItemModel item : cartList) {
+            subtotal = subtotal.add(item.total);
+            totalItemsCount += item.quantity;
+        }
+        
+        String discountStr = edtDiscount.getText().toString().trim();
+        java.math.BigDecimal discount = CurrencyUtils.toBigDecimal(discountStr);
+        java.math.BigDecimal netTotal = subtotal.subtract(discount);
+        if (netTotal.compareTo(java.math.BigDecimal.ZERO) < 0) netTotal = java.math.BigDecimal.ZERO;
+
+        if (txtOverlayTotalItems != null) txtOverlayTotalItems.setText(String.valueOf(totalItemsCount));
+        if (txtOverlayTotalValue != null) txtOverlayTotalValue.setText(CurrencyUtils.formatLKR(netTotal));
+        if (txtCheckoutItemSummary != null) txtCheckoutItemSummary.setText(totalItemsCount + " Items | Total: " + CurrencyUtils.formatLKR(netTotal));
+
+        if (checkoutMode) {
+            if (txtCartOverlayTitle != null) txtCartOverlayTitle.setText("BILL SUMMARY & CHECKOUT");
+            if (layoutCartViewMode != null) layoutCartViewMode.setVisibility(View.GONE);
+            if (layoutCartCheckoutMode != null) layoutCartCheckoutMode.setVisibility(View.VISIBLE);
+            if (layoutCheckoutDetails != null) layoutCheckoutDetails.setVisibility(View.VISIBLE);
+            if (btnConfirmCheckout != null) {
+                btnConfirmCheckout.setText("Confirm Bill");
+                btnConfirmCheckout.setEnabled(true);
+                btnConfirmCheckout.setVisibility(View.VISIBLE);
+            }
+        } else {
+            if (txtCartOverlayTitle != null) txtCartOverlayTitle.setText("CART REVIEW");
+            if (layoutCartViewMode != null) layoutCartViewMode.setVisibility(View.VISIBLE);
+            if (layoutCartCheckoutMode != null) layoutCartCheckoutMode.setVisibility(View.GONE);
+            if (layoutCheckoutDetails != null) layoutCheckoutDetails.setVisibility(View.GONE);
+            if (btnConfirmCheckout != null) {
+                btnConfirmCheckout.setVisibility(View.GONE);
+            }
+        }
+        
+        setupCartSummary();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         setupCategorySpinner();
+        loadCatalogItems(edtProductSearch != null ? edtProductSearch.getText().toString() : "");
     }
 
     private void loadCustomers() {
@@ -272,7 +468,16 @@ public class BillingActivity extends AppCompatActivity {
             c.serverId = cursor.getInt(cursor.getColumnIndexOrThrow("server_id"));
             c.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
             c.phone = cursor.getString(cursor.getColumnIndexOrThrow("phone"));
-            c.outstanding = cursor.getDouble(cursor.getColumnIndexOrThrow("outstanding"));
+            c.whatsapp = cursor.getString(cursor.getColumnIndexOrThrow("whatsapp"));
+            c.address = cursor.getString(cursor.getColumnIndexOrThrow("address"));
+            c.territory = cursor.getString(cursor.getColumnIndexOrThrow("territory"));
+            c.outstanding = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("outstanding")));
+            c.mcaId = cursor.getInt(cursor.getColumnIndexOrThrow("mca_id"));
+            c.mcaName = cursor.getString(cursor.getColumnIndexOrThrow("mca_name"));
+            c.email = cursor.getString(cursor.getColumnIndexOrThrow("email"));
+            c.creditLimit = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("credit_limit")));
+            c.customerType = cursor.getString(cursor.getColumnIndexOrThrow("customer_type"));
+            c.notes = cursor.getString(cursor.getColumnIndexOrThrow("notes"));
             customerList.add(c);
         }
         cursor.close();
@@ -365,28 +570,31 @@ public class BillingActivity extends AppCompatActivity {
         productList.clear();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        String selectedCategory = "All Categories";
-        if (spinnerCategory != null && spinnerCategory.getSelectedItem() != null) {
-            selectedCategory = spinnerCategory.getSelectedItem().toString();
-        }
-
-        String query = "SELECT * FROM products";
+        String selectedCategory = selectedCategoryName;
+        String query = "SELECT * FROM products WHERE status = 'active'";
         List<String> argsList = new ArrayList<>();
 
         if (filter != null && !filter.trim().isEmpty()) {
+            String likeFilter = "%" + filter + "%";
             if (!"All Categories".equalsIgnoreCase(selectedCategory)) {
-                query = "SELECT * FROM products WHERE (name LIKE ? OR category_name LIKE ?) AND category_name = ?";
-                argsList.add("%" + filter + "%");
-                argsList.add("%" + filter + "%");
+                query = "SELECT * FROM products WHERE (name LIKE ? OR sku LIKE ? OR sample_code LIKE ? OR variations_json LIKE ? OR brand LIKE ?) AND category_name = ? AND status = 'active'";
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
                 argsList.add(selectedCategory);
             } else {
-                query = "SELECT * FROM products WHERE name LIKE ? OR category_name LIKE ?";
-                argsList.add("%" + filter + "%");
-                argsList.add("%" + filter + "%");
+                query = "SELECT * FROM products WHERE (name LIKE ? OR sku LIKE ? OR sample_code LIKE ? OR variations_json LIKE ? OR brand LIKE ?) AND status = 'active'";
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
+                argsList.add(likeFilter);
             }
         } else {
             if (!"All Categories".equalsIgnoreCase(selectedCategory)) {
-                query = "SELECT * FROM products WHERE category_name = ?";
+                query = "SELECT * FROM products WHERE category_name = ? AND status = 'active'";
                 argsList.add(selectedCategory);
             }
         }
@@ -399,14 +607,64 @@ public class BillingActivity extends AppCompatActivity {
             p.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
             p.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
             p.category = cursor.getString(cursor.getColumnIndexOrThrow("category_name"));
-            p.price = cursor.getDouble(cursor.getColumnIndexOrThrow("price"));
-            p.wholesalePrice = cursor.getDouble(cursor.getColumnIndexOrThrow("wholesale_price"));
+            p.price = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("price")));
+            p.wholesalePrice = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("wholesale_price")));
             p.qtyOnHand = cursor.getInt(cursor.getColumnIndexOrThrow("quantity_on_hand"));
             p.qtyReserved = cursor.getInt(cursor.getColumnIndexOrThrow("quantity_reserved"));
             p.localImagePath = cursor.getString(cursor.getColumnIndexOrThrow("local_image_path"));
+            p.sku = cursor.getString(cursor.getColumnIndexOrThrow("sku"));
+            p.sampleCode = cursor.getString(cursor.getColumnIndexOrThrow("sample_code"));
+            p.variationsJson = cursor.getString(cursor.getColumnIndexOrThrow("variations_json"));
+            p.brand = cursor.getString(cursor.getColumnIndexOrThrow("brand"));
+            p.description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
             productList.add(p);
         }
         cursor.close();
+
+        // Prioritize exact matches at the top when searching
+        if (filter != null && !filter.trim().isEmpty()) {
+            final String searchLower = filter.toLowerCase().trim();
+            java.util.Collections.sort(productList, new java.util.Comparator<ProductModel>() {
+                @Override
+                public int compare(ProductModel p1, ProductModel p2) {
+                    int score1 = getScore(p1, searchLower);
+                    int score2 = getScore(p2, searchLower);
+                    return Integer.compare(score1, score2);
+                }
+
+                private int getScore(ProductModel p, String query) {
+                    String name = p.name != null ? p.name.toLowerCase() : "";
+                    String sku = p.sku != null ? p.sku.toLowerCase() : "";
+                    String sampleCode = p.sampleCode != null ? p.sampleCode.toLowerCase() : "";
+
+                    // 1. Exact match on SKU or Sample Code
+                    if (sku.equals(query) || sampleCode.equals(query)) {
+                        return 1;
+                    }
+                    // 2. Exact match on Name
+                    if (name.equals(query)) {
+                        return 2;
+                    }
+                    // 3. SKU or Sample Code starts with query
+                    if (sku.startsWith(query) || sampleCode.startsWith(query)) {
+                        return 3;
+                    }
+                    // 4. Name starts with query
+                    if (name.startsWith(query)) {
+                        return 4;
+                    }
+                    // 5. SKU or Sample Code contains query
+                    if (sku.contains(query) || sampleCode.contains(query)) {
+                        return 5;
+                    }
+                    // 6. Name contains query
+                    if (name.contains(query)) {
+                        return 6;
+                    }
+                    return 7;
+                }
+            });
+        }
 
         if (productAdapter == null) {
             productAdapter = new ProductAdapter();
@@ -424,46 +682,80 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     private void recalculateCart() {
-        double subtotal = 0.0;
+        java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal subtotalUnrounded = java.math.BigDecimal.ZERO;
         int totalItemsCount = 0;
 
         for (CartItemModel item : cartList) {
-            double price = item.customPrice > 0 ? item.customPrice : item.price;
+            java.math.BigDecimal price = item.customPrice.compareTo(java.math.BigDecimal.ZERO) > 0 ? item.customPrice : item.price;
             item.activePrice = price;
-            
-            double itemSubtotal = price * item.quantity;
-            double discVal = 0.0;
-            if (item.discountPercent > 0) {
-                discVal = itemSubtotal * (item.discountPercent / 100.0);
-            } else if (item.discountAmount > 0) {
-                discVal = item.discountAmount;
+
+            java.math.BigDecimal itemSubtotal = price.multiply(java.math.BigDecimal.valueOf(item.quantity));
+            java.math.BigDecimal unroundedDisc = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal roundedDisc = java.math.BigDecimal.ZERO;
+
+            if (item.isPercentDiscountActive && item.discountPercent.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                unroundedDisc = itemSubtotal.multiply(item.discountPercent).divide(java.math.BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP);
+                roundedDisc = CurrencyUtils.calculatePercentage(itemSubtotal, item.discountPercent);
+            } else if (!item.isPercentDiscountActive && item.discountAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                unroundedDisc = item.discountAmount;
+                roundedDisc = item.discountAmount;
             }
-            item.discountVal = discVal;
-            item.total = itemSubtotal - discVal;
-            if (item.total < 0) item.total = 0;
-            
-            subtotal += item.total;
+
+            item.discountVal = roundedDisc;
+            item.total = itemSubtotal.subtract(roundedDisc);
+            if (item.total.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                item.total = java.math.BigDecimal.ZERO;
+            }
+
+            java.math.BigDecimal unroundedTotal = itemSubtotal.subtract(unroundedDisc);
+            if (unroundedTotal.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                unroundedTotal = java.math.BigDecimal.ZERO;
+            }
+
+            subtotal = subtotal.add(item.total);
+            subtotalUnrounded = subtotalUnrounded.add(unroundedTotal);
             totalItemsCount += item.quantity;
         }
 
         String discountStr = edtDiscount.getText().toString().trim();
-        double discount = 0.0;
-        if (!discountStr.isEmpty()) {
-            discount = Double.parseDouble(discountStr);
+        java.math.BigDecimal discount = CurrencyUtils.toBigDecimal(discountStr);
+        java.math.BigDecimal unroundedDiscount = discount;
+
+        String directPctStr = edtDirectDiscountPct.getText().toString().trim();
+        if (!directPctStr.isEmpty() && edtDirectDiscountPct.hasFocus()) {
+            java.math.BigDecimal directPct = CurrencyUtils.toBigDecimal(directPctStr);
+            unroundedDiscount = subtotalUnrounded.multiply(directPct).divide(java.math.BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP);
+            discount = CurrencyUtils.calculatePercentage(subtotal, directPct);
         }
 
-        double netTotal = subtotal - discount;
-        if (netTotal < 0) netTotal = 0;
+        java.math.BigDecimal netTotal = subtotal.subtract(discount);
+        if (netTotal.compareTo(java.math.BigDecimal.ZERO) < 0) netTotal = java.math.BigDecimal.ZERO;
 
-        // VAT is disabled per user request
-        double taxBreakdown = 0.0;
+        java.math.BigDecimal netTotalUnrounded = subtotalUnrounded.subtract(unroundedDiscount);
+        if (netTotalUnrounded.compareTo(java.math.BigDecimal.ZERO) < 0) netTotalUnrounded = java.math.BigDecimal.ZERO;
+
+        java.math.BigDecimal roundingAdj = netTotal.subtract(netTotalUnrounded).setScale(2, java.math.RoundingMode.HALF_UP);
+
+        java.math.BigDecimal taxBreakdown = java.math.BigDecimal.ZERO;
 
         txtCartItemsCount.setText(totalItemsCount + " Items in Cart");
-        txtCartSalesSum.setText(String.format(Locale.getDefault(), "LKR %.2f", netTotal));
+        txtCartSalesSum.setText(CurrencyUtils.formatLKR(netTotal));
 
-        txtSubtotal.setText(String.format(Locale.getDefault(), "LKR %.2f", subtotal));
-        txtTax.setText(String.format(Locale.getDefault(), "LKR %.2f", taxBreakdown));
-        txtNetTotal.setText(String.format(Locale.getDefault(), "LKR %.2f", netTotal));
+        txtSubtotal.setText(CurrencyUtils.formatLKR(subtotal));
+        txtTax.setText(CurrencyUtils.formatLKR(taxBreakdown));
+        txtNetTotal.setText(CurrencyUtils.formatLKR(netTotal));
+
+        if (layoutRoundingAdjustment != null && txtRoundingAdjustment != null) {
+            if (roundingAdj.compareTo(java.math.BigDecimal.ZERO) != 0) {
+                txtRoundingAdjustment.setText(CurrencyUtils.formatLKR(roundingAdj));
+                layoutRoundingAdjustment.setVisibility(android.view.View.VISIBLE);
+            } else {
+                layoutRoundingAdjustment.setVisibility(android.view.View.GONE);
+            }
+        }
+
+        saveDraftBill();
     }
 
     private void setupCartSummary() {
@@ -478,12 +770,15 @@ public class BillingActivity extends AppCompatActivity {
 
     private void processCheckoutOffline() {
         if (selectedCustomer == null) {
-            Toast.makeText(this, "Please select a valid customer shop.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please select a customer before confirming the bill.", Toast.LENGTH_SHORT).show();
             return;
         }
         if (cartList.isEmpty()) {
             Toast.makeText(this, "Your shopping cart is empty.", Toast.LENGTH_SHORT).show();
             return;
+        }
+        if (btnConfirmCheckout != null) {
+            btnConfirmCheckout.setEnabled(false);
         }
         processDiscountPromptsAndCheckout();
     }
@@ -509,15 +804,15 @@ public class BillingActivity extends AppCompatActivity {
                     CartItemModel freeItem = new CartItemModel();
                     freeItem.productId = rule.targetItemId;
                     freeItem.name = rule.targetItemName + " (Free Issue)";
-                    freeItem.price = 0.0;
-                    freeItem.wholesalePrice = 0.0;
-                    freeItem.activePrice = 0.0;
+                    freeItem.price = java.math.BigDecimal.ZERO;
+                    freeItem.wholesalePrice = java.math.BigDecimal.ZERO;
+                    freeItem.activePrice = java.math.BigDecimal.ZERO;
                     freeItem.quantity = freeQty;
-                    freeItem.customPrice = 0.0;
-                    freeItem.discountPercent = 0.0;
-                    freeItem.discountAmount = 0.0;
-                    freeItem.discountVal = 0.0;
-                    freeItem.total = 0.0;
+                    freeItem.customPrice = java.math.BigDecimal.ZERO;
+                    freeItem.discountPercent = java.math.BigDecimal.ZERO;
+                    freeItem.discountAmount = java.math.BigDecimal.ZERO;
+                    freeItem.discountVal = java.math.BigDecimal.ZERO;
+                    freeItem.total = java.math.BigDecimal.ZERO;
                     cartList.add(freeItem);
 
                     recalculateCart();
@@ -552,12 +847,12 @@ public class BillingActivity extends AppCompatActivity {
                 builder.setPositiveButton("Accept", new android.content.DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(android.content.DialogInterface dialog, int which) {
-                        double subtotal = 0.0;
+                        java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
                         for (CartItemModel item : cartList) {
-                            subtotal += item.total;
+                            subtotal = subtotal.add(item.total);
                         }
-                        double discountAmt = subtotal * (billDiscount.rewardVal / 100.0);
-                        edtDiscount.setText(String.format(Locale.getDefault(), "%.2f", discountAmt));
+                        java.math.BigDecimal discountAmt = subtotal.multiply(java.math.BigDecimal.valueOf(billDiscount.rewardVal)).divide(java.math.BigDecimal.valueOf(100.0), 2, java.math.RoundingMode.HALF_UP);
+                        edtDiscount.setText(String.format(Locale.getDefault(), "%.2f", discountAmt.doubleValue()));
                         edtDirectDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", billDiscount.rewardVal));
 
                         recalculateCart();
@@ -579,137 +874,195 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     private void executeDatabaseCheckout() {
+        showGlobalLoadingDialog("Recording invoice in local database...");
         CustomerModel customer = selectedCustomer;
         String payment = "Term";
 
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.beginTransaction();
-        try {
-            String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+        int dbRetries = 5;
+        int dbAttempt = 0;
+        
+        while (dbAttempt < dbRetries) {
+            dbAttempt++;
+            try {
+                db.beginTransaction();
+                try {
+                    String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
 
-            android.content.SharedPreferences seqPrefs = getSharedPreferences("CurtissPrefs", android.content.Context.MODE_PRIVATE);
-            int seq = seqPrefs.getInt("global_invoice_seq", 0);
+                    android.content.SharedPreferences seqPrefs = getSharedPreferences("CurtissPrefs", android.content.Context.MODE_PRIVATE);
+                    int seq = seqPrefs.getInt("global_invoice_seq", 0);
 
-            if (seq == 0) {
-                Cursor maxCursor = db.rawQuery(
-                    "SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1", null
-                );
-                if (maxCursor != null) {
-                    if (maxCursor.moveToFirst()) {
-                        String lastInvoiceNum = maxCursor.getString(0);
-                        if (lastInvoiceNum.length() >= 4) {
-                            try {
-                                String suffix = lastInvoiceNum.substring(lastInvoiceNum.length() - 4);
-                                seq = Integer.parseInt(suffix);
-                            } catch (Exception e) {
-                                seq = 0;
+                    if (seq == 0) {
+                        Cursor maxCursor = db.rawQuery(
+                            "SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1", null
+                        );
+                        if (maxCursor != null) {
+                            if (maxCursor.moveToFirst()) {
+                                String lastInvoiceNum = maxCursor.getString(0);
+                                if (lastInvoiceNum.length() >= 4) {
+                                    try {
+                                        String suffix = lastInvoiceNum.substring(lastInvoiceNum.length() - 4);
+                                        seq = Integer.parseInt(suffix);
+                                    } catch (Exception e) {
+                                        seq = 0;
+                                    }
+                                }
                             }
+                            maxCursor.close();
                         }
                     }
-                    maxCursor.close();
+
+                    seq++;
+                    seqPrefs.edit().putInt("global_invoice_seq", seq).apply();
+
+                    String invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
+                    String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+
+                    java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
+                    for (CartItemModel item : cartList) {
+                        subtotal = subtotal.add(item.total);
+                    }
+
+                    String discountStr = edtDiscount.getText().toString().trim();
+                    java.math.BigDecimal discount = CurrencyUtils.toBigDecimal(discountStr);
+
+                    java.math.BigDecimal netTotal = subtotal.subtract(discount);
+                    if (netTotal.compareTo(java.math.BigDecimal.ZERO) < 0) netTotal = java.math.BigDecimal.ZERO;
+                    java.math.BigDecimal tax = java.math.BigDecimal.ZERO;
+
+                    Integer paymentTermId = null;
+                    int daysOffset = 0;
+                    int termPos = spinnerPaymentTerm.getSelectedItemPosition();
+                    if (!paymentTermList.isEmpty() && termPos >= 0 && termPos < paymentTermList.size()) {
+                        PaymentTermModel selectedTerm = paymentTermList.get(termPos);
+                        paymentTermId = selectedTerm.id;
+                        daysOffset = selectedTerm.daysDue;
+                    }
+
+                    java.util.Calendar cal = java.util.Calendar.getInstance();
+                    if (daysOffset > 0) {
+                        cal.add(java.util.Calendar.DAY_OF_YEAR, daysOffset);
+                    }
+                    String dueDateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(cal.getTime());
+
+                    double capturedLat = 7.1824;
+                    double capturedLng = 79.8801;
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        try {
+                            LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                            Location loc = null;
+                            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                                loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                            }
+                            if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                                loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                            }
+                            if (loc != null) {
+                                capturedLat = loc.getLatitude();
+                                capturedLng = loc.getLongitude();
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("BillingActivity", "Location capture exception: " + e.getMessage());
+                        }
+                    }
+
+                    String uuidString = java.util.UUID.randomUUID().toString();
+                    ContentValues cvHeader = new ContentValues();
+                    cvHeader.put("invoice_number", invoiceNum);
+                    cvHeader.put("customer_id", customer.id);
+                    cvHeader.put("route_id", currentRouteLocalId);
+                    cvHeader.put("invoice_date", dateString);
+                    cvHeader.put("due_date", dueDateString);
+                    if (paymentTermId != null) {
+                        cvHeader.put("payment_term_id", paymentTermId);
+                    } else {
+                        cvHeader.putNull("payment_term_id");
+                    }
+                    cvHeader.put("subtotal", subtotal.doubleValue());
+                    cvHeader.put("discount", discount.doubleValue());
+                    cvHeader.put("tax", tax.doubleValue());
+                    cvHeader.put("grand_total", netTotal.doubleValue());
+                    cvHeader.put("payment_method", payment);
+                    cvHeader.put("latitude", capturedLat);
+                    cvHeader.put("longitude", capturedLng);
+                    cvHeader.put("is_synced", 0);
+                    cvHeader.put("uuid", uuidString);
+                    cvHeader.put("sync_status", 1); // 1 = Pending Sync
+                    cvHeader.put("sync_attempts", 0);
+
+                    long localInvId = db.insert("invoices", null, cvHeader);
+
+                    for (CartItemModel item : cartList) {
+                        ContentValues cvItem = new ContentValues();
+                        cvItem.put("invoice_id", localInvId);
+                        cvItem.put("product_id", item.productId);
+                        cvItem.put("product_name", item.name);
+                        cvItem.put("quantity", item.quantity);
+                        cvItem.put("unit_price", item.activePrice.doubleValue());
+                        cvItem.put("discount_val", item.discountVal.doubleValue());
+                        cvItem.put("total", item.total.doubleValue());
+
+                        db.insert("invoice_items", null, cvItem);
+                        db.execSQL("UPDATE products SET quantity_reserved = quantity_reserved + " + item.quantity + " WHERE id = " + item.productId);
+                    }
+
+                    // Create initial sync logs entry
+                    try {
+                        ContentValues cvLog = new ContentValues();
+                        cvLog.put("bill_id", localInvId);
+                        cvLog.put("uuid", uuidString);
+                        cvLog.put("created_time", dateString);
+                        cvLog.put("upload_started", "");
+                        cvLog.put("upload_completed", "");
+                        cvLog.put("erp_response", "");
+                        cvLog.put("failure_reason", "");
+                        cvLog.put("retry_count", 0);
+                        db.insert("sync_logs", null, cvLog);
+                    } catch (Exception ex) {
+                        android.util.Log.e("BillingActivity", "Error creating initial sync log: " + ex.getMessage());
+                    }
+
+                    db.setTransactionSuccessful();
+                    clearDraftBill();
+
+                    // Auto sync on checkout removed in favor of manual sync.
+
+                    showShareBillDialog(invoiceNum, customer.name, customer.phone, netTotal);
+                    break; // Success, break retry loop
+                } finally {
+                    db.endTransaction();
+                }
+            } catch (Exception e) {
+                if (e.getMessage() != null && (e.getMessage().contains("locked") || e.getMessage().contains("BUSY") || e.getMessage().contains("code 5"))) {
+                    android.util.Log.w("BillingActivity", "Database locked during checkout. Attempt " + dbAttempt + " of " + dbRetries + ". Retrying...");
+                    if (dbAttempt >= dbRetries) {
+                        dismissGlobalLoadingDialog();
+                        if (btnConfirmCheckout != null) {
+                            btnConfirmCheckout.setEnabled(true);
+                        }
+                        Toast.makeText(this, "Checkout failed (database locked): " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        break;
+                    }
+                    try {
+                        Thread.sleep(200 * dbAttempt); // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        dismissGlobalLoadingDialog();
+                        if (btnConfirmCheckout != null) {
+                            btnConfirmCheckout.setEnabled(true);
+                        }
+                        Toast.makeText(this, "Checkout interrupted: " + ie.getMessage(), Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                } else {
+                    dismissGlobalLoadingDialog();
+                    if (btnConfirmCheckout != null) {
+                        btnConfirmCheckout.setEnabled(true);
+                    }
+                    Toast.makeText(this, "Checkout failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    break;
                 }
             }
-
-            seq++;
-            seqPrefs.edit().putInt("global_invoice_seq", seq).apply();
-
-            String invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
-            String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-
-            double subtotal = 0.0;
-            for (CartItemModel item : cartList) {
-                subtotal += item.total;
-            }
-
-            String discountStr = edtDiscount.getText().toString().trim();
-            double discount = 0.0;
-            if (!discountStr.isEmpty()) {
-                discount = Double.parseDouble(discountStr);
-            }
-
-            double netTotal = subtotal - discount;
-            if (netTotal < 0) netTotal = 0;
-            double tax = 0.0;
-
-            Integer paymentTermId = null;
-            int daysOffset = 0;
-            int termPos = spinnerPaymentTerm.getSelectedItemPosition();
-            if (!paymentTermList.isEmpty() && termPos >= 0 && termPos < paymentTermList.size()) {
-                PaymentTermModel selectedTerm = paymentTermList.get(termPos);
-                paymentTermId = selectedTerm.id;
-                daysOffset = selectedTerm.daysDue;
-            }
-
-            java.util.Calendar cal = java.util.Calendar.getInstance();
-            if (daysOffset > 0) {
-                cal.add(java.util.Calendar.DAY_OF_YEAR, daysOffset);
-            }
-            String dueDateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(cal.getTime());
-
-            double capturedLat = 7.1824;
-            double capturedLng = 79.8801;
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                try {
-                    LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                    Location loc = null;
-                    if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                        loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                    }
-                    if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                        loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                    }
-                    if (loc != null) {
-                        capturedLat = loc.getLatitude();
-                        capturedLng = loc.getLongitude();
-                    }
-                } catch (Exception e) {
-                    android.util.Log.e("BillingActivity", "Location capture exception: " + e.getMessage());
-                }
-            }
-
-            ContentValues cvHeader = new ContentValues();
-            cvHeader.put("invoice_number", invoiceNum);
-            cvHeader.put("customer_id", customer.id);
-            cvHeader.put("route_id", currentRouteLocalId);
-            cvHeader.put("invoice_date", dateString);
-            cvHeader.put("due_date", dueDateString);
-            if (paymentTermId != null) {
-                cvHeader.put("payment_term_id", paymentTermId);
-            } else {
-                cvHeader.putNull("payment_term_id");
-            }
-            cvHeader.put("subtotal", subtotal);
-            cvHeader.put("discount", discount);
-            cvHeader.put("tax", tax);
-            cvHeader.put("grand_total", netTotal);
-            cvHeader.put("payment_method", payment);
-            cvHeader.put("latitude", capturedLat);
-            cvHeader.put("longitude", capturedLng);
-            cvHeader.put("is_synced", 0);
-
-            long localInvId = db.insert("invoices", null, cvHeader);
-
-            for (CartItemModel item : cartList) {
-                ContentValues cvItem = new ContentValues();
-                cvItem.put("invoice_id", localInvId);
-                cvItem.put("product_id", item.productId);
-                cvItem.put("product_name", item.name);
-                cvItem.put("quantity", item.quantity);
-                cvItem.put("unit_price", item.activePrice);
-                cvItem.put("discount_val", item.discountVal);
-                cvItem.put("total", item.total);
-
-                db.insert("invoice_items", null, cvItem);
-                db.execSQL("UPDATE products SET quantity_reserved = quantity_reserved + " + item.quantity + " WHERE id = " + item.productId);
-            }
-
-            db.setTransactionSuccessful();
-            showShareBillDialog(invoiceNum, customer.name, customer.phone);
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Checkout failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        } finally {
-            db.endTransaction();
         }
     }
 
@@ -746,7 +1099,7 @@ public class BillingActivity extends AppCompatActivity {
                 boolean alreadyHasFree = false;
                 for (CartItemModel item : cartList) {
                     if (item.productId == targetId) {
-                        if (item.customPrice == 0.0 && item.total == 0.0) {
+                        if (item.customPrice.compareTo(java.math.BigDecimal.ZERO) == 0 && item.total.compareTo(java.math.BigDecimal.ZERO) == 0) {
                             alreadyHasFree = true;
                         } else {
                             cartQty += item.quantity;
@@ -779,9 +1132,9 @@ public class BillingActivity extends AppCompatActivity {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cursor = null;
         try {
-            double subtotal = 0.0;
+            java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
             for (CartItemModel item : cartList) {
-                subtotal += item.total;
+                subtotal = subtotal.add(item.total);
             }
 
             cursor = db.rawQuery(
@@ -796,7 +1149,7 @@ public class BillingActivity extends AppCompatActivity {
                 double minThresh = cursor.getDouble(3);
                 double rewardVal = cursor.getDouble(4);
 
-                if (subtotal >= minThresh) {
+                if (subtotal.doubleValue() >= minThresh) {
                     DiscountCheckResult res = new DiscountCheckResult();
                     res.ruleId = cursor.getInt(0);
                     res.name = cursor.getString(1);
@@ -814,7 +1167,8 @@ public class BillingActivity extends AppCompatActivity {
         return null;
     }
 
-    private void showShareBillDialog(final String invoiceNum, final String customerName, final String customerPhone) {
+    private void showShareBillDialog(final String invoiceNum, final String customerName, final String customerPhone, final java.math.BigDecimal grandTotal) {
+        dismissGlobalLoadingDialog();
         final Dialog dialog = new Dialog(this, android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar);
         dialog.setCancelable(false);
 
@@ -853,33 +1207,63 @@ public class BillingActivity extends AppCompatActivity {
         txtInvoice.setPadding(0, 0, 0, 16);
         container.addView(txtInvoice);
 
-        // Reserved Stock Quantities Breakdown Display
-        LinearLayout reservationSummaryLayout = new LinearLayout(this);
-        reservationSummaryLayout.setOrientation(LinearLayout.VERTICAL);
-        reservationSummaryLayout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Dark slate card background
-        reservationSummaryLayout.setPadding(24, 20, 24, 20);
-        LinearLayout.LayoutParams resParams = new LinearLayout.LayoutParams(
+        // Customer & Total Card
+        LinearLayout cardLayout = new LinearLayout(this);
+        cardLayout.setOrientation(LinearLayout.VERTICAL);
+        cardLayout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Slate 800
+        cardLayout.setPadding(32, 24, 32, 24);
+        
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        resParams.setMargins(0, 0, 0, 24);
-        reservationSummaryLayout.setLayoutParams(resParams);
+        cardParams.setMargins(0, 0, 0, 24);
+        cardLayout.setLayoutParams(cardParams);
 
-        TextView txtResHeader = new TextView(this);
-        txtResHeader.setText("⚡ OFFLINE RESERVED QUANTITIES");
-        txtResHeader.setTextColor(android.graphics.Color.parseColor("#38BDF8")); // Bright blue accent
-        txtResHeader.setTextSize(11);
-        txtResHeader.setTypeface(null, android.graphics.Typeface.BOLD);
-        txtResHeader.setPadding(0, 0, 0, 8);
-        reservationSummaryLayout.addView(txtResHeader);
+        TextView txtCardHeader = new TextView(this);
+        txtCardHeader.setText("TRANSACTION SUMMARY");
+        txtCardHeader.setTextColor(android.graphics.Color.parseColor("#38BDF8")); // Sky 400
+        txtCardHeader.setTextSize(12);
+        txtCardHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+        txtCardHeader.setPadding(0, 0, 0, 12);
+        cardLayout.addView(txtCardHeader);
 
-        for (CartItemModel cartItem : cartList) {
-            TextView txtItemDetail = new TextView(this);
-            txtItemDetail.setText("• " + cartItem.name + "\n  Reserved: " + cartItem.quantity + " qty");
-            txtItemDetail.setTextColor(android.graphics.Color.WHITE);
-            txtItemDetail.setTextSize(13);
-            txtItemDetail.setPadding(0, 4, 0, 4);
-            reservationSummaryLayout.addView(txtItemDetail);
-        }
-        container.addView(reservationSummaryLayout);
+        TextView txtCustomer = new TextView(this);
+        txtCustomer.setText("Customer: " + customerName);
+        txtCustomer.setTextColor(android.graphics.Color.WHITE);
+        txtCustomer.setTextSize(15);
+        txtCustomer.setTypeface(null, android.graphics.Typeface.BOLD);
+        txtCustomer.setPadding(0, 0, 0, 4);
+        cardLayout.addView(txtCustomer);
+
+        TextView txtPhone = new TextView(this);
+        txtPhone.setText("Phone: " + (customerPhone != null && !customerPhone.isEmpty() ? customerPhone : "N/A"));
+        txtPhone.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtPhone.setTextSize(13);
+        txtPhone.setPadding(0, 0, 0, 16);
+        cardLayout.addView(txtPhone);
+
+        View divider = new View(this);
+        LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2);
+        divParams.setMargins(0, 0, 0, 16);
+        divider.setLayoutParams(divParams);
+        divider.setBackgroundColor(android.graphics.Color.parseColor("#334155")); // Slate 700
+        cardLayout.addView(divider);
+
+        TextView txtTotalTitle = new TextView(this);
+        txtTotalTitle.setText("BILL TOTAL");
+        txtTotalTitle.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtTotalTitle.setTextSize(11);
+        txtTotalTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        txtTotalTitle.setPadding(0, 0, 0, 4);
+        cardLayout.addView(txtTotalTitle);
+
+        TextView txtTotalVal = new TextView(this);
+        txtTotalVal.setText(CurrencyUtils.formatLKR(grandTotal));
+        txtTotalVal.setTextColor(android.graphics.Color.parseColor("#22C55E")); // Green 500
+        txtTotalVal.setTextSize(22);
+        txtTotalVal.setTypeface(null, android.graphics.Typeface.BOLD);
+        cardLayout.addView(txtTotalVal);
+
+        container.addView(cardLayout);
 
         // QR Code Card View / Frame
         LinearLayout qrFrame = new LinearLayout(this);
@@ -1002,6 +1386,334 @@ public class BillingActivity extends AppCompatActivity {
         }).start();
     }
 
+    private boolean hasDraftBill() {
+        android.content.SharedPreferences prefs = getSharedPreferences("billing_draft_prefs", MODE_PRIVATE);
+        return prefs.contains("draft_json");
+    }
+
+    private void clearDraftBill() {
+        android.content.SharedPreferences prefs = getSharedPreferences("billing_draft_prefs", MODE_PRIVATE);
+        prefs.edit().clear().apply();
+    }
+
+    private void saveDraftBill() {
+        try {
+            android.content.SharedPreferences prefs = getSharedPreferences("billing_draft_prefs", MODE_PRIVATE);
+            android.content.SharedPreferences.Editor editor = prefs.edit();
+
+            if (selectedCustomer == null && cartList.isEmpty()) {
+                editor.clear().apply();
+                return;
+            }
+
+            org.json.JSONObject draft = new org.json.JSONObject();
+            if (selectedCustomer != null) {
+                draft.put("customer_id", selectedCustomer.id);
+            }
+
+            draft.put("discount_val", edtDiscount.getText().toString());
+            draft.put("discount_pct", edtDirectDiscountPct.getText().toString());
+            if (spinnerPaymentTerm != null) {
+                draft.put("payment_term_pos", spinnerPaymentTerm.getSelectedItemPosition());
+            }
+
+            org.json.JSONArray itemsArr = new org.json.JSONArray();
+            for (CartItemModel item : cartList) {
+                org.json.JSONObject itemObj = new org.json.JSONObject();
+                itemObj.put("product_id", item.productId);
+                itemObj.put("quantity", item.quantity);
+                itemObj.put("custom_price", item.customPrice.doubleValue());
+                itemObj.put("discount_percent", item.discountPercent.doubleValue());
+                itemObj.put("discount_amount", item.discountAmount.doubleValue());
+                itemObj.put("discount_val", item.discountVal.doubleValue());
+                itemObj.put("is_percent_discount_active", item.isPercentDiscountActive);
+                itemObj.put("selected_variation", item.selectedVariation != null ? item.selectedVariation : "");
+                itemObj.put("notes", item.notes != null ? item.notes : "");
+                itemsArr.put(itemObj);
+            }
+            draft.put("items", itemsArr);
+
+            editor.putString("draft_json", draft.toString());
+            editor.apply();
+        } catch (Exception e) {
+            android.util.Log.e("BillingActivity", "Error saving draft: " + e.getMessage());
+        }
+    }
+
+    private void resumeDraftBill() {
+        try {
+            android.content.SharedPreferences prefs = getSharedPreferences("billing_draft_prefs", MODE_PRIVATE);
+            String jsonStr = prefs.getString("draft_json", null);
+            if (jsonStr == null) return;
+
+            org.json.JSONObject draft = new org.json.JSONObject(jsonStr);
+
+            // 1. Restore customer
+            if (draft.has("customer_id")) {
+                int custId = draft.getInt("customer_id");
+                for (CustomerModel c : customerList) {
+                    if (c.id == custId) {
+                        selectedCustomer = c;
+                        break;
+                    }
+                }
+                if (selectedCustomer != null) {
+                    String displayName = selectedCustomer.name;
+                    String balText = "Outstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding.doubleValue());
+                    if (txtOverlayCustomerName != null) txtOverlayCustomerName.setText(displayName);
+                    if (txtOverlayCustomerBalance != null) txtOverlayCustomerBalance.setText(balText);
+                    if (txtCheckoutCustomerName != null) txtCheckoutCustomerName.setText(displayName);
+                    if (txtSelectedCustomerName != null) {
+                        String displayNameFull = selectedCustomer.name + "\nOutstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding.doubleValue());
+                        txtSelectedCustomerName.setText(displayNameFull);
+                    }
+                }
+            }
+
+            // 2. Restore discounts
+            String discVal = draft.optString("discount_val", "");
+            String discPct = draft.optString("discount_pct", "");
+            edtDiscount.setText(discVal);
+            edtDirectDiscountPct.setText(discPct);
+
+            // 3. Restore payment term
+            int termPos = draft.optInt("payment_term_pos", 0);
+            if (spinnerPaymentTerm != null && termPos >= 0) {
+                spinnerPaymentTerm.setSelection(termPos);
+            }
+
+            // 4. Restore items
+            cartList.clear();
+            org.json.JSONArray itemsArr = draft.getJSONArray("items");
+            SQLiteDatabase db = dbHelper.getReadableDatabase();
+            for (int i = 0; i < itemsArr.length(); i++) {
+                org.json.JSONObject itemObj = itemsArr.getJSONObject(i);
+                int prodId = itemObj.getInt("product_id");
+                int qty = itemObj.getInt("quantity");
+                java.math.BigDecimal customPrice = CurrencyUtils.toBigDecimal(itemObj.optDouble("custom_price", 0.0));
+                java.math.BigDecimal discPercent = CurrencyUtils.toBigDecimal(itemObj.optDouble("discount_percent", 0.0));
+                java.math.BigDecimal discAmount = CurrencyUtils.toBigDecimal(itemObj.optDouble("discount_amount", 0.0));
+                java.math.BigDecimal discValItem = CurrencyUtils.toBigDecimal(itemObj.optDouble("discount_val", 0.0));
+                boolean isPercentActive = itemObj.optBoolean("is_percent_discount_active", false);
+                String selVar = itemObj.optString("selected_variation", "");
+                String notes = itemObj.optString("notes", "");
+
+                Cursor cursor = db.rawQuery("SELECT * FROM products WHERE id = ?", new String[]{String.valueOf(prodId)});
+                if (cursor.moveToFirst()) {
+                    CartItemModel item = new CartItemModel();
+                    item.productId = prodId;
+                    item.quantity = qty;
+                    item.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+                    item.price = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("price")));
+                    item.wholesalePrice = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("wholesale_price")));
+                    item.customPrice = customPrice;
+                    item.discountPercent = discPercent;
+                    item.discountAmount = discAmount;
+                    item.discountVal = discValItem;
+                    item.isPercentDiscountActive = isPercentActive;
+                    item.selectedVariation = selVar;
+                    item.notes = notes;
+
+                    java.math.BigDecimal basePrice = item.wholesalePrice.compareTo(java.math.BigDecimal.ZERO) > 0 ? item.wholesalePrice : item.price;
+                    java.math.BigDecimal unitPrice = item.customPrice.compareTo(java.math.BigDecimal.ZERO) > 0 ? item.customPrice : basePrice;
+                    item.activePrice = unitPrice;
+
+                    java.math.BigDecimal itemSubtotal = unitPrice.multiply(java.math.BigDecimal.valueOf(item.quantity));
+                    java.math.BigDecimal calculatedDisc = java.math.BigDecimal.ZERO;
+                    if (item.isPercentDiscountActive && item.discountPercent.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        calculatedDisc = CurrencyUtils.calculatePercentage(itemSubtotal, item.discountPercent);
+                    } else if (!item.isPercentDiscountActive && item.discountAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        calculatedDisc = item.discountAmount;
+                    }
+                    item.discountVal = CurrencyUtils.round(calculatedDisc);
+                    item.total = itemSubtotal.subtract(item.discountVal);
+                    if (item.total.compareTo(java.math.BigDecimal.ZERO) < 0) item.total = java.math.BigDecimal.ZERO;
+
+                    cartList.add(item);
+                }
+                cursor.close();
+            }
+
+            setupCartSummary();
+        } catch (Exception e) {
+            android.util.Log.e("BillingActivity", "Error resuming draft: " + e.getMessage());
+        }
+    }
+
+    private static class ZoomImageView extends androidx.appcompat.widget.AppCompatImageView {
+        private float mScaleFactor = 1.0f;
+        private android.view.ScaleGestureDetector mScaleDetector;
+
+        public ZoomImageView(android.content.Context context) {
+            super(context);
+            mScaleDetector = new android.view.ScaleGestureDetector(context, new android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                @Override
+                public boolean onScale(android.view.ScaleGestureDetector detector) {
+                    mScaleFactor *= detector.getScaleFactor();
+                    mScaleFactor = Math.max(1.0f, Math.min(mScaleFactor, 5.0f));
+                    setScaleX(mScaleFactor);
+                    setScaleY(mScaleFactor);
+                    return true;
+                }
+            });
+        }
+
+        @Override
+        public boolean onTouchEvent(android.view.MotionEvent ev) {
+            mScaleDetector.onTouchEvent(ev);
+            if (mScaleFactor > 1.0f) {
+                if (getParent() != null) {
+                    getParent().requestDisallowInterceptTouchEvent(true);
+                }
+            }
+            return true;
+        }
+    }
+
+    private void showProductQuickViewDialog(final ProductModel p) {
+        final androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.setBackgroundColor(android.graphics.Color.parseColor("#0F172A")); // Slate 900
+        
+        android.widget.LinearLayout root = new android.widget.LinearLayout(this);
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+        root.setPadding(48, 48, 48, 48);
+        
+        // Title
+        android.widget.TextView txtTitle = new android.widget.TextView(this);
+        txtTitle.setText(p.name);
+        txtTitle.setTextColor(android.graphics.Color.WHITE);
+        txtTitle.setTextSize(22);
+        txtTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        txtTitle.setPadding(0, 0, 0, 8);
+        root.addView(txtTitle);
+
+        // SKU and Category Subheader
+        android.widget.TextView txtSub = new android.widget.TextView(this);
+        String skuText = (p.sku != null && !p.sku.isEmpty()) ? p.sku : "N/A";
+        String sampleCodeText = (p.sampleCode != null && !p.sampleCode.isEmpty()) ? p.sampleCode : "N/A";
+        txtSub.setText("Category: " + p.category + "  |  SKU: " + skuText + "  |  Sample: " + sampleCodeText);
+        txtSub.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtSub.setTextSize(13);
+        txtSub.setPadding(0, 0, 0, 24);
+        root.addView(txtSub);
+
+        // Image Container
+        android.widget.FrameLayout imgContainer = new android.widget.FrameLayout(this);
+        android.widget.FrameLayout.LayoutParams imgContainerParams = new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, (int) (260 * getResources().getDisplayMetrics().density));
+        imgContainerParams.setMargins(0, 0, 0, 24);
+        imgContainer.setLayoutParams(imgContainerParams);
+        imgContainer.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Slate 800 background
+        
+        final ZoomImageView zoomImage = new ZoomImageView(this);
+        android.widget.FrameLayout.LayoutParams imgParams = new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+        zoomImage.setLayoutParams(imgParams);
+        zoomImage.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        
+        if (p.localImagePath != null && !p.localImagePath.isEmpty()) {
+            java.io.File file = new java.io.File(p.localImagePath);
+            if (file.exists()) {
+                zoomImage.setImageBitmap(android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath()));
+            } else {
+                zoomImage.setImageResource(android.R.drawable.ic_menu_gallery);
+            }
+        } else {
+            zoomImage.setImageResource(android.R.drawable.ic_menu_gallery);
+        }
+        imgContainer.addView(zoomImage);
+        root.addView(imgContainer);
+
+        // Specifications List
+        android.widget.LinearLayout specsLayout = new android.widget.LinearLayout(this);
+        specsLayout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        specsLayout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Slate 800
+        specsLayout.setPadding(32, 24, 32, 24);
+        android.widget.LinearLayout.LayoutParams specsParams = new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        specsParams.setMargins(0, 0, 0, 24);
+        specsLayout.setLayoutParams(specsParams);
+        
+        if (p.brand != null && !p.brand.isEmpty()) {
+            addQuickViewSpecRow(specsLayout, "Brand", p.brand);
+        }
+        if (p.description != null && !p.description.isEmpty()) {
+            addQuickViewSpecRow(specsLayout, "Description", p.description);
+        }
+        addQuickViewSpecRow(specsLayout, "Retail Price", "LKR " + String.format(Locale.getDefault(), "%,.2f", p.price.doubleValue()));
+        addQuickViewSpecRow(specsLayout, "Wholesale Price", p.wholesalePrice.compareTo(java.math.BigDecimal.ZERO) > 0 ? "LKR " + String.format(Locale.getDefault(), "%,.2f", p.wholesalePrice.doubleValue()) : "N/A");
+        addQuickViewSpecRow(specsLayout, "Physical Stock", String.valueOf(p.qtyOnHand));
+        addQuickViewSpecRow(specsLayout, "Reserved Stock", String.valueOf(p.qtyReserved));
+        int available = p.qtyOnHand - p.qtyReserved;
+        addQuickViewSpecRow(specsLayout, "Available Stock", String.valueOf(available));
+        
+        if (p.variationsJson != null && !p.variationsJson.isEmpty() && !p.variationsJson.equals("null")) {
+            try {
+                org.json.JSONArray vars = new org.json.JSONArray(p.variationsJson);
+                java.lang.StringBuilder varsBuilder = new java.lang.StringBuilder();
+                for (int i = 0; i < vars.length(); i++) {
+                    org.json.JSONObject vObj = vars.getJSONObject(i);
+                    java.lang.String optionName = vObj.optString("option_name", "");
+                    int qty = vObj.optInt("quantity_on_hand", 0);
+                    if (i > 0) varsBuilder.append("\n");
+                    varsBuilder.append("• ").append(optionName).append(" (Stock: ").append(qty).append(")");
+                }
+                if (varsBuilder.length() > 0) {
+                    addQuickViewSpecRow(specsLayout, "Variations", varsBuilder.toString());
+                }
+            } catch (Exception e) {
+                android.util.Log.e("BillingActivity", "Error parsing variations spec: " + e.getMessage());
+            }
+        }
+        
+        root.addView(specsLayout);
+
+        // Buttons
+        android.widget.Button btnClose = new android.widget.Button(this);
+        btnClose.setText("Close Quick View");
+        btnClose.setTextColor(android.graphics.Color.WHITE);
+        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3B82F6")));
+        
+        root.addView(btnClose);
+        scrollView.addView(root);
+        builder.setView(scrollView);
+        
+        final androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        btnClose.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+    }
+
+    private void addQuickViewSpecRow(android.widget.LinearLayout container, java.lang.String label, java.lang.String value) {
+        android.widget.LinearLayout row = new android.widget.LinearLayout(this);
+        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        row.setPadding(0, 8, 0, 8);
+        
+        android.widget.TextView txtLabel = new android.widget.TextView(this);
+        txtLabel.setText(label);
+        txtLabel.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+        txtLabel.setTextSize(13);
+        txtLabel.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        
+        android.widget.TextView txtValue = new android.widget.TextView(this);
+        txtValue.setText(value);
+        txtValue.setTextColor(android.graphics.Color.WHITE);
+        txtValue.setTextSize(13);
+        txtValue.setTypeface(null, android.graphics.Typeface.BOLD);
+        txtValue.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1.5f));
+        
+        row.addView(txtLabel);
+        row.addView(txtValue);
+        container.addView(row);
+    }
+
     // Helper Models
     private static class DiscountCheckResult {
         int ruleId;
@@ -1023,20 +1735,41 @@ public class BillingActivity extends AppCompatActivity {
         int id, serverId;
         String name;
         String phone;
-        double outstanding;
+        String whatsapp;
+        String address;
+        String territory;
+        java.math.BigDecimal outstanding = java.math.BigDecimal.ZERO;
+        int mcaId;
+        String mcaName;
+        String email;
+        java.math.BigDecimal creditLimit = java.math.BigDecimal.ZERO;
+        String customerType;
+        String notes;
     }
 
     private static class ProductModel {
         int id, qtyOnHand, qtyReserved;
         String name, category, localImagePath;
-        double price, wholesalePrice;
+        java.math.BigDecimal price = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal wholesalePrice = java.math.BigDecimal.ZERO;
+        String sku, sampleCode, variationsJson;
+        String brand, description;
     }
 
     private static class CartItemModel {
         int productId, quantity;
         String name;
-        double price, wholesalePrice, activePrice, total;
-        double customPrice, discountPercent, discountAmount, discountVal;
+        java.math.BigDecimal price = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal wholesalePrice = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal activePrice = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal customPrice = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal discountPercent = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal discountAmount = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal discountVal = java.math.BigDecimal.ZERO;
+        String selectedVariation = "";
+        String notes = "";
+        boolean isPercentDiscountActive = false;
     }
 
     // Product visual catalog list adapter
@@ -1058,14 +1791,22 @@ public class BillingActivity extends AppCompatActivity {
 
             TextView lblProductName = convertView.findViewById(R.id.lblProductName);
             TextView lblCategory = convertView.findViewById(R.id.lblCategory);
+            TextView lblSampleCode = convertView.findViewById(R.id.lblSampleCode);
             TextView lblPrice = convertView.findViewById(R.id.lblPrice);
             TextView lblStock = convertView.findViewById(R.id.lblStock);
 
             lblProductName.setText(p.name);
             lblCategory.setText(p.category);
+            
+            if (p.sampleCode != null && !p.sampleCode.trim().isEmpty()) {
+                lblSampleCode.setText("Sample Code: " + p.sampleCode);
+                lblSampleCode.setVisibility(View.VISIBLE);
+            } else {
+                lblSampleCode.setVisibility(View.GONE);
+            }
 
-            final double currentPrice = p.price;
-            lblPrice.setText(String.format(Locale.getDefault(), "LKR %.2f", currentPrice));
+            final java.math.BigDecimal currentPrice = p.price;
+            lblPrice.setText(String.format(Locale.getDefault(), "LKR %.2f", currentPrice.doubleValue()));
 
             int available = p.qtyOnHand - p.qtyReserved;
             lblStock.setText("Available Stock: " + available);
@@ -1081,6 +1822,14 @@ public class BillingActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     showProductConfigDialog(p);
+                }
+            });
+
+            convertView.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    showProductQuickViewDialog(p);
+                    return true;
                 }
             });
 
@@ -1112,10 +1861,10 @@ public class BillingActivity extends AppCompatActivity {
             text1.setText(item.name);
             text1.setTextColor(getResources().getColor(android.R.color.white));
 
-            if (item.discountVal > 0) {
-                text2.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f (Less LKR %.2f Disc)  =  LKR %.2f", item.quantity, item.activePrice, item.discountVal, item.total));
+            if (item.discountVal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                text2.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f (Less LKR %.2f Disc)  =  LKR %.2f", item.quantity, item.activePrice.doubleValue(), item.discountVal.doubleValue(), item.total.doubleValue()));
             } else {
-                text2.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f   =   LKR %.2f", item.quantity, item.activePrice, item.total));
+                text2.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f   =   LKR %.2f", item.quantity, item.activePrice.doubleValue(), item.total.doubleValue()));
             }
             text2.setTextColor(getResources().getColor(android.R.color.holo_blue_light));
 
@@ -1166,6 +1915,10 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     private void showProductConfigDialog(final ProductModel p) {
+        showProductConfigDialog(p, null);
+    }
+
+    private void showProductConfigDialog(final ProductModel p, final CartItemModel existingItem) {
         final androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
         
         // Root container
@@ -1174,21 +1927,123 @@ public class BillingActivity extends AppCompatActivity {
         layout.setPadding(48, 48, 48, 48);
         layout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
 
+        // Header containing image and title details
+        LinearLayout headerLayout = new LinearLayout(this);
+        headerLayout.setOrientation(LinearLayout.HORIZONTAL);
+        headerLayout.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        headerLayout.setPadding(0, 0, 0, 16);
+
+        // Product image
+        ImageView imgProduct = new ImageView(this);
+        LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
+                (int)(64 * getResources().getDisplayMetrics().density), 
+                (int)(64 * getResources().getDisplayMetrics().density));
+        imgProduct.setLayoutParams(imgParams);
+        imgProduct.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        if (p.localImagePath != null && !p.localImagePath.isEmpty()) {
+            java.io.File file = new java.io.File(p.localImagePath);
+            if (file.exists()) {
+                imgProduct.setImageBitmap(android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath()));
+            } else {
+                imgProduct.setImageResource(android.R.drawable.ic_menu_gallery);
+            }
+        } else {
+            imgProduct.setImageResource(android.R.drawable.ic_menu_gallery);
+        }
+        headerLayout.addView(imgProduct);
+
+        // Title and price text container
+        LinearLayout titleTextLayout = new LinearLayout(this);
+        titleTextLayout.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams titleTextParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        titleTextParams.setMargins((int)(12 * getResources().getDisplayMetrics().density), 0, 0, 0);
+        titleTextLayout.setLayoutParams(titleTextParams);
+
         // Title
         TextView txtTitle = new TextView(this);
         txtTitle.setText(p.name);
         txtTitle.setTextColor(android.graphics.Color.WHITE);
-        txtTitle.setTextSize(18);
+        txtTitle.setTextSize(16);
         txtTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        layout.addView(txtTitle);
+        titleTextLayout.addView(txtTitle);
 
         // Subtitle
         TextView txtSub = new TextView(this);
-        txtSub.setText("Original Price: LKR " + String.format(Locale.getDefault(), "%,.2f", p.price));
+        txtSub.setText("Original Price: LKR " + String.format(Locale.getDefault(), "%,.2f", p.price.doubleValue()));
         txtSub.setTextColor(android.graphics.Color.parseColor("#CBD5E1"));
         txtSub.setTextSize(12);
-        txtSub.setPadding(0, 8, 0, 24);
-        layout.addView(txtSub);
+        txtSub.setPadding(0, 4, 0, 0);
+        titleTextLayout.addView(txtSub);
+
+        headerLayout.addView(titleTextLayout);
+        layout.addView(headerLayout);
+
+        // Selected Variation (if applicable)
+        boolean hasVariations = (p.variationsJson != null && !p.variationsJson.isEmpty() && !p.variationsJson.equals("null"));
+        final Spinner spinnerVar;
+        if (hasVariations) {
+            final List<String> variationList = new ArrayList<>();
+            try {
+                org.json.JSONArray vars = new org.json.JSONArray(p.variationsJson);
+                for (int i = 0; i < vars.length(); i++) {
+                    org.json.JSONObject vObj = vars.getJSONObject(i);
+                    String opt = vObj.optString("option_name", "");
+                    int qty = vObj.optInt("quantity_on_hand", 0);
+                    variationList.add(opt + " (Stock: " + qty + ")");
+                }
+            } catch (Exception e) {
+                android.util.Log.e("BillingActivity", "Error parsing variations in dialog: " + e.getMessage());
+            }
+
+            if (!variationList.isEmpty()) {
+                TextView lblVar = new TextView(this);
+                lblVar.setText("SELECTED VARIATION:");
+                lblVar.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
+                lblVar.setTextSize(11);
+                lblVar.setTypeface(null, android.graphics.Typeface.BOLD);
+                lblVar.setPadding(0, 8, 0, 4);
+                layout.addView(lblVar);
+
+                spinnerVar = new Spinner(this);
+                spinnerVar.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+                ArrayAdapter<String> varAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, variationList) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        View v = super.getView(position, convertView, parent);
+                        if (v instanceof TextView) {
+                            ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                            ((TextView) v).setTextSize(14);
+                        }
+                        return v;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        View v = super.getDropDownView(position, convertView, parent);
+                        if (v instanceof TextView) {
+                            ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                            ((TextView) v).setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+                            ((TextView) v).setTextSize(14);
+                        }
+                        return v;
+                    }
+                };
+                spinnerVar.setAdapter(varAdapter);
+                layout.addView(spinnerVar);
+
+                if (existingItem != null && existingItem.selectedVariation != null && !existingItem.selectedVariation.isEmpty()) {
+                    for (int i = 0; i < variationList.size(); i++) {
+                        if (variationList.get(i).startsWith(existingItem.selectedVariation)) {
+                            spinnerVar.setSelection(i);
+                            break;
+                        }
+                    }
+                }
+            } else {
+                spinnerVar = null;
+            }
+        } else {
+            spinnerVar = null;
+        }
 
         // 1. Price override input
         TextView lblOverride = new TextView(this);
@@ -1196,13 +2051,15 @@ public class BillingActivity extends AppCompatActivity {
         lblOverride.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
         lblOverride.setTextSize(11);
         lblOverride.setTypeface(null, android.graphics.Typeface.BOLD);
+        lblOverride.setPadding(0, 12, 0, 0);
         layout.addView(lblOverride);
 
         final EditText edtOverridePrice = new EditText(this);
         edtOverridePrice.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
         edtOverridePrice.setTextColor(android.graphics.Color.WHITE);
         edtOverridePrice.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
-        edtOverridePrice.setText(String.valueOf(p.price));
+        java.math.BigDecimal initialPrice = (existingItem != null && existingItem.customPrice.compareTo(java.math.BigDecimal.ZERO) > 0) ? existingItem.customPrice : p.price;
+        edtOverridePrice.setText(initialPrice.toPlainString());
         edtOverridePrice.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         layout.addView(edtOverridePrice);
 
@@ -1212,21 +2069,102 @@ public class BillingActivity extends AppCompatActivity {
         lblQty.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
         lblQty.setTextSize(11);
         lblQty.setTypeface(null, android.graphics.Typeface.BOLD);
-        lblQty.setPadding(0, 16, 0, 0);
+        lblQty.setPadding(0, 12, 0, 0);
         layout.addView(lblQty);
+
+        LinearLayout qtyRow = new LinearLayout(this);
+        qtyRow.setOrientation(LinearLayout.HORIZONTAL);
+        qtyRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        qtyRow.setPadding(0, 4, 0, 4);
+
+        Button btnMinus = new Button(this);
+        btnMinus.setText("−");
+        btnMinus.setTextColor(android.graphics.Color.WHITE);
+        btnMinus.setTextSize(18);
+        btnMinus.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                (int)(48 * getResources().getDisplayMetrics().density), 
+                (int)(48 * getResources().getDisplayMetrics().density));
+        btnMinus.setLayoutParams(btnParams);
 
         final EditText edtQtyInput = new EditText(this);
         edtQtyInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         edtQtyInput.setTextColor(android.graphics.Color.WHITE);
         edtQtyInput.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
-        edtQtyInput.setText("1");
+        int initialQty = existingItem != null ? existingItem.quantity : 1;
+        edtQtyInput.setText(String.valueOf(initialQty));
+        edtQtyInput.setGravity(android.view.Gravity.CENTER);
         edtQtyInput.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
-        layout.addView(edtQtyInput);
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        inputParams.setMargins((int)(12 * getResources().getDisplayMetrics().density), 0, (int)(12 * getResources().getDisplayMetrics().density), 0);
+        edtQtyInput.setLayoutParams(inputParams);
+
+        Button btnPlus = new Button(this);
+        btnPlus.setText("+");
+        btnPlus.setTextColor(android.graphics.Color.WHITE);
+        btnPlus.setTextSize(18);
+        btnPlus.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
+        btnPlus.setLayoutParams(btnParams);
+
+        qtyRow.addView(btnMinus);
+        qtyRow.addView(edtQtyInput);
+        qtyRow.addView(btnPlus);
+        layout.addView(qtyRow);
+
+        final android.os.Handler autoIncrementHandler = new android.os.Handler();
+        class AutoRepeater implements View.OnTouchListener {
+            private final int direction; // -1 for dec, 1 for inc
+            private boolean isPressed = false;
+            
+            AutoRepeater(int direction) {
+                this.direction = direction;
+            }
+            
+            private final Runnable updateTask = new Runnable() {
+                @Override
+                public void run() {
+                    if (!isPressed) return;
+                    changeQty();
+                    autoIncrementHandler.postDelayed(this, 100);
+                }
+            };
+            
+            private void changeQty() {
+                try {
+                    String val = edtQtyInput.getText().toString().trim();
+                    int current = val.isEmpty() ? 0 : Integer.parseInt(val);
+                    int next = current + direction;
+                    if (next < 1) next = 1;
+                    edtQtyInput.setText(String.valueOf(next));
+                    edtQtyInput.setSelection(edtQtyInput.getText().length());
+                } catch (Exception ignored) {}
+            }
+            
+            @Override
+            public boolean onTouch(View v, android.view.MotionEvent event) {
+                switch(event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        isPressed = true;
+                        changeQty();
+                        autoIncrementHandler.postDelayed(updateTask, 400);
+                        return true;
+                    case android.view.MotionEvent.ACTION_UP:
+                    case android.view.MotionEvent.ACTION_CANCEL:
+                        isPressed = false;
+                        autoIncrementHandler.removeCallbacks(updateTask);
+                        return true;
+                }
+                return false;
+            }
+        }
+        
+        btnMinus.setOnTouchListener(new AutoRepeater(-1));
+        btnPlus.setOnTouchListener(new AutoRepeater(1));
 
         // 3. Discount inputs
         LinearLayout discountRow = new LinearLayout(this);
         discountRow.setOrientation(LinearLayout.HORIZONTAL);
-        discountRow.setPadding(0, 16, 0, 0);
+        discountRow.setPadding(0, 12, 0, 0);
 
         // Percentage discount
         LinearLayout colPct = new LinearLayout(this);
@@ -1245,6 +2183,9 @@ public class BillingActivity extends AppCompatActivity {
         edtDiscountPct.setTextColor(android.graphics.Color.WHITE);
         edtDiscountPct.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
         edtDiscountPct.setHint("0.0%");
+        if (existingItem != null && existingItem.discountPercent.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            edtDiscountPct.setText(existingItem.discountPercent.toPlainString());
+        }
         edtDiscountPct.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         colPct.addView(edtDiscountPct);
 
@@ -1272,6 +2213,11 @@ public class BillingActivity extends AppCompatActivity {
         edtDiscountAmt.setTextColor(android.graphics.Color.WHITE);
         edtDiscountAmt.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
         edtDiscountAmt.setHint("Rs 0.00");
+        if (existingItem != null && existingItem.discountAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            edtDiscountAmt.setText(existingItem.discountAmount.toPlainString());
+        } else if (existingItem != null && existingItem.discountVal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            edtDiscountAmt.setText(existingItem.discountVal.toPlainString());
+        }
         edtDiscountAmt.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
         colAmt.addView(edtDiscountAmt);
 
@@ -1280,17 +2226,32 @@ public class BillingActivity extends AppCompatActivity {
 
         // Live Total Preview Label
         final TextView txtLiveTotal = new TextView(this);
-        txtLiveTotal.setText("TOTAL: LKR " + String.format(Locale.getDefault(), "%,.2f", p.price));
+        java.math.BigDecimal currentTotal = (existingItem != null) ? existingItem.total : p.price;
+        txtLiveTotal.setText("TOTAL: " + CurrencyUtils.formatLKR(currentTotal));
         txtLiveTotal.setTextColor(android.graphics.Color.parseColor("#10B981"));
         txtLiveTotal.setTextSize(16);
         txtLiveTotal.setTypeface(null, android.graphics.Typeface.BOLD);
-        txtLiveTotal.setPadding(0, 24, 0, 16);
+        txtLiveTotal.setPadding(0, 16, 0, 12);
         txtLiveTotal.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
         layout.addView(txtLiveTotal);
 
         builder.setView(layout);
         final androidx.appcompat.app.AlertDialog dialog = builder.create();
         dialog.show();
+
+        edtQtyInput.requestFocus();
+        edtQtyInput.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                edtQtyInput.selectAll();
+                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.showSoftInput(edtQtyInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                }
+            }
+        }, 150);
+
+        final boolean[] percentActiveHolder = new boolean[]{ existingItem != null && existingItem.isPercentDiscountActive };
 
         // live preview update helper
         final Runnable updatePreview = new Runnable() {
@@ -1301,37 +2262,51 @@ public class BillingActivity extends AppCompatActivity {
                 isUpdating = true;
                 try {
                     String overridePriceStr = edtOverridePrice.getText().toString().trim();
-                    double uPrice = overridePriceStr.isEmpty() ? p.price : Double.parseDouble(overridePriceStr);
+                    java.math.BigDecimal uPrice = overridePriceStr.isEmpty() ? p.price : CurrencyUtils.toBigDecimal(overridePriceStr);
 
                     String qtyStr = edtQtyInput.getText().toString().trim();
                     int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
 
-                    double sub = uPrice * qty;
-                    double discountVal = 0.0;
+                    java.math.BigDecimal sub = uPrice.multiply(java.math.BigDecimal.valueOf(qty));
+                    java.math.BigDecimal discountVal = java.math.BigDecimal.ZERO;
 
                     String pctStr = edtDiscountPct.getText().toString().trim();
                     String amtStr = edtDiscountAmt.getText().toString().trim();
 
-                    if (edtDiscountPct.hasFocus() && !pctStr.isEmpty()) {
-                        double pct = Double.parseDouble(pctStr);
-                        discountVal = sub * (pct / 100.0);
-                        edtDiscountAmt.setText(String.format(Locale.getDefault(), "%.2f", discountVal));
-                    } else if (edtDiscountAmt.hasFocus() && !amtStr.isEmpty()) {
-                        discountVal = Double.parseDouble(amtStr);
-                        double pct = sub > 0 ? (discountVal / sub) * 100.0 : 0.0;
-                        edtDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", pct));
-                    } else {
+                    if (edtDiscountPct.hasFocus()) {
+                        percentActiveHolder[0] = true;
                         if (!pctStr.isEmpty()) {
-                            double pct = Double.parseDouble(pctStr);
-                            discountVal = sub * (pct / 100.0);
-                        } else if (!amtStr.isEmpty()) {
-                            discountVal = Double.parseDouble(amtStr);
+                            java.math.BigDecimal pct = CurrencyUtils.toBigDecimal(pctStr);
+                            discountVal = CurrencyUtils.calculatePercentage(sub, pct);
+                            edtDiscountAmt.setText(String.format(Locale.getDefault(), "%.2f", discountVal));
+                        } else {
+                            edtDiscountAmt.setText("");
+                        }
+                    } else if (edtDiscountAmt.hasFocus()) {
+                        percentActiveHolder[0] = false;
+                        if (!amtStr.isEmpty()) {
+                            discountVal = CurrencyUtils.toBigDecimal(amtStr);
+                            java.math.BigDecimal pct = sub.compareTo(java.math.BigDecimal.ZERO) > 0 ? discountVal.multiply(java.math.BigDecimal.valueOf(100)).divide(sub, 1, java.math.RoundingMode.HALF_UP) : java.math.BigDecimal.ZERO;
+                            edtDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", pct));
+                        } else {
+                            edtDiscountPct.setText("");
+                        }
+                    } else {
+                        if (percentActiveHolder[0]) {
+                            if (!pctStr.isEmpty()) {
+                                java.math.BigDecimal pct = CurrencyUtils.toBigDecimal(pctStr);
+                                discountVal = CurrencyUtils.calculatePercentage(sub, pct);
+                            }
+                        } else {
+                            if (!amtStr.isEmpty()) {
+                                discountVal = CurrencyUtils.toBigDecimal(amtStr);
+                            }
                         }
                     }
 
-                    double finalTotal = sub - discountVal;
-                    if (finalTotal < 0) finalTotal = 0;
-                    txtLiveTotal.setText("TOTAL: LKR " + String.format(Locale.getDefault(), "%,.2f", finalTotal));
+                    java.math.BigDecimal finalTotal = sub.subtract(discountVal);
+                    if (finalTotal.compareTo(java.math.BigDecimal.ZERO) < 0) finalTotal = java.math.BigDecimal.ZERO;
+                    txtLiveTotal.setText("TOTAL: " + CurrencyUtils.formatLKR(finalTotal));
                 } catch (Exception ignored) {}
                 isUpdating = false;
             }
@@ -1357,23 +2332,64 @@ public class BillingActivity extends AppCompatActivity {
         // Buttons
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setGravity(android.view.Gravity.END);
+        btnRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
         Button btnCancel = new Button(this);
         btnCancel.setText("Cancel");
         btnCancel.setTextColor(android.graphics.Color.WHITE);
         btnCancel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#94A3B8")));
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        btnCancel.setLayoutParams(cancelParams);
         btnRow.addView(btnCancel);
 
-        View spacerBtn = new View(this);
-        spacerBtn.setLayoutParams(new LinearLayout.LayoutParams(24, 1));
-        btnRow.addView(spacerBtn);
+        if (existingItem != null) {
+            Button btnRemove = new Button(this);
+            btnRemove.setText("Remove");
+            btnRemove.setTextColor(android.graphics.Color.WHITE);
+            btnRemove.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#EF4444")));
+            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+            removeParams.setMargins((int)(8 * getResources().getDisplayMetrics().density), 0, (int)(8 * getResources().getDisplayMetrics().density), 0);
+            btnRemove.setLayoutParams(removeParams);
+            btnRow.addView(btnRemove);
 
-        Button btnAddCart = new Button(this);
-        btnAddCart.setText("Add to Cart");
-        btnAddCart.setTextColor(android.graphics.Color.WHITE);
-        btnAddCart.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#10B981")));
-        btnRow.addView(btnAddCart);
+            btnRemove.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    new androidx.appcompat.app.AlertDialog.Builder(BillingActivity.this)
+                        .setTitle("Remove Item")
+                        .setMessage("Remove this item from the cart?")
+                        .setPositiveButton("Remove", new android.content.DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(android.content.DialogInterface dialogConfirm, int which) {
+                                cartList.remove(existingItem);
+                                boolean checkoutMode = (layoutCartCheckoutMode != null && layoutCartCheckoutMode.getVisibility() == View.VISIBLE);
+                                if (cartAdapter != null) {
+                                    cartAdapter.notifyDataSetChanged();
+                                }
+                                recalculateCart();
+                                showCartOverlay(checkoutMode);
+                                dialogConfirm.dismiss();
+                                dialog.dismiss();
+                                Toast.makeText(BillingActivity.this, p.name + " removed from cart.", Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                }
+            });
+        } else {
+            View spacerBtn = new View(this);
+            spacerBtn.setLayoutParams(new LinearLayout.LayoutParams((int)(16 * getResources().getDisplayMetrics().density), 1));
+            btnRow.addView(spacerBtn);
+        }
+
+        Button btnAction = new Button(this);
+        btnAction.setText(existingItem != null ? "Update" : "Add to Cart");
+        btnAction.setTextColor(android.graphics.Color.WHITE);
+        btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#10B981")));
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f);
+        btnAction.setLayoutParams(actionParams);
+        btnRow.addView(btnAction);
 
         layout.addView(btnRow);
 
@@ -1384,27 +2400,88 @@ public class BillingActivity extends AppCompatActivity {
             }
         });
 
-        btnAddCart.setOnClickListener(new View.OnClickListener() {
+        btnAction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
                     String overridePriceStr = edtOverridePrice.getText().toString().trim();
-                    double uPrice = overridePriceStr.isEmpty() ? p.price : Double.parseDouble(overridePriceStr);
+                    java.math.BigDecimal uPrice = overridePriceStr.isEmpty() ? p.price : CurrencyUtils.toBigDecimal(overridePriceStr);
 
                     String qtyStr = edtQtyInput.getText().toString().trim();
                     int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
 
-                    double pct = 0.0;
+                    java.math.BigDecimal pct = java.math.BigDecimal.ZERO;
                     String pctStr = edtDiscountPct.getText().toString().trim();
-                    if (!pctStr.isEmpty()) pct = Double.parseDouble(pctStr);
+                    if (!pctStr.isEmpty()) pct = CurrencyUtils.toBigDecimal(pctStr);
 
-                    double amt = 0.0;
+                    java.math.BigDecimal amt = java.math.BigDecimal.ZERO;
                     String amtStr = edtDiscountAmt.getText().toString().trim();
-                    if (!amtStr.isEmpty()) amt = Double.parseDouble(amtStr);
+                    if (!amtStr.isEmpty()) amt = CurrencyUtils.toBigDecimal(amtStr);
 
-                    // Add to cart with custom parameters
-                    addToCartCustom(p, qty, uPrice, pct, amt);
-                    dialog.dismiss();
+                    String selectedVar = "";
+                    if (hasVariations && spinnerVar != null) {
+                        String selectedVarFull = spinnerVar.getSelectedItem().toString();
+                        int idx = selectedVarFull.indexOf(" (Stock:");
+                        selectedVar = idx != -1 ? selectedVarFull.substring(0, idx) : selectedVarFull;
+                    }
+
+                    int left = p.qtyOnHand - p.qtyReserved;
+                    int oldQty = existingItem != null ? existingItem.quantity : 0;
+                    if (left + oldQty <= 0) {
+                        Toast.makeText(BillingActivity.this, "Out of Stock.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (qty <= 0) {
+                        Toast.makeText(BillingActivity.this, "Enter valid quantity.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (qty > left + oldQty) {
+                        Toast.makeText(BillingActivity.this, "Insufficient stock available offline.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    if (existingItem != null) {
+                        existingItem.quantity = qty;
+                        existingItem.customPrice = uPrice;
+                        existingItem.activePrice = uPrice;
+                        existingItem.discountPercent = pct;
+                        existingItem.discountAmount = amt;
+                        existingItem.isPercentDiscountActive = percentActiveHolder[0];
+                        existingItem.selectedVariation = selectedVar;
+
+                        java.math.BigDecimal subItem = uPrice.multiply(java.math.BigDecimal.valueOf(qty));
+                        java.math.BigDecimal discountValItem = java.math.BigDecimal.ZERO;
+                        if (existingItem.isPercentDiscountActive && pct.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                            discountValItem = CurrencyUtils.calculatePercentage(subItem, pct);
+                        } else if (!existingItem.isPercentDiscountActive && amt.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                            discountValItem = amt;
+                        }
+                        existingItem.discountVal = discountValItem;
+                        existingItem.total = subItem.subtract(discountValItem);
+                        if (existingItem.total.compareTo(java.math.BigDecimal.ZERO) < 0) existingItem.total = java.math.BigDecimal.ZERO;
+
+                        boolean checkoutMode = (layoutCartCheckoutMode != null && layoutCartCheckoutMode.getVisibility() == View.VISIBLE);
+                        if (cartAdapter != null) {
+                            cartAdapter.notifyDataSetChanged();
+                        }
+                        recalculateCart();
+                        showCartOverlay(checkoutMode);
+                        dialog.dismiss();
+                        Toast.makeText(BillingActivity.this, "Cart updated.", Toast.LENGTH_SHORT).show();
+                    } else {
+                        // Add to cart with custom parameters
+                        addToCartCustom(p, qty, uPrice, pct, amt, percentActiveHolder[0]);
+                        if (hasVariations && !selectedVar.isEmpty()) {
+                            // Find the newly added item and assign selected variation
+                            for (CartItemModel item : cartList) {
+                                if (item.productId == p.id) {
+                                    item.selectedVariation = selectedVar;
+                                    break;
+                                }
+                            }
+                        }
+                        dialog.dismiss();
+                    }
                 } catch (Exception e) {
                     Toast.makeText(BillingActivity.this, "Invalid inputs entered.", Toast.LENGTH_SHORT).show();
                 }
@@ -1412,7 +2489,31 @@ public class BillingActivity extends AppCompatActivity {
         });
     }
 
-    private void addToCartCustom(ProductModel p, int qty, double customPrice, double discountPercent, double discountAmount) {
+    private ProductModel getProductById(int prodId) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM products WHERE id = ?", new String[]{String.valueOf(prodId)});
+        ProductModel p = null;
+        if (cursor.moveToFirst()) {
+            p = new ProductModel();
+            p.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            p.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+            p.category = cursor.getString(cursor.getColumnIndexOrThrow("category_name"));
+            p.price = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("price")));
+            p.wholesalePrice = CurrencyUtils.toBigDecimal(cursor.getDouble(cursor.getColumnIndexOrThrow("wholesale_price")));
+            p.qtyOnHand = cursor.getInt(cursor.getColumnIndexOrThrow("quantity_on_hand"));
+            p.qtyReserved = cursor.getInt(cursor.getColumnIndexOrThrow("quantity_reserved"));
+            p.localImagePath = cursor.getString(cursor.getColumnIndexOrThrow("local_image_path"));
+            p.sku = cursor.getString(cursor.getColumnIndexOrThrow("sku"));
+            p.sampleCode = cursor.getString(cursor.getColumnIndexOrThrow("sample_code"));
+            p.variationsJson = cursor.getString(cursor.getColumnIndexOrThrow("variations_json"));
+            p.brand = cursor.getString(cursor.getColumnIndexOrThrow("brand"));
+            p.description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+        }
+        cursor.close();
+        return p;
+    }
+
+    private void addToCartCustom(ProductModel p, int qty, java.math.BigDecimal customPrice, java.math.BigDecimal discountPercent, java.math.BigDecimal discountAmount, boolean isPercentActive) {
         int left = p.qtyOnHand - p.qtyReserved;
         if (left <= 0) {
             Toast.makeText(BillingActivity.this, "Out of Stock.", Toast.LENGTH_SHORT).show();
@@ -1428,17 +2529,17 @@ public class BillingActivity extends AppCompatActivity {
         }
 
         boolean found = false;
-        double sub = customPrice * qty;
-        double discountVal = 0.0;
+        java.math.BigDecimal sub = customPrice.multiply(java.math.BigDecimal.valueOf(qty));
+        java.math.BigDecimal discountVal = java.math.BigDecimal.ZERO;
 
-        if (discountPercent > 0) {
-            discountVal = sub * (discountPercent / 100.0);
-        } else if (discountAmount > 0) {
+        if (isPercentActive && discountPercent.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            discountVal = CurrencyUtils.calculatePercentage(sub, discountPercent);
+        } else if (!isPercentActive && discountAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
             discountVal = discountAmount;
         }
 
-        double total = sub - discountVal;
-        if (total < 0) total = 0;
+        java.math.BigDecimal total = sub.subtract(discountVal);
+        if (total.compareTo(java.math.BigDecimal.ZERO) < 0) total = java.math.BigDecimal.ZERO;
 
         for (CartItemModel item : cartList) {
             if (item.productId == p.id) {
@@ -1450,9 +2551,18 @@ public class BillingActivity extends AppCompatActivity {
                 item.customPrice = customPrice;
                 item.discountPercent = discountPercent;
                 item.discountAmount = discountAmount;
-                item.discountVal = (item.customPrice * item.quantity) * (discountPercent / 100.0) + discountAmount;
-                item.total = (item.customPrice * item.quantity) - item.discountVal;
-                if (item.total < 0) item.total = 0;
+                item.isPercentDiscountActive = isPercentActive;
+
+                java.math.BigDecimal itemSub = item.customPrice.multiply(java.math.BigDecimal.valueOf(item.quantity));
+                java.math.BigDecimal itemDisc = java.math.BigDecimal.ZERO;
+                if (item.isPercentDiscountActive && item.discountPercent.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    itemDisc = CurrencyUtils.calculatePercentage(itemSub, item.discountPercent);
+                } else if (!item.isPercentDiscountActive && item.discountAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    itemDisc = item.discountAmount;
+                }
+                item.discountVal = itemDisc;
+                item.total = itemSub.subtract(item.discountVal);
+                if (item.total.compareTo(java.math.BigDecimal.ZERO) < 0) item.total = java.math.BigDecimal.ZERO;
                 found = true;
                 break;
             }
@@ -1466,6 +2576,7 @@ public class BillingActivity extends AppCompatActivity {
             item.customPrice = customPrice;
             item.discountPercent = discountPercent;
             item.discountAmount = discountAmount;
+            item.isPercentDiscountActive = isPercentActive;
             item.discountVal = discountVal;
             item.quantity = qty;
             item.activePrice = customPrice;
@@ -1502,8 +2613,8 @@ public class BillingActivity extends AppCompatActivity {
             lblProductNameGrid.setText(p.name);
             lblCategoryGrid.setText(p.category);
 
-            final double currentPrice = p.price;
-            lblPriceGrid.setText(String.format(Locale.getDefault(), "LKR %.2f", currentPrice));
+            final java.math.BigDecimal currentPrice = p.price;
+            lblPriceGrid.setText(String.format(Locale.getDefault(), "LKR %.2f", currentPrice.doubleValue()));
 
             final int available = p.qtyOnHand - p.qtyReserved;
             lblStockGrid.setText("Stock: " + available);
@@ -1535,6 +2646,14 @@ public class BillingActivity extends AppCompatActivity {
                 }
             });
 
+            convertView.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    showProductQuickViewDialog(p);
+                    return true;
+                }
+            });
+
             return convertView;
         }
     }
@@ -1546,7 +2665,7 @@ public class BillingActivity extends AppCompatActivity {
         try {
             SQLiteDatabase db = dbHelper.getReadableDatabase();
             // Try querying the dedicated categories table loaded directly from item_categories
-            Cursor cursor = db.rawQuery("SELECT name FROM categories ORDER BY name ASC", null);
+            Cursor cursor = db.rawQuery("SELECT name FROM categories WHERE status = 'active' ORDER BY name ASC", null);
             while (cursor.moveToNext()) {
                 categoryList.add(cursor.getString(0));
             }
@@ -1554,7 +2673,7 @@ public class BillingActivity extends AppCompatActivity {
 
             // Fallback to distinct product category names if categories table is not yet seeded
             if (categoryList.size() <= 1) {
-                cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' AND category_name != 'null' ORDER BY category_name ASC", null);
+                cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' AND category_name != 'null' AND status = 'active' ORDER BY category_name ASC", null);
                 while (cursor.moveToNext()) {
                     categoryList.add(cursor.getString(0));
                 }
@@ -1587,17 +2706,61 @@ public class BillingActivity extends AppCompatActivity {
             }
         };
         catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCategory.setAdapter(catAdapter);
+        if (spinnerCategory != null) {
+            spinnerCategory.setAdapter(catAdapter);
+            spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    loadCatalogItems(edtProductSearch.getText().toString());
+                }
 
-        spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                loadCatalogItems(edtProductSearch.getText().toString());
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {}
+            });
+        }
+
+        setupHorizontalCategories();
+    }
+
+    private void setupHorizontalCategories() {
+        final LinearLayout layoutHorizontalCategories = findViewById(R.id.layoutHorizontalCategories);
+        if (layoutHorizontalCategories == null) return;
+        
+        layoutHorizontalCategories.removeAllViews();
+        
+        for (final String catName : categoryList) {
+            final Button btn = new Button(this);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                (int) (36 * getResources().getDisplayMetrics().density)
+            );
+            params.setMargins(0, 0, (int) (8 * getResources().getDisplayMetrics().density), 0);
+            btn.setLayoutParams(params);
+            btn.setPadding((int) (14 * getResources().getDisplayMetrics().density), 0, (int) (14 * getResources().getDisplayMetrics().density), 0);
+            btn.setText(catName);
+            btn.setTextSize(12);
+            btn.setAllCaps(false);
+            
+            // Set style based on selection
+            if (catName.equalsIgnoreCase(selectedCategoryName)) {
+                btn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3B82F6")));
+                btn.setTextColor(android.graphics.Color.WHITE);
+            } else {
+                btn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#1E293B")));
+                btn.setTextColor(android.graphics.Color.parseColor("#CBD5E1"));
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
+            
+            btn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    selectedCategoryName = catName;
+                    setupHorizontalCategories(); // redraw selection state
+                    loadCatalogItems(edtProductSearch.getText().toString());
+                }
+            });
+            
+            layoutHorizontalCategories.addView(btn);
+        }
     }
 
     private void showCustomerSelectionDialog() {
@@ -1636,7 +2799,7 @@ public class BillingActivity extends AppCompatActivity {
 
         final List<String> allCustNames = new ArrayList<>();
         for (CustomerModel c : customerList) {
-            allCustNames.add(c.name + " (Bal: LKR " + String.format(Locale.getDefault(), "%,.2f", c.outstanding) + ")");
+            allCustNames.add(c.name + " (Bal: LKR " + String.format(Locale.getDefault(), "%,.2f", c.outstanding.doubleValue()) + ")");
         }
         final List<String> filteredCustNames = new ArrayList<>(allCustNames);
 
@@ -1656,7 +2819,7 @@ public class BillingActivity extends AppCompatActivity {
                         String filter = s.toString().toLowerCase().trim();
                         for (CustomerModel c : customerList) {
                             if (c.name.toLowerCase().contains(filter)) {
-                                filteredCustNames.add(c.name + " (Bal: LKR " + String.format(Locale.getDefault(), "%,.2f", c.outstanding) + ")");
+                                filteredCustNames.add(c.name + " (Bal: LKR " + String.format(Locale.getDefault(), "%,.2f", c.outstanding.doubleValue()) + ")");
                             }
                         }
                         adapter.notifyDataSetChanged();
@@ -1673,15 +2836,25 @@ public class BillingActivity extends AppCompatActivity {
                 public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                     String chosenName = filteredCustNames.get(position);
                     for (CustomerModel c : customerList) {
-                        String matchStr = c.name + " (Bal: LKR " + String.format(Locale.getDefault(), "%,.2f", c.outstanding) + ")";
+                        String matchStr = c.name + " (Bal: LKR " + String.format(Locale.getDefault(), "%,.2f", c.outstanding.doubleValue()) + ")";
                         if (matchStr.equalsIgnoreCase(chosenName)) {
                             selectedCustomer = c;
                             break;
                         }
                     }
                     if (selectedCustomer != null) {
-                        String displayName = selectedCustomer.name + "\nOutstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding);
-                        txtSelectedCustomerName.setText(displayName);
+                        String displayName = selectedCustomer.name;
+                        String balText = "Outstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding.doubleValue());
+
+                        if (txtOverlayCustomerName != null) txtOverlayCustomerName.setText(displayName);
+                        if (txtOverlayCustomerBalance != null) txtOverlayCustomerBalance.setText(balText);
+                        if (txtCheckoutCustomerName != null) txtCheckoutCustomerName.setText(displayName);
+
+                        if (txtSelectedCustomerName != null) {
+                            String displayNameFull = selectedCustomer.name + "\nOutstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding.doubleValue());
+                            txtSelectedCustomerName.setText(displayNameFull);
+                        }
+                        saveDraftBill();
                         dialog.dismiss();
                     }
                 }
@@ -1706,6 +2879,156 @@ public class BillingActivity extends AppCompatActivity {
         View btnStartTrip = dialogView.findViewById(R.id.btnStartTripDialog);
         if (btnStartTrip != null) {
             btnStartTrip.setVisibility(View.GONE);
+        }
+    }
+
+    private void showEditCustomerDialog() {
+        if (selectedCustomer == null) {
+            Toast.makeText(this, "Please select a customer first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(BillingActivity.this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_customer, null);
+        builder.setView(dialogView);
+
+        final androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.show();
+
+        // Bind fields
+        final EditText edtName = dialogView.findViewById(R.id.edtEditCustomerName);
+        final EditText edtPhone = dialogView.findViewById(R.id.edtEditCustomerPhone);
+        final EditText edtWhatsapp = dialogView.findViewById(R.id.edtEditCustomerWhatsapp);
+        final EditText edtEmail = dialogView.findViewById(R.id.edtEditCustomerEmail);
+        final EditText edtAddress = dialogView.findViewById(R.id.edtEditCustomerAddress);
+        final EditText edtTerritory = dialogView.findViewById(R.id.edtEditCustomerTerritory);
+        final EditText edtRoute = dialogView.findViewById(R.id.edtEditCustomerRoute);
+        final EditText edtType = dialogView.findViewById(R.id.edtEditCustomerType);
+        final EditText edtCreditLimit = dialogView.findViewById(R.id.edtEditCustomerCreditLimit);
+        final EditText edtNotes = dialogView.findViewById(R.id.edtEditCustomerNotes);
+
+        Button btnCancel = dialogView.findViewById(R.id.btnCancelEditCustomer);
+        Button btnSave = dialogView.findViewById(R.id.btnSaveEditCustomer);
+
+        // Prepopulate fields
+        edtName.setText(selectedCustomer.name != null ? selectedCustomer.name : "");
+        edtPhone.setText(selectedCustomer.phone != null ? selectedCustomer.phone : "");
+        edtWhatsapp.setText(selectedCustomer.whatsapp != null ? selectedCustomer.whatsapp : "");
+        edtEmail.setText(selectedCustomer.email != null ? selectedCustomer.email : "");
+        edtAddress.setText(selectedCustomer.address != null ? selectedCustomer.address : "");
+        edtTerritory.setText(selectedCustomer.territory != null ? selectedCustomer.territory : "");
+        edtRoute.setText(selectedCustomer.mcaName != null ? selectedCustomer.mcaName : "");
+        edtType.setText(selectedCustomer.customerType != null ? selectedCustomer.customerType : "");
+        edtCreditLimit.setText(String.valueOf(selectedCustomer.creditLimit));
+        edtNotes.setText(selectedCustomer.notes != null ? selectedCustomer.notes : "");
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+
+        btnSave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String name = edtName.getText().toString().trim();
+                String phone = edtPhone.getText().toString().trim();
+                String whatsapp = edtWhatsapp.getText().toString().trim();
+                String email = edtEmail.getText().toString().trim();
+                String address = edtAddress.getText().toString().trim();
+                String territory = edtTerritory.getText().toString().trim();
+                String route = edtRoute.getText().toString().trim();
+                String type = edtType.getText().toString().trim();
+                String creditLimitStr = edtCreditLimit.getText().toString().trim();
+                String notes = edtNotes.getText().toString().trim();
+
+                if (name.isEmpty()) {
+                    Toast.makeText(BillingActivity.this, "Customer name is required.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                java.math.BigDecimal creditLimit = java.math.BigDecimal.ZERO;
+                if (!creditLimitStr.isEmpty()) {
+                    try {
+                        creditLimit = CurrencyUtils.toBigDecimal(creditLimitStr);
+                    } catch (Exception e) {}
+                }
+
+                // Update database
+                SQLiteDatabase db = dbHelper.getWritableDatabase();
+                ContentValues cv = new ContentValues();
+                cv.put("name", name);
+                cv.put("phone", phone);
+                cv.put("whatsapp", whatsapp);
+                cv.put("email", email);
+                cv.put("address", address);
+                cv.put("territory", territory);
+                cv.put("mca_name", route);
+                cv.put("customer_type", type);
+                cv.put("credit_limit", creditLimit.doubleValue());
+                cv.put("notes", notes);
+                cv.put("is_synced", 0);
+
+                int rows = db.update("customers", cv, "id = ?", new String[]{String.valueOf(selectedCustomer.id)});
+                if (rows > 0) {
+                    Toast.makeText(BillingActivity.this, "Customer updated successfully!", Toast.LENGTH_SHORT).show();
+                    
+                    // Update current selectedCustomer model reference in memory
+                    selectedCustomer.name = name;
+                    selectedCustomer.phone = phone;
+                    selectedCustomer.whatsapp = whatsapp;
+                    selectedCustomer.email = email;
+                    selectedCustomer.address = address;
+                    selectedCustomer.territory = territory;
+                    selectedCustomer.mcaName = route;
+                    selectedCustomer.customerType = type;
+                    selectedCustomer.creditLimit = creditLimit;
+                    selectedCustomer.notes = notes;
+
+                    // Update UI immediately in billing screen (both in overlay and main screen)
+                    String displayName = selectedCustomer.name;
+                    String balText = "Outstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding.doubleValue());
+
+                    if (txtOverlayCustomerName != null) txtOverlayCustomerName.setText(displayName);
+                    if (txtOverlayCustomerBalance != null) txtOverlayCustomerBalance.setText(balText);
+                    if (txtCheckoutCustomerName != null) txtCheckoutCustomerName.setText(displayName);
+
+                    if (txtSelectedCustomerName != null) {
+                        String displayNameFull = selectedCustomer.name + "\nOutstanding: LKR " + String.format(Locale.getDefault(), "%,.2f", selectedCustomer.outstanding.doubleValue());
+                        txtSelectedCustomerName.setText(displayNameFull);
+                    }
+
+                    saveDraftBill();
+
+                    // Auto sync on customer edit removed in favor of manual sync.
+                } else {
+                    Toast.makeText(BillingActivity.this, "Failed to update customer.", Toast.LENGTH_SHORT).show();
+                }
+
+                dialog.dismiss();
+            }
+        });
+    }
+
+    private android.app.ProgressDialog progressDialog;
+
+    private void showGlobalLoadingDialog(String message) {
+        if (progressDialog == null) {
+            progressDialog = new android.app.ProgressDialog(this);
+            progressDialog.setIndeterminate(true);
+            progressDialog.setCancelable(false);
+        }
+        progressDialog.setMessage(message);
+        if (!progressDialog.isShowing()) {
+            progressDialog.show();
+        }
+    }
+
+    private void dismissGlobalLoadingDialog() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
         }
     }
 }

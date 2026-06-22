@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121824"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <!-- Header Icon & Title -->
+        <ImageView
+            android:id="@+id/imgUpdateLogo"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="16dp"
+            android:src="@android:drawable/stat_sys_download"
+            android:tint="#3B82F6" />
+
+        <TextView
+            android:id="@+id/txtUpdateTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="New Update Available"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtUpdateVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="sans-serif-light"
+            android:text="Version 1.0.1 is ready to download"
+            android:textColor="#CBD5E1"
+            android:textSize="14sp" />
+
+        <!-- Release Notes Section -->
+        <LinearLayout
+            android:id="@+id/releaseNotesCard"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="24dp"
+            android:background="#1E293B"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="WHAT'S NEW"
+                android:textColor="#94A3B8"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="8dp" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <TextView
+                    android:id="@+id/txtReleaseNotes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:textColor="#F1F5F9"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:text="• Small bug fixes and performance improvements." />
+            </ScrollView>
+        </LinearLayout>
+
+        <!-- Progress and Status Container -->
+        <LinearLayout
+            android:id="@+id/downloadProgressContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <ProgressBar
+                android:id="@+id/downloadProgressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#3B82F6"
+                android:progressBackgroundTint="#334155" />
+
+            <TextView
+                android:id="@+id/txtDownloadStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="Downloading: 0%"
+                android:textColor="#3B82F6"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:id="@+id/buttonContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnUpdateNow"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:backgroundTint="#3B82F6"
+                android:text="UPDATE NOW"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnUpdateLater"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="10dp"
+                android:backgroundTint="#334155"
+                android:text="LATER"
+                android:textColor="#CBD5E1"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</RelativeLayout>

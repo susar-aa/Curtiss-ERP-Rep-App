@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0F172A">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Back button + Title -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:drawable/ic_menu_revert"
+                android:backgroundTint="#FFFFFF" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/btnBack"
+                android:layout_marginStart="16dp"
+                android:text="Sync Diagnostics"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnForceSync"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:text="Sync Now"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#3B82F6"
+                android:textSize="12sp" />
+
+        </RelativeLayout>
+
+        <!-- Summary Grid (2x2 structure using nested LinearLayouts) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <!-- Total Queue Card -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:background="@android:drawable/dialog_holo_dark_frame"
+                android:backgroundTint="#1E293B"
+                android:orientation="vertical"
+                android:padding="10dp"
+                android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total Bills"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/txtStatTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <!-- Synced Card -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:background="@android:drawable/dialog_holo_dark_frame"
+                android:backgroundTint="#1E293B"
+                android:orientation="vertical"
+                android:padding="10dp"
+                android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Synced"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/txtStatSynced"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#10B981"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <!-- Failed Card -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:background="@android:drawable/dialog_holo_dark_frame"
+                android:backgroundTint="#1E293B"
+                android:orientation="vertical"
+                android:padding="10dp"
+                android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Failed"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/txtStatFailed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#EF4444"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <!-- Pending Card -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:background="@android:drawable/dialog_holo_dark_frame"
+                android:backgroundTint="#1E293B"
+                android:orientation="vertical"
+                android:padding="10dp"
+                android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pending / Syncing"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/txtStatPending"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#F59E0B"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Search Box -->
+        <EditText
+            android:id="@+id/edtSearchLogs"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="12dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:backgroundTint="#1E293B"
+            android:hint="Filter logs by UUID or ID..."
+            android:textColor="#000000"
+            android:textColorHint="#94A3B8"
+            android:textSize="14sp"
+            android:paddingLeft="10dp" />
+
+        <!-- Sync Logs List -->
+        <ListView
+            android:id="@+id/lstLogs"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="#1E293B"
+            android:dividerHeight="8dp" />
+
+    </LinearLayout>
+
+</RelativeLayout>

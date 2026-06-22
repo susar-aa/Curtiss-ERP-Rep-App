@@ -10,8 +10,8 @@ android {
         applicationId = "com.example.curtiss"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -24,6 +24,9 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -45,6 +48,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.swiperefreshlayout)
     implementation("org.mindrot:jbcrypt:0.4")
+    implementation("androidx.work:work-runtime:2.9.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/swipeRefreshLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#0F172A">
 
-    <ScrollView
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#0F172A"
-        android:fillViewport="true">
+        android:layout_above="@id/bottom_navigation">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#0F172A"
+            android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -30,13 +36,17 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/txtAppNameHeader"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="CURTISS ERP"
                     android:textColor="#3B82F6"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:letterSpacing="0.05"/>
+                    android:letterSpacing="0.05"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -48,23 +58,47 @@
 
             </LinearLayout>
 
-            <!-- Sync Indicator Badge -->
-            <TextView
-                android:id="@+id/txtSyncBadge"
+            <!-- Profile and Sync Badges Container -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:background="@android:drawable/toast_frame"
-                android:backgroundTint="#1E293B"
-                android:paddingLeft="12dp"
-                android:paddingRight="12dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp"
-                android:text="✓ Online"
-                android:textColor="#10B981"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Sync Indicator Badge -->
+                <TextView
+                    android:id="@+id/txtSyncBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:drawable/toast_frame"
+                    android:backgroundTint="#1E293B"
+                    android:paddingLeft="12dp"
+                    android:paddingRight="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:text="✓ Online"
+                    android:textColor="#10B981"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- Small Profile Icon -->
+                <TextView
+                    android:id="@+id/btnProfileHeader"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="10dp"
+                    android:background="@android:drawable/toast_frame"
+                    android:backgroundTint="#1E293B"
+                    android:gravity="center"
+                    android:text="👤"
+                    android:textSize="16sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground" />
+
+            </LinearLayout>
 
         </RelativeLayout>
 
@@ -166,107 +200,6 @@
                 android:backgroundTint="#10B981"
                 android:text="Open Collections"
                 android:textColor="#FFFFFF" />
-
-        </LinearLayout>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:drawable/dialog_holo_dark_frame"
-            android:backgroundTint="#1E293B"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:layout_marginBottom="24dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="DAILY TRIP RADAR"
-                android:textColor="#3B82F6"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.1" />
-
-            <!-- Route INACTIVE Controls -->
-            <LinearLayout
-                android:id="@+id/layoutStartRoute"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp"
-                android:visibility="visible">
-
-                <Button
-                    android:id="@+id/btnStartRoute"
-                    android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:backgroundTint="#3B82F6"
-                    android:text="Start Territory Route"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-            </LinearLayout>
-
-            <!-- Route ACTIVE Controls -->
-            <LinearLayout
-                android:id="@+id/layoutEndRoute"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/txtActiveRouteName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Active Route: Negombo Territory"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/txtRouteStartTime"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Started At: 2026-05-29 08:30 AM"
-                    android:textColor="#CBD5E1"
-                    android:textSize="13sp"
-                    android:layout_marginTop="4dp"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Enter End Odometer (KM):"
-                    android:textColor="#CBD5E1"
-                    android:textSize="13sp"
-                    android:layout_marginTop="16dp"/>
-
-                <EditText
-                    android:id="@+id/edtEndOdo"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
-                    android:backgroundTint="#334155"
-                    android:hint="e.g. 14350"
-                    android:inputType="numberDecimal"
-                    android:textColor="#FFFFFF"
-                    android:textColorHint="#94A3B8"
-                    android:textSize="15sp"
-                    android:paddingLeft="10dp"
-                    android:background="@android:drawable/editbox_background_normal"/>
-
-                <Button
-                    android:id="@+id/btnEndRoute"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="20dp"
-                    android:backgroundTint="#EF4444"
-                    android:text="End Daily Route &amp; Save"
-                    android:textColor="#FFFFFF"
-                    android:textStyle="bold" />
-
-            </LinearLayout>
 
         </LinearLayout>
 
@@ -468,46 +401,7 @@
 
             </LinearLayout>
 
-            <!-- Card D: Profile Information -->
-            <LinearLayout
-                android:id="@+id/navProfile"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:layout_margin="6dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:clickable="true"
-                android:focusable="true">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="👤"
-                    android:textSize="32sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Rep Profile"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="10dp"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Targets &amp; limits"
-                    android:textColor="#CBD5E1"
-                    android:layout_marginTop="4dp"
-                    android:textSize="11sp" />
-
-            </LinearLayout>
 
             <!-- Card E: Product Catalog -->
             <LinearLayout
@@ -552,6 +446,125 @@
 
         </GridLayout>
 
+        <!-- 3. Dynamic Daily Route / Odometer Panel -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:drawable/dialog_holo_dark_frame"
+            android:backgroundTint="#1E293B"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DAILY TRIP RADAR"
+                android:textColor="#3B82F6"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1" />
+
+            <!-- Route INACTIVE Controls -->
+            <LinearLayout
+                android:id="@+id/layoutStartRoute"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp"
+                android:visibility="visible">
+
+                <Button
+                    android:id="@+id/btnStartRoute"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:backgroundTint="#3B82F6"
+                    android:text="Start Territory Route"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Route ACTIVE Controls -->
+            <LinearLayout
+                android:id="@+id/layoutEndRoute"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/txtActiveRouteName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Active Route: Negombo Territory"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/txtRouteStartTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Started At: 2026-05-29 08:30 AM"
+                    android:textColor="#CBD5E1"
+                    android:textSize="13sp"
+                    android:layout_marginTop="4dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Enter End Odometer (KM):"
+                    android:textColor="#CBD5E1"
+                    android:textSize="13sp"
+                    android:layout_marginTop="16dp"
+                    android:visibility="gone" />
+
+                <EditText
+                    android:id="@+id/edtEndOdo"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="#334155"
+                    android:hint="e.g. 14350"
+                    android:inputType="numberDecimal"
+                    android:textColor="#000000"
+                    android:textColorHint="#94A3B8"
+                    android:textSize="15sp"
+                    android:paddingLeft="10dp"
+                    android:background="@android:drawable/editbox_background_normal"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btnEndRoute"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:backgroundTint="#EF4444"
+                    android:text="End Day"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
-</ScrollView>
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </ScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="#1E293B"
+        app:backgroundTint="#1E293B"
+        app:itemIconTint="@color/bottom_nav_color"
+        app:itemTextColor="@color/bottom_nav_color"
+        app:menu="@menu/bottom_nav_menu" />
+
+</RelativeLayout>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:drawable/dialog_holo_dark_frame"
+    android:backgroundTint="#1E293B"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_margin="4dp">
+
+    <!-- Header Row: Local ID and Status Badge -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/txtLogBillId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BILL ID: #0"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtLogStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:background="@android:drawable/btn_default"
+            android:backgroundTint="#EF4444"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="Failed"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+    <!-- UUID Row -->
+    <TextView
+        android:id="@+id/txtLogUuid"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        android:textColor="#94A3B8"
+        android:textSize="12sp"
+        android:ellipsize="middle"
+        android:singleLine="true" />
+
+    <!-- Details/Timestamps Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/txtLogCreated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Created: 2026-06-19 12:00:00"
+            android:textColor="#CBD5E1"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/txtLogStarted"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Started: 2026-06-19 12:01:00"
+            android:textColor="#CBD5E1"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/txtLogCompleted"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Completed: 2026-06-19 12:01:05"
+            android:textColor="#CBD5E1"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/txtLogRetries"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Retries: 0"
+            android:textColor="#CBD5E1"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp" />
+
+        <!-- Failure reason -->
+        <TextView
+            android:id="@+id/txtLogFailureReason"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="#EF4444"
+            android:backgroundTint="#33EF4444"
+            android:padding="8dp"
+            android:text="Reason: Network connection timeout."
+            android:textColor="#EF4444"
+            android:textSize="12sp"
+            android:visibility="visible" />
+
+    </LinearLayout>
+
+    <!-- Action Section: Retry Button -->
+    <Button
+        android:id="@+id/btnLogRetry"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="#F59E0B"
+        android:text="Retry Upload Now"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:visibility="visible" />
+
+</LinearLayout>

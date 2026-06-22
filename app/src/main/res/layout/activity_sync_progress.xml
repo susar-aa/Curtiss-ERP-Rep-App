@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121824"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <!-- Sync Icon -->
+        <ImageView
+            android:id="@+id/imgSyncProgressLogo"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_marginBottom="24dp"
+            android:src="@android:drawable/stat_notify_sync"
+            android:tint="#3B82F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="MANUAL SYNC ENGINE"
+            android:textColor="#FFFFFF"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.05" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="36dp"
+            android:fontFamily="sans-serif-light"
+            android:text="Two-Phase Offline Synchronization"
+            android:textColor="#CBD5E1"
+            android:textSize="14sp"
+            android:letterSpacing="0.1" />
+
+        <!-- Progress Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1E293B"
+            android:elevation="6dp"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="left">
+
+            <!-- Phase 1 Layout -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+                
+                <ImageView
+                    android:id="@+id/imgPhase1Status"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/presence_invisible"
+                    android:tint="#94A3B8"
+                    android:layout_marginRight="12dp" />
+
+                <TextView
+                    android:id="@+id/txtPhase1Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Phase 1: Uploading transactions"
+                    android:textColor="#94A3B8"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <!-- Phase 2 Layout -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="24dp">
+                
+                <ImageView
+                    android:id="@+id/imgPhase2Status"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/presence_invisible"
+                    android:tint="#94A3B8"
+                    android:layout_marginRight="12dp" />
+
+                <TextView
+                    android:id="@+id/txtPhase2Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Phase 2: Verifying server records"
+                    android:textColor="#94A3B8"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <!-- Progress Bar -->
+            <ProgressBar
+                android:id="@+id/syncProgressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#3B82F6"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/txtSyncProgressStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="Starting sync process..."
+                android:textColor="#F1F5F9"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/txtSyncProgressDetail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="sans-serif"
+                android:text="Locating unsynced invoices, routes, payments..."
+                android:textColor="#CBD5E1"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="32dp"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnSyncCancel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginRight="8dp"
+                android:backgroundTint="#EF4444"
+                android:textColor="#FFFFFF"
+                android:text="Cancel" />
+
+            <Button
+                android:id="@+id/btnSyncRetry"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginRight="8dp"
+                android:backgroundTint="#3B82F6"
+                android:textColor="#FFFFFF"
+                android:text="Retry"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnSyncFinish"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="#10B981"
+                android:textColor="#FFFFFF"
+                android:text="Done"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+</RelativeLayout>

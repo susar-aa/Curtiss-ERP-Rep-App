@@ -49,12 +49,19 @@ public class LoginActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_login);
 
-        dbHelper = new DatabaseHelper(this);
+        dbHelper = DatabaseHelper.getInstance(this);
 
         edtUsername = findViewById(R.id.edtUsername);
         edtPassword = findViewById(R.id.edtPassword);
         btnLogin = findViewById(R.id.btnLogin);
         txtSyncDetails = findViewById(R.id.txtSyncDetails);
+        
+        try {
+            String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            txtSyncDetails.setText("Secure connection is encrypted using standard SSL/TLS.\nApp Version: v" + versionName);
+        } catch (Exception e) {
+            txtSyncDetails.setText("Secure connection is encrypted using standard SSL/TLS.");
+        }
 
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -148,7 +155,7 @@ public class LoginActivity extends AppCompatActivity {
                             btnLogin.setEnabled(true);
                             if (localSuccess) {
                                 Toast.makeText(LoginActivity.this, "Offline Login Successful!", Toast.LENGTH_SHORT).show();
-                                navigateToMain();
+                                navigateToSplash();
                             } else {
                                 txtSyncDetails.setText("Secure connection is encrypted using standard SSL/TLS.");
                                 Toast.makeText(LoginActivity.this, "Authentication failed. (Verify network or local password)", Toast.LENGTH_LONG).show();
@@ -158,7 +165,7 @@ public class LoginActivity extends AppCompatActivity {
                     return;
                 }
 
-                // 3. Online Success: Cache session details and launch post-login background sync
+                // 3. Online Success: Cache session details and launch SplashActivity for background sync
                 final JSONObject finalUserObj = userObj;
                 mainHandler.post(new Runnable() {
                     @Override
@@ -178,27 +185,8 @@ public class LoginActivity extends AppCompatActivity {
                             editor.putString("last_name", lastName);
                             editor.apply();
 
-                            txtSyncDetails.setText("Authentication successful! Populating offline databases...");
-                            Toast.makeText(LoginActivity.this, "Welcome, " + firstName + " " + lastName + "! Syncing products...", Toast.LENGTH_LONG).show();
-
-                            // Trigger immediate post-login background clean sync
-                            SyncManager.getInstance(LoginActivity.this).startCleanSync(LoginActivity.this, repUserId, new SyncManager.SyncListener() {
-                                @Override
-                                public void onSyncStarted() {
-                                    txtSyncDetails.setText("Initializing offline database synchronization...");
-                                }
-
-                                @Override
-                                public void onSyncProgress(String message) {
-                                    txtSyncDetails.setText(message);
-                                }
-
-                                @Override
-                                public void onSyncCompleted(boolean success, String message) {
-                                    btnLogin.setEnabled(true);
-                                    navigateToMain();
-                                }
-                            });
+                            Toast.makeText(LoginActivity.this, "Welcome, " + firstName + " " + lastName + "!", Toast.LENGTH_LONG).show();
+                            navigateToSplash();
 
                         } catch (Exception e) {
                             btnLogin.setEnabled(true);
@@ -209,6 +197,12 @@ public class LoginActivity extends AppCompatActivity {
                 });
             }
         }).start();
+    }
+
+    private void navigateToSplash() {
+        Intent intent = new Intent(this, SplashActivity.class);
+        startActivity(intent);
+        finish();
     }
 
     private JSONObject performNetworkLogin(String username, String password, String endpoint) throws Exception {

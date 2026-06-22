@@ -55,12 +55,13 @@
 
             <ProgressBar
                 android:id="@+id/splashProgress"
-                style="?android:attr/progressBarStyle"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
                 android:layout_marginBottom="20dp"
                 android:indeterminate="true"
-                android:indeterminateTint="#3B82F6" />
+                android:progressTint="#3B82F6"
+                android:max="100" />
 
             <TextView
                 android:id="@+id/txtSplashStatus"

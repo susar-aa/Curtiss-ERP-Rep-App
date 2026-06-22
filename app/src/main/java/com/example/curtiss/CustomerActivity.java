@@ -27,6 +27,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import android.view.MenuItem;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,12 +37,14 @@ public class CustomerActivity extends AppCompatActivity {
     private EditText edtSearch, edtShopName, edtShopPhone, edtShopWhatsApp, edtShopAddressLine1, edtShopAddressLine2, edtShopAddressLine3;
     private ListView lstCustomers;
     private RelativeLayout layoutAddCustomerOverlay;
-    private TextView txtGPSCoordinates;
+    private TextView txtGPSCoordinates, txtOverlayTitle;
     private Button btnCaptureGPS, btnCancelAdd, btnSaveCustomer;
+    private CustomerModel editingCustomer = null;
 
     private DatabaseHelper dbHelper;
     private List<CustomerModel> customerList = new ArrayList<>();
     private CustomerAdapter adapter;
+    private BottomNavigationView bottomNavigation;
 
     private double capturedLatitude = 0.0;
     private double capturedLongitude = 0.0;
@@ -51,13 +55,14 @@ public class CustomerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_customer);
 
-        dbHelper = new DatabaseHelper(this);
+        dbHelper = DatabaseHelper.getInstance(this);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         // Bind layouts
         edtSearch = findViewById(R.id.edtSearch);
         lstCustomers = findViewById(R.id.lstCustomers);
         layoutAddCustomerOverlay = findViewById(R.id.layoutAddCustomerOverlay);
+        txtOverlayTitle = findViewById(R.id.txtOverlayTitle);
 
         edtShopName = findViewById(R.id.edtShopName);
         edtShopPhone = findViewById(R.id.edtShopPhone);
@@ -70,6 +75,35 @@ public class CustomerActivity extends AppCompatActivity {
         btnCaptureGPS = findViewById(R.id.btnCaptureGPS);
         btnCancelAdd = findViewById(R.id.btnCancelAdd);
         btnSaveCustomer = findViewById(R.id.btnSaveCustomer);
+
+        bottomNavigation = findViewById(R.id.bottom_navigation);
+        if (bottomNavigation != null) {
+            bottomNavigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+                @Override
+                public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                    int itemId = item.getItemId();
+                    if (itemId == R.id.nav_home) {
+                        Intent intent = new Intent(CustomerActivity.this, MainActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    } else if (itemId == R.id.nav_customers) {
+                        return true;
+                    } else if (itemId == R.id.nav_history) {
+                        Intent intent = new Intent(CustomerActivity.this, HistoryActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    } else if (itemId == R.id.nav_dashboard) {
+                        Intent intent = new Intent(CustomerActivity.this, DashboardActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
 
         findViewById(R.id.btnBack).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -128,6 +162,10 @@ public class CustomerActivity extends AppCompatActivity {
     }
 
     private void resetForm() {
+        editingCustomer = null;
+        if (txtOverlayTitle != null) {
+            txtOverlayTitle.setText("TAG NEW SHOP");
+        }
         edtShopName.setText("");
         edtShopPhone.setText("");
         edtShopWhatsApp.setText("");
@@ -137,6 +175,51 @@ public class CustomerActivity extends AppCompatActivity {
         txtGPSCoordinates.setText("GPS: Location Pending...");
         capturedLatitude = 0.0;
         capturedLongitude = 0.0;
+    }
+
+    private void populateFormForEdit(CustomerModel c) {
+        editingCustomer = c;
+        if (txtOverlayTitle != null) {
+            txtOverlayTitle.setText("EDIT SHOP");
+        }
+        edtShopName.setText(c.name);
+        edtShopPhone.setText(c.phone);
+        edtShopWhatsApp.setText(c.whatsapp);
+        
+        // Split address by ", "
+        String[] parts = c.address.split(", ");
+        if (parts.length >= 3) {
+            edtShopAddressLine1.setText(parts[0]);
+            edtShopAddressLine2.setText(parts[1]);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 2; i < parts.length; i++) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(parts[i]);
+            }
+            edtShopAddressLine3.setText(sb.toString());
+        } else if (parts.length == 2) {
+            edtShopAddressLine1.setText(parts[0]);
+            edtShopAddressLine2.setText(parts[1]);
+            edtShopAddressLine3.setText("");
+        } else if (parts.length == 1) {
+            edtShopAddressLine1.setText(parts[0]);
+            edtShopAddressLine2.setText("");
+            edtShopAddressLine3.setText("");
+        } else {
+            edtShopAddressLine1.setText("");
+            edtShopAddressLine2.setText("");
+            edtShopAddressLine3.setText("");
+        }
+        
+        capturedLatitude = c.latitude;
+        capturedLongitude = c.longitude;
+        if (c.latitude != 0.0) {
+            txtGPSCoordinates.setText(String.format("GPS: %.5f, %.5f (Tagged)", capturedLatitude, capturedLongitude));
+        } else {
+            txtGPSCoordinates.setText("GPS: Location Pending...");
+        }
+        
+        layoutAddCustomerOverlay.setVisibility(View.VISIBLE);
     }
 
     private void loadCustomersFromLocal(String filter) {
@@ -239,21 +322,34 @@ public class CustomerActivity extends AppCompatActivity {
             return;
         }
 
-        // Fetch current active territory route name as fallback tag
-        String routeTag = "Negombo Territory";
-        Cursor cRoute = dbHelper.getActiveRoute();
-        if (cRoute.moveToFirst()) {
-            routeTag = cRoute.getString(cRoute.getColumnIndexOrThrow("route_name"));
-        }
-        cRoute.close();
-
-        long id = dbHelper.insertCustomerOffline(name, phone, whatsapp, address, routeTag, capturedLatitude, capturedLongitude);
-        if (id > 0) {
-            Toast.makeText(this, "Customer Saved Offline!", Toast.LENGTH_SHORT).show();
-            layoutAddCustomerOverlay.setVisibility(View.GONE);
-            loadCustomersFromLocal("");
+        if (editingCustomer != null) {
+            int rowsUpdated = dbHelper.updateCustomerOffline(
+                editingCustomer.id, name, phone, whatsapp, address, capturedLatitude, capturedLongitude
+            );
+            if (rowsUpdated > 0) {
+                Toast.makeText(this, "Customer Updated Offline!", Toast.LENGTH_SHORT).show();
+                layoutAddCustomerOverlay.setVisibility(View.GONE);
+                editingCustomer = null;
+                loadCustomersFromLocal("");
+            } else {
+                Toast.makeText(this, "Error updating customer locally.", Toast.LENGTH_SHORT).show();
+            }
         } else {
-            Toast.makeText(this, "Error saving customer locally.", Toast.LENGTH_SHORT).show();
+            String routeTag = "Negombo Territory";
+            Cursor cRoute = dbHelper.getActiveRoute();
+            if (cRoute.moveToFirst()) {
+                routeTag = cRoute.getString(cRoute.getColumnIndexOrThrow("route_name"));
+            }
+            cRoute.close();
+
+            long id = dbHelper.insertCustomerOffline(name, phone, whatsapp, address, routeTag, capturedLatitude, capturedLongitude);
+            if (id > 0) {
+                Toast.makeText(this, "Customer Saved Offline!", Toast.LENGTH_SHORT).show();
+                layoutAddCustomerOverlay.setVisibility(View.GONE);
+                loadCustomersFromLocal("");
+            } else {
+                Toast.makeText(this, "Error saving customer locally.", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -286,6 +382,7 @@ public class CustomerActivity extends AppCompatActivity {
             TextView lblTerritory = convertView.findViewById(R.id.lblTerritory);
             TextView lblAddress = convertView.findViewById(R.id.lblAddress);
             TextView lblGPS = convertView.findViewById(R.id.lblGPS);
+            Button btnEdit = convertView.findViewById(R.id.btnEdit);
             Button btnCall = convertView.findViewById(R.id.btnCall);
             Button btnWhatsApp = convertView.findViewById(R.id.btnWhatsApp);
 
@@ -308,6 +405,13 @@ public class CustomerActivity extends AppCompatActivity {
                 lblSyncStatus.setText("⚠️ Pending Upload");
                 lblSyncStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
             }
+
+            btnEdit.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    populateFormForEdit(c);
+                }
+            });
 
             btnCall.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -337,6 +441,14 @@ public class CustomerActivity extends AppCompatActivity {
             });
 
             return convertView;
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (bottomNavigation != null) {
+            bottomNavigation.setSelectedItemId(R.id.nav_customers);
         }
     }
 }

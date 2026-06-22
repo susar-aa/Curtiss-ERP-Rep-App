@@ -23,6 +23,9 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.view.MenuItem;
+import androidx.annotation.NonNull;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -50,10 +53,12 @@ public class MainActivity extends AppCompatActivity {
     private EditText edtEndOdo;
     private Button btnStartRoute, btnEndRoute, btnSyncNow;
     private ProgressBar progressSync;
+    private BottomNavigationView bottomNavigation;
 
     private DatabaseHelper dbHelper;
     private long activeRouteLocalId = -1;
     private int representativeUserId = 12; // Dynamic user ID mapped for rep context
+    private android.net.ConnectivityManager.NetworkCallback networkCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
         android.content.SharedPreferences prefs = getSharedPreferences("rep_session", MODE_PRIVATE);
         representativeUserId = prefs.getInt("user_id", 12);
 
-        dbHelper = new DatabaseHelper(this);
+        dbHelper = DatabaseHelper.getInstance(this);
 
         // Bind Views
         txtSalesTotal = findViewById(R.id.txtSalesTotal);
@@ -83,9 +88,52 @@ public class MainActivity extends AppCompatActivity {
         btnEndRoute = findViewById(R.id.btnEndRoute);
         btnSyncNow = findViewById(R.id.btnSyncNow);
         progressSync = findViewById(R.id.progressSync);
+        bottomNavigation = findViewById(R.id.bottom_navigation);
+        if (bottomNavigation != null) {
+            bottomNavigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+                @Override
+                public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                    int itemId = item.getItemId();
+                    if (itemId == R.id.nav_home) {
+                        return true;
+                    } else if (itemId == R.id.nav_customers) {
+                        Intent intent = new Intent(MainActivity.this, CustomerActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    } else if (itemId == R.id.nav_history) {
+                        Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    } else if (itemId == R.id.nav_dashboard) {
+                        Intent intent = new Intent(MainActivity.this, DashboardActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
 
         setupNavigationGrid();
         setupSyncController();
+        if (txtPendingSyncCount != null) {
+            txtPendingSyncCount.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(MainActivity.this, SyncLogsActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
+
+        // Enqueue WorkManager periodic background sync
+        SyncManager.getInstance(this).enqueuePeriodicSync();
+
+        // Register Network Callback to automatically trigger sync when network is restored
+        registerNetworkCallback();
 
         // Odometer Start Route Trigger
         btnStartRoute.setOnClickListener(new View.OnClickListener() {
@@ -117,13 +165,13 @@ public class MainActivity extends AppCompatActivity {
             swipeRefreshLayout.setOnRefreshListener(new androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener() {
                 @Override
                 public void onRefresh() {
-                    SyncManager.getInstance(MainActivity.this).startSync(
+                    SyncManager.getInstance(MainActivity.this).startPullSync(
                             MainActivity.this,
                             representativeUserId,
                             new SyncManager.SyncListener() {
                                 @Override
                                 public void onSyncStarted() {
-                                    txtSyncStatus.setText("Syncing offline data on pull-to-refresh...");
+                                    txtSyncStatus.setText("Pulling fresh catalog data on pull-to-refresh...");
                                 }
 
                                 @Override
@@ -134,10 +182,10 @@ public class MainActivity extends AppCompatActivity {
                                     swipeRefreshLayout.setRefreshing(false);
                                     if (success) {
                                         txtSyncStatus.setText("Last synced: Just Now (Pull)");
-                                        Toast.makeText(MainActivity.this, "Sync Complete!", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(MainActivity.this, "Pull Sync Complete!", Toast.LENGTH_SHORT).show();
                                     } else {
                                         txtSyncStatus.setText("Sync Failed");
-                                        Toast.makeText(MainActivity.this, "Sync Failed: " + message, Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(MainActivity.this, "Pull Sync Failed: " + message, Toast.LENGTH_SHORT).show();
                                     }
                                     refreshDashboardState();
                                 }
@@ -153,6 +201,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (bottomNavigation != null) {
+            bottomNavigation.setSelectedItemId(R.id.nav_home);
+        }
         refreshDashboardState();
 
         // Check if there are any pending unsynced records to push
@@ -161,7 +212,7 @@ public class MainActivity extends AppCompatActivity {
             SQLiteDatabase db = dbHelper.getReadableDatabase();
             Cursor cUnsynced = db.rawQuery(
                     "SELECT " +
-                            "(SELECT COUNT(*) FROM invoices WHERE is_synced = 0) + " +
+                            "(SELECT COUNT(*) FROM invoices WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
                             "(SELECT COUNT(*) FROM customers WHERE is_synced = 0) + " +
                             "(SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0)",
                     null
@@ -173,43 +224,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             // Ignore safely
         }
-
-        long currentTime = System.currentTimeMillis();
-        // Bypass cooling period if there are pending unsynced records to ensure immediate automatic sync
-        if (pendingCount > 0 || (currentTime - lastAutoSyncTime > 30000)) {
-            lastAutoSyncTime = currentTime;
-            triggerAutoSync();
-        }
-    }
-
-    private void triggerAutoSync() {
-        SyncManager.getInstance(MainActivity.this).startSync(
-                MainActivity.this,
-                representativeUserId,
-                new SyncManager.SyncListener() {
-                    @Override
-                    public void onSyncStarted() {
-                        // Silent background update - do not block user interface
-                        txtSyncStatus.setText("Syncing offline data in background...");
-                    }
-
-                    @Override
-                    public void onSyncProgress(String message) {
-                        // Silent progress
-                    }
-
-                    @Override
-                    public void onSyncCompleted(boolean success, String message) {
-                        if (success) {
-                            txtSyncStatus.setText("Last synced: Just Now (Auto)");
-                            Toast.makeText(MainActivity.this, "Sync Complete: Products & Customers Updated!", Toast.LENGTH_SHORT).show();
-                        } else {
-                            txtSyncStatus.setText("Offline Mode (Sync failed)");
-                        }
-                        refreshDashboardState();
-                    }
-                }
-        );
     }
 
     private void showStartRouteDialog() {
@@ -352,6 +366,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupNavigationGrid() {
+        findViewById(R.id.txtAppNameHeader).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, StatsActivity.class);
+                startActivity(intent);
+            }
+        });
+
         findViewById(R.id.navCustomers).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -377,7 +399,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.navProfile).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.btnProfileHeader).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 final android.content.SharedPreferences prefs = getSharedPreferences("rep_session", MODE_PRIVATE);
@@ -416,40 +438,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupSyncController() {
+        btnSyncNow.setVisibility(View.VISIBLE);
         btnSyncNow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                SyncManager.getInstance(MainActivity.this).startSync(
-                        MainActivity.this,
-                        representativeUserId,
-                        new SyncManager.SyncListener() {
-                            @Override
-                            public void onSyncStarted() {
-                                btnSyncNow.setEnabled(false);
-                                progressSync.setVisibility(View.VISIBLE);
-                                txtSyncStatus.setText("Syncing: Initializing bidirectional tunnel...");
-                            }
-
-                            @Override
-                            public void onSyncProgress(String message) {
-                                txtSyncStatus.setText("Syncing: " + message);
-                            }
-
-                            @Override
-                            public void onSyncCompleted(boolean success, String message) {
-                                btnSyncNow.setEnabled(true);
-                                progressSync.setVisibility(View.GONE);
-                                if (success) {
-                                    txtSyncStatus.setText("Last synced: Just Now");
-                                    Toast.makeText(MainActivity.this, "Sync Complete: Products & Customers Updated!", Toast.LENGTH_LONG).show();
-                                } else {
-                                    txtSyncStatus.setText("Sync Failed: Check server connections.");
-                                    Toast.makeText(MainActivity.this, "Sync Error: " + message, Toast.LENGTH_LONG).show();
-                                }
-                                refreshDashboardState();
-                            }
-                        }
-                );
+                if (dbHelper.hasActiveRoute()) {
+                    Toast.makeText(MainActivity.this, "Cannot sync while a route is active. Please end the route first.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                Intent intent = new Intent(MainActivity.this, SyncProgressActivity.class);
+                startActivity(intent);
             }
         });
     }
@@ -491,7 +489,7 @@ public class MainActivity extends AppCompatActivity {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cUnsynced = db.rawQuery(
                 "SELECT " +
-                        "(SELECT COUNT(*) FROM invoices WHERE is_synced = 0) + " +
+                        "(SELECT COUNT(*) FROM invoices WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
                         "(SELECT COUNT(*) FROM customers WHERE is_synced = 0) + " +
                         "(SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0)",
                 null
@@ -632,7 +630,7 @@ public class MainActivity extends AppCompatActivity {
         }
         cRouteServer.close();
 
-        Cursor cursor = db.rawQuery("SELECT payment_method, SUM(amount) FROM payments WHERE server_route_id = " + serverRouteId + " GROUP BY payment_method", null);
+        Cursor cursor = db.rawQuery("SELECT payment_method, SUM(amount) FROM payments WHERE local_route_id = " + routeId + " OR (server_route_id = " + serverRouteId + " AND " + serverRouteId + " > 0) GROUP BY payment_method", null);
         while (cursor.moveToNext()) {
             String method = cursor.getString(0);
             double total = cursor.getDouble(1);
@@ -666,40 +664,16 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(android.content.DialogInterface dialog, int which) {
                 // Save ended route details to local database first
                 dbHelper.endRouteOffline(routeId, endOdo, endTime, endLat, endLng);
-
-                // Run instantaneous background push-sync for pending ended route
-                SyncManager.getInstance(MainActivity.this).startSync(
-                        MainActivity.this,
-                        representativeUserId,
-                        new SyncManager.SyncListener() {
-                            @Override
-                            public void onSyncStarted() {
-                                Toast.makeText(MainActivity.this, "Uploading finalized route & invoices to ERP...", Toast.LENGTH_SHORT).show();
-                                if (txtSyncStatus != null) {
-                                    txtSyncStatus.setText("Syncing ongoing route finalization...");
-                                }
-                            }
-
-                            @Override
-                            public void onSyncProgress(String message) {}
-
-                            @Override
-                            public void onSyncCompleted(boolean success, String message) {
-                                if (success) {
-                                    Toast.makeText(MainActivity.this, "Route successfully finalized and synced to ERP!", Toast.LENGTH_LONG).show();
-                                    if (txtSyncStatus != null) {
-                                        txtSyncStatus.setText("Last synced: Just Now (Auto-Finalize)");
-                                    }
-                                } else {
-                                    Toast.makeText(MainActivity.this, "Route saved offline. Sync deferred: " + message, Toast.LENGTH_LONG).show();
-                                    if (txtSyncStatus != null) {
-                                        txtSyncStatus.setText("Offline Mode (Pending Upload)");
-                                    }
-                                }
-                                refreshDashboardState();
-                            }
-                        }
-                );
+                Toast.makeText(MainActivity.this, "Route saved offline. Opening manual sync screen...", Toast.LENGTH_LONG).show();
+                if (txtSyncStatus != null) {
+                    txtSyncStatus.setText("Offline Mode (Pending Upload)");
+                }
+                
+                // Open the manual sync progress screen (SyncProgressActivity)
+                Intent intent = new Intent(MainActivity.this, SyncProgressActivity.class);
+                startActivity(intent);
+                
+                refreshDashboardState();
             }
         });
         builder.setCancelable(false);
@@ -1173,6 +1147,50 @@ public class MainActivity extends AppCompatActivity {
             this.bank = bank;
             this.number = number;
             this.date = date;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterNetworkCallback();
+    }
+
+    private void registerNetworkCallback() {
+        try {
+            android.net.ConnectivityManager connectivityManager = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager != null) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    networkCallback = new android.net.ConnectivityManager.NetworkCallback() {
+                        @Override
+                        public void onAvailable(@androidx.annotation.NonNull android.net.Network network) {
+                            super.onAvailable(network);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    android.util.Log.d("MainActivity", "Network available. Sync deferred to user manual initiation.");
+                                }
+                            });
+                        }
+                    };
+                    connectivityManager.registerDefaultNetworkCallback(networkCallback);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Failed to register network callback: " + e.getMessage());
+        }
+    }
+
+    private void unregisterNetworkCallback() {
+        try {
+            if (networkCallback != null) {
+                android.net.ConnectivityManager connectivityManager = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (connectivityManager != null) {
+                    connectivityManager.unregisterNetworkCallback(networkCallback);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Failed to unregister network callback: " + e.getMessage());
         }
     }
 }

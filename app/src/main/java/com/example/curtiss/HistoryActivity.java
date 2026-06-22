@@ -16,6 +16,10 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import android.content.Intent;
+import android.view.MenuItem;
+import androidx.annotation.NonNull;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,6 +35,7 @@ public class HistoryActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private List<InvoiceModel> invoiceList = new ArrayList<>();
     private List<InvoiceItemModel> detailItemList = new ArrayList<>();
+    private BottomNavigationView bottomNavigation;
 
     private InvoiceAdapter invoiceAdapter;
     private DetailItemAdapter detailAdapter;
@@ -40,7 +45,7 @@ public class HistoryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
 
-        dbHelper = new DatabaseHelper(this);
+        dbHelper = DatabaseHelper.getInstance(this);
 
         // Bind layouts
         edtInvoiceSearch = findViewById(R.id.edtInvoiceSearch);
@@ -55,6 +60,35 @@ public class HistoryActivity extends AppCompatActivity {
         txtDetailTax = findViewById(R.id.txtDetailTax);
         txtDetailNetTotal = findViewById(R.id.txtDetailNetTotal);
         btnCloseDetail = findViewById(R.id.btnCloseDetail);
+
+        bottomNavigation = findViewById(R.id.bottom_navigation);
+        if (bottomNavigation != null) {
+            bottomNavigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+                @Override
+                public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                    int itemId = item.getItemId();
+                    if (itemId == R.id.nav_home) {
+                        Intent intent = new Intent(HistoryActivity.this, MainActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    } else if (itemId == R.id.nav_customers) {
+                        Intent intent = new Intent(HistoryActivity.this, CustomerActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    } else if (itemId == R.id.nav_history) {
+                        return true;
+                    } else if (itemId == R.id.nav_dashboard) {
+                        Intent intent = new Intent(HistoryActivity.this, DashboardActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        startActivity(intent);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
 
         findViewById(R.id.btnBack).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -252,6 +286,14 @@ public class HistoryActivity extends AppCompatActivity {
             text2.setTextColor(getResources().getColor(android.R.color.holo_blue_light));
 
             return convertView;
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (bottomNavigation != null) {
+            bottomNavigation.setSelectedItemId(R.id.nav_history);
         }
     }
 }
