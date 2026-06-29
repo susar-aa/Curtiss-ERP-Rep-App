@@ -131,7 +131,7 @@ public class ImageDownloadManager {
                     candidateUrls.add(imageUrlString.replace("/uploads/products/", "/public/uploads/products/"));
                 }
             } else {
-                android.content.SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+                android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
                 String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
                 // Remove trailing slash if present in baseUrl
                 if (baseUrl.endsWith("/")) {

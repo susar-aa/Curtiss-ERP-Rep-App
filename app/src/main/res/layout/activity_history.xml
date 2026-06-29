@@ -217,15 +217,35 @@
 
             </LinearLayout>
 
-            <!-- Close detail action -->
-            <Button
-                android:id="@+id/btnCloseDetail"
+            <!-- Detail actions -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:layout_marginTop="20dp"
-                android:backgroundTint="#3B82F6"
-                android:text="Close Details"
-                android:textColor="#FFFFFF" />
+                android:weightSum="2">
+
+                <Button
+                    android:id="@+id/btnEditInvoice"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:backgroundTint="#F59E0B"
+                    android:text="Edit Invoice"
+                    android:textColor="#FFFFFF" />
+
+                <Button
+                    android:id="@+id/btnCloseDetail"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:backgroundTint="#3B82F6"
+                    android:text="Close"
+                    android:textColor="#FFFFFF" />
+
+            </LinearLayout>
 
         </LinearLayout>
 

@@ -4,6 +4,14 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+import java.util.concurrent.Executor;
+import android.widget.FrameLayout;
+import android.content.res.ColorStateList;
+import java.net.URL;
+import java.net.HttpURLConnection;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
@@ -46,6 +54,8 @@ import android.widget.DatePicker;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static boolean isBiometricAuthenticated = false;
+
     private TextView txtSalesTotal, txtBillsCount, txtPendingSyncCount, txtSyncStatus, txtActiveRouteName, txtRouteStartTime;
     private TextView txtCreditPendingMsg;
     private Button btnOpenCreditBills;
@@ -60,13 +70,35 @@ public class MainActivity extends AppCompatActivity {
     private int representativeUserId = 12; // Dynamic user ID mapped for rep context
     private android.net.ConnectivityManager.NetworkCallback networkCallback;
 
+    private android.app.ProgressDialog progressDialog;
+
+    private void showProgressDialog(String message) {
+        if (progressDialog == null) {
+            progressDialog = new android.app.ProgressDialog(this);
+            progressDialog.setIndeterminate(true);
+            progressDialog.setCancelable(false);
+        }
+        progressDialog.setMessage(message);
+        if (!progressDialog.isShowing()) {
+            progressDialog.show();
+        }
+    }
+
+    private void dismissProgressDialog() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        setupBiometricLock();
+
         // Fetch dynamic rep context from authenticated session
-        android.content.SharedPreferences prefs = getSharedPreferences("rep_session", MODE_PRIVATE);
+        android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(this);
         representativeUserId = prefs.getInt("user_id", 12);
 
         dbHelper = DatabaseHelper.getInstance(this);
@@ -213,8 +245,9 @@ public class MainActivity extends AppCompatActivity {
             Cursor cUnsynced = db.rawQuery(
                     "SELECT " +
                             "(SELECT COUNT(*) FROM invoices WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
-                            "(SELECT COUNT(*) FROM customers WHERE is_synced = 0) + " +
-                            "(SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0)",
+                            "(SELECT COUNT(*) FROM customers WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
+                            "(SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
+                            "(SELECT COUNT(*) FROM payments WHERE is_synced = 0 OR sync_status IN (1, 4))",
                     null
             );
             if (cUnsynced.moveToFirst()) {
@@ -327,40 +360,28 @@ public class MainActivity extends AppCompatActivity {
                 double startOdo = Double.parseDouble(odoStr);
                 String startTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
-                // Capture GPS coordinates (Fallback robust implementation)
-                double capturedLat = 7.1824;
-                double capturedLng = 79.8801;
-
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                    try {
-                        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                        Location loc = null;
-                        if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                            loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                        }
-                        if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                            loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                        }
-                        if (loc != null) {
-                            capturedLat = loc.getLatitude();
-                            capturedLng = loc.getLongitude();
-                            Log.d("StartRoute", "GPS location acquired: " + capturedLat + ", " + capturedLng);
-                        }
-                    } catch (SecurityException e) {
-                        Log.e("StartRoute", "Location capture exception: " + e.getMessage());
-                    }
-                } else {
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 101);
+                    return;
                 }
 
-                long localId = dbHelper.startRouteOffline(selectedRoute, startOdo, startTime, capturedLat, capturedLng);
-                if (localId > 0) {
-                    Toast.makeText(MainActivity.this, "Daily Route Started Offline!\n" + selectedRoute + " (Odo: " + odoStr + " KM)", Toast.LENGTH_LONG).show();
-                    dialog.dismiss();
-                    refreshDashboardState();
-                } else {
-                    Toast.makeText(MainActivity.this, "Error starting route offline.", Toast.LENGTH_SHORT).show();
-                }
+                showProgressDialog("Acquiring GPS location...");
+                final double finalStartOdo = startOdo;
+                final String finalStartTime = startTime;
+                LocationHelper.captureCurrentLocation(MainActivity.this, new LocationHelper.LocationResultListener() {
+                    @Override
+                    public void onLocationResult(double latitude, double longitude) {
+                        dismissProgressDialog();
+                        long localId = dbHelper.startRouteOffline(selectedRoute, finalStartOdo, finalStartTime, latitude, longitude);
+                        if (localId > 0) {
+                            Toast.makeText(MainActivity.this, "Daily Route Started Offline!\n" + selectedRoute + " (Odo: " + odoStr + " KM)", Toast.LENGTH_LONG).show();
+                            dialog.dismiss();
+                            refreshDashboardState();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Error starting route offline.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
             }
         });
     }
@@ -402,7 +423,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnProfileHeader).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final android.content.SharedPreferences prefs = getSharedPreferences("rep_session", MODE_PRIVATE);
+                final android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(MainActivity.this);
                 String fName = prefs.getString("first_name", "Susara");
                 String lName = prefs.getString("last_name", "Senarathne");
                 String username = prefs.getString("username", "rep");
@@ -413,8 +434,45 @@ public class MainActivity extends AppCompatActivity {
                         .setPositiveButton("Logout", new android.content.DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(android.content.DialogInterface dialog, int which) {
+                                // Call server logout API in a background thread
+                                final String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+                                final int userId = prefs.getInt("user_id", 0);
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        HttpURLConnection conn = null;
+                                        try {
+                                            URL url = new URL(baseUrl + "/rep/RepDashboard/api_logout");
+                                            conn = (HttpURLConnection) url.openConnection();
+                                            conn.setRequestMethod("POST");
+                                            conn.setRequestProperty("Content-Type", "application/json");
+                                            conn.setConnectTimeout(5000);
+                                            conn.setReadTimeout(5000);
+                                            conn.setDoOutput(true);
+                                            
+                                            org.json.JSONObject payload = new org.json.JSONObject();
+                                            payload.put("user_id", userId);
+                                            
+                                            java.io.OutputStream os = conn.getOutputStream();
+                                            os.write(payload.toString().getBytes("UTF-8"));
+                                            os.flush();
+                                            os.close();
+                                            
+                                            int responseCode = conn.getResponseCode();
+                                            Log.d("MainActivity", "Server logout response code: " + responseCode);
+                                        } catch (Exception e) {
+                                            Log.e("MainActivity", "Server logout failed: " + e.getMessage());
+                                        } finally {
+                                            if (conn != null) {
+                                                conn.disconnect();
+                                            }
+                                        }
+                                    }
+                                }).start();
+
                                 // Clear secure session cache
                                 prefs.edit().clear().apply();
+                                isBiometricAuthenticated = false;
                                 Toast.makeText(MainActivity.this, "Session closed successfully.", Toast.LENGTH_SHORT).show();
                                 
                                 // Redirect back to LoginActivity
@@ -490,8 +548,9 @@ public class MainActivity extends AppCompatActivity {
         Cursor cUnsynced = db.rawQuery(
                 "SELECT " +
                         "(SELECT COUNT(*) FROM invoices WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
-                        "(SELECT COUNT(*) FROM customers WHERE is_synced = 0) + " +
-                        "(SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0)",
+                        "(SELECT COUNT(*) FROM customers WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
+                        "(SELECT COUNT(*) FROM daily_routes WHERE is_synced = 0 OR sync_status IN (1, 4)) + " +
+                        "(SELECT COUNT(*) FROM payments WHERE is_synced = 0 OR sync_status IN (1, 4))",
                 null
         );
         int pendingCount = 0;
@@ -575,30 +634,16 @@ public class MainActivity extends AppCompatActivity {
 
                 String endTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
-                // Capture ending coordinates
-                double endLat = 7.1824;
-                double endLng = 79.8801;
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                    try {
-                        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                        Location loc = null;
-                        if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                            loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                        }
-                        if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                            loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                        }
-                        if (loc != null) {
-                            endLat = loc.getLatitude();
-                            endLng = loc.getLongitude();
-                        }
-                    } catch (Exception e) {
-                        Log.e("EndRoute", "Location error: " + e.getMessage());
+                showProgressDialog("Acquiring GPS location...");
+                final double finalEndOdo = endOdo;
+                final String finalEndTime = endTime;
+                LocationHelper.captureCurrentLocation(MainActivity.this, new LocationHelper.LocationResultListener() {
+                    @Override
+                    public void onLocationResult(double latitude, double longitude) {
+                        dismissProgressDialog();
+                        showRouteSummaryDialog(activeRouteLocalId, startOdo, finalEndOdo, finalEndTime, latitude, longitude);
                     }
-                }
-
-                // Compile summary statistics and trigger finalization inside dialog
-                showRouteSummaryDialog(activeRouteLocalId, startOdo, endOdo, endTime, endLat, endLng);
+                });
             }
         });
         builder.setNegativeButton("Cancel", null);
@@ -624,13 +669,14 @@ public class MainActivity extends AppCompatActivity {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         
         long serverRouteId = 0;
-        Cursor cRouteServer = db.rawQuery("SELECT server_id FROM daily_routes WHERE id = " + routeId, null);
+        Cursor cRouteServer = db.rawQuery("SELECT server_id FROM daily_routes WHERE id = ?", new String[]{String.valueOf(routeId)});
         if (cRouteServer.moveToFirst()) {
             serverRouteId = cRouteServer.getLong(0);
         }
         cRouteServer.close();
 
-        Cursor cursor = db.rawQuery("SELECT payment_method, SUM(amount) FROM payments WHERE local_route_id = " + routeId + " OR (server_route_id = " + serverRouteId + " AND " + serverRouteId + " > 0) GROUP BY payment_method", null);
+        Cursor cursor = db.rawQuery("SELECT payment_method, COALESCE(SUM(amount), 0.0) FROM payments WHERE local_route_id = ? OR (server_route_id = ? AND ? > 0) GROUP BY payment_method", 
+                new String[]{String.valueOf(routeId), String.valueOf(serverRouteId), String.valueOf(serverRouteId)});
         while (cursor.moveToNext()) {
             String method = cursor.getString(0);
             double total = cursor.getDouble(1);
@@ -942,60 +988,50 @@ public class MainActivity extends AppCompatActivity {
                 }
                 cRoute.close();
 
-                // Capture dynamic GPS coordinates for Credit Collections
-                double capturedLat = 7.1824;
-                double capturedLng = 79.8801;
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                    try {
-                        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                        Location loc = null;
-                        if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                            loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                showProgressDialog("Acquiring GPS location...");
+                final int finalCurrentRouteId = currentRouteId;
+                final double finalCash = cash;
+                final double finalBank = bank;
+                final double finalTotalCollected = totalCollected;
+                final android.app.Dialog finalD = d;
+                LocationHelper.captureCurrentLocation(MainActivity.this, new LocationHelper.LocationResultListener() {
+                    @Override
+                    public void onLocationResult(double latitude, double longitude) {
+                        dismissProgressDialog();
+                        boolean success = false;
+                        if (finalCash > 0.0) {
+                            success = dbHelper.savePayment(customerId, finalCurrentRouteId, "Cash", finalCash, "", "", "", latitude, longitude);
                         }
-                        if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                            loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                        if (finalBank > 0.0) {
+                            success = dbHelper.savePayment(customerId, finalCurrentRouteId, "Bank Transfer", finalBank, "Bank Transfer", "", "", latitude, longitude);
                         }
-                        if (loc != null) {
-                            capturedLat = loc.getLatitude();
-                            capturedLng = loc.getLongitude();
-                            Log.d("CollectPayment", "GPS location acquired: " + capturedLat + ", " + capturedLng);
+                        for (ChequeData cd : validatedCheques) {
+                            success = dbHelper.savePayment(customerId, finalCurrentRouteId, "Cheque", cd.amount, cd.bank, cd.number, cd.date, latitude, longitude);
                         }
-                    } catch (Exception e) {
-                        Log.e("CollectPayment", "Location capture exception: " + e.getMessage());
-                    }
-                }
 
-                if (cash > 0.0) {
-                    success = dbHelper.savePayment(customerId, currentRouteId, "Cash", cash, "", "", "", capturedLat, capturedLng);
-                }
-                if (bank > 0.0) {
-                    success = dbHelper.savePayment(customerId, currentRouteId, "Bank Transfer", bank, "Bank Transfer", "", "", capturedLat, capturedLng);
-                }
-                for (ChequeData cd : validatedCheques) {
-                    success = dbHelper.savePayment(customerId, currentRouteId, "Cheque", cd.amount, cd.bank, cd.number, cd.date, capturedLat, capturedLng);
-                }
-
-                if (success || totalCollected > 0) {
-                    StringBuilder summary = new StringBuilder();
-                    if (cash > 0.0) {
-                        summary.append("Rs: ").append(String.format("%,.2f", cash)).append(" Cash");
+                        if (success || finalTotalCollected > 0) {
+                            StringBuilder summary = new StringBuilder();
+                            if (finalCash > 0.0) {
+                                summary.append("Rs: ").append(String.format("%,.2f", finalCash)).append(" Cash");
+                            }
+                            if (finalBank > 0.0) {
+                                if (summary.length() > 0) summary.append(" | ");
+                                summary.append("Rs: ").append(String.format("%,.2f", finalBank)).append(" Bank Transfer");
+                            }
+                            if (!validatedCheques.isEmpty()) {
+                                double chqSum = 0;
+                                for (ChequeData cd : validatedCheques) chqSum += cd.amount;
+                                if (summary.length() > 0) summary.append(" | ");
+                                summary.append("Rs: ").append(String.format("%,.2f", chqSum)).append(" Cheque");
+                            }
+                            Toast.makeText(MainActivity.this, "Recorded Collected Amount:\n" + summary.toString() + "\ncollected and saved offline successfully!", Toast.LENGTH_LONG).show();
+                            finalD.dismiss();
+                            refreshDashboardState();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Error saving payment collections locally.", Toast.LENGTH_SHORT).show();
+                        }
                     }
-                    if (bank > 0.0) {
-                        if (summary.length() > 0) summary.append(" | ");
-                        summary.append("Rs: ").append(String.format("%,.2f", bank)).append(" Bank Transfer");
-                    }
-                    if (!validatedCheques.isEmpty()) {
-                        double chqSum = 0;
-                        for (ChequeData cd : validatedCheques) chqSum += cd.amount;
-                        if (summary.length() > 0) summary.append(" | ");
-                        summary.append("Rs: ").append(String.format("%,.2f", chqSum)).append(" Cheque");
-                    }
-                    Toast.makeText(MainActivity.this, "Recorded Collected Amount:\n" + summary.toString() + "\ncollected and saved offline successfully!", Toast.LENGTH_LONG).show();
-                    d.dismiss();
-                    refreshDashboardState();
-                } else {
-                    Toast.makeText(MainActivity.this, "Error saving payment collections locally.", Toast.LENGTH_SHORT).show();
-                }
+                });
             }
         });
     }
@@ -1192,5 +1228,114 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             android.util.Log.e("MainActivity", "Failed to unregister network callback: " + e.getMessage());
         }
+    }
+
+    private void setupBiometricLock() {
+        if (isBiometricAuthenticated) {
+            return;
+        }
+
+        // Create programmatic overlay
+        final FrameLayout rootLayout = findViewById(android.R.id.content);
+        
+        final LinearLayout overlay = new LinearLayout(this);
+        overlay.setId(View.generateViewId());
+        overlay.setOrientation(LinearLayout.VERTICAL);
+        overlay.setGravity(android.view.Gravity.CENTER);
+        overlay.setBackgroundColor(android.graphics.Color.parseColor("#0F172A")); // Elegant Slate 900 dark background
+        overlay.setClickable(true);
+        overlay.setFocusable(true);
+
+        // App Lock Title
+        TextView txtLockTitle = new TextView(this);
+        txtLockTitle.setText("App Locked");
+        txtLockTitle.setTextSize(24);
+        txtLockTitle.setTextColor(android.graphics.Color.WHITE);
+        txtLockTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        txtLockTitle.setGravity(android.view.Gravity.CENTER);
+        txtLockTitle.setPadding(0, 0, 0, 16);
+        overlay.addView(txtLockTitle);
+
+        // App Lock Subtitle
+        TextView txtLockSub = new TextView(this);
+        txtLockSub.setText("Mandatory biometric or PIN verification required.");
+        txtLockSub.setTextSize(14);
+        txtLockSub.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // slate 400
+        txtLockSub.setGravity(android.view.Gravity.CENTER);
+        txtLockSub.setPadding(0, 0, 0, 48);
+        overlay.addView(txtLockSub);
+
+        // Unlock Button
+        Button btnUnlock = new Button(this);
+        btnUnlock.setText("Unlock App");
+        btnUnlock.setTextColor(android.graphics.Color.WHITE);
+        btnUnlock.setBackgroundTintList(ColorStateList.valueOf(android.graphics.Color.parseColor("#2563EB"))); // premium blue
+        btnUnlock.setPadding(32, 16, 32, 16);
+        btnUnlock.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showBiometricPrompt(overlay);
+            }
+        });
+        overlay.addView(btnUnlock);
+
+        rootLayout.addView(overlay, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Check if biometric authentication is available
+        BiometricManager biometricManager = BiometricManager.from(this);
+        int canAuthenticate = biometricManager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+
+        if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+            showBiometricPrompt(overlay);
+        } else {
+            // Bypass if biometrics/device locks are completely unsupported or not set up
+            rootLayout.removeView(overlay);
+            isBiometricAuthenticated = true;
+        }
+    }
+
+    private void showBiometricPrompt(final View overlay) {
+        Executor executor = ContextCompat.getMainExecutor(this);
+        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this,
+                executor, new BiometricPrompt.AuthenticationCallback() {
+            @Override
+            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                super.onAuthenticationError(errorCode, errString);
+                if (errorCode == BiometricPrompt.ERROR_USER_CANCELED || errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                    Toast.makeText(getApplicationContext(), "Authentication required to access app", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(getApplicationContext(), "Authentication error: " + errString, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                super.onAuthenticationSucceeded(result);
+                isBiometricAuthenticated = true;
+                Toast.makeText(getApplicationContext(), "Unlock successful!", Toast.LENGTH_SHORT).show();
+                
+                // Remove overlay
+                final FrameLayout rootLayout = findViewById(android.R.id.content);
+                rootLayout.removeView(overlay);
+            }
+
+            @Override
+            public void onAuthenticationFailed() {
+                super.onAuthenticationFailed();
+                Toast.makeText(getApplicationContext(), "Authentication failed. Try again.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Curtiss ERP Lock")
+                .setSubtitle("Confirm your fingerprint or PIN to unlock")
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .setConfirmationRequired(false)
+                .build();
+
+        biometricPrompt.authenticate(promptInfo);
     }
 }

@@ -6,7 +6,8 @@
     android:backgroundTint="#1E293B"
     android:orientation="horizontal"
     android:padding="12dp"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:layout_marginBottom="8dp">
 
     <!-- 1. Product Information -->
     <LinearLayout

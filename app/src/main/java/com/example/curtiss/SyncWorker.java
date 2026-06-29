@@ -19,7 +19,7 @@ public class SyncWorker extends Worker {
     @Override
     public Result doWork() {
         Context context = getApplicationContext();
-        SharedPreferences prefs = context.getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+        SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
         if (!prefs.contains("user_id")) {
             Log.d(TAG, "SyncWorker: No logged in user session. Skipping background sync.");
             return Result.failure();

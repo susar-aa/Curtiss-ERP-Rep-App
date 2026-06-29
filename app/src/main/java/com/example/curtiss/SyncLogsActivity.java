@@ -42,7 +42,7 @@ public class SyncLogsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_sync_logs);
 
         dbHelper = DatabaseHelper.getInstance(this);
-        representativeUserId = getSharedPreferences("rep_session", MODE_PRIVATE).getInt("user_id", 12);
+        representativeUserId = SecurePreferences.getSessionPrefs(this).getInt("user_id", 12);
 
         // Bind views
         txtStatTotal = findViewById(R.id.txtStatTotal);

@@ -51,7 +51,7 @@ public class SyncProgressActivity extends AppCompatActivity {
         syncManager = SyncManager.getInstance(this);
         mainHandler = new Handler(Looper.getMainLooper());
 
-        SharedPreferences prefs = getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+        SharedPreferences prefs = SecurePreferences.getSessionPrefs(this);
         userId = prefs.getInt("user_id", -1);
 
         btnSyncCancel.setOnClickListener(new View.OnClickListener() {

@@ -38,7 +38,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // Initialize SharedPreferences session
-        prefs = getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+        prefs = SecurePreferences.getSessionPrefs(this);
         mainHandler = new Handler(Looper.getMainLooper());
 
         // Redirect directly if session is already active

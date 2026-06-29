@@ -29,6 +29,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -46,7 +48,7 @@ public class BillingActivity extends AppCompatActivity {
 
     private Spinner spinnerPaymentMethod, spinnerCategory, spinnerPaymentTerm;
     private EditText edtProductSearch, edtDiscount, edtDirectDiscountPct;
-    private ListView lstProducts, lstCartSummary;
+    private RecyclerView lstProducts, lstCartSummary;
     private TextView txtCartItemsCount, txtCartSalesSum, txtSubtotal, txtTax, txtNetTotal, txtRoundingAdjustment;
     private RelativeLayout layoutRoundingAdjustment;
 
@@ -73,6 +75,9 @@ public class BillingActivity extends AppCompatActivity {
     private ProductAdapter productAdapter;
     private CartAdapter cartAdapter;
     private long currentRouteLocalId = -1;
+    private long editInvoiceId = -1;
+    private double checkoutLatitude = 7.1824;
+    private double checkoutLongitude = 79.8801;
 
     // Redesigned layouts and controls
     private LinearLayout layoutCartViewMode, layoutCartCheckoutMode, layoutCheckoutDetails, layoutExpandedSearch;
@@ -98,19 +103,9 @@ public class BillingActivity extends AppCompatActivity {
         edtDiscount = findViewById(R.id.edtDiscount);
         edtDirectDiscountPct = findViewById(R.id.edtDirectDiscountPct);
         lstProducts = findViewById(R.id.lstProducts);
+        lstProducts.setLayoutManager(new LinearLayoutManager(this));
         lstCartSummary = findViewById(R.id.lstCartSummary);
-        lstCartSummary.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                CartItemModel cartItem = cartList.get(position);
-                ProductModel product = getProductById(cartItem.productId);
-                if (product != null) {
-                    showProductConfigDialog(product, cartItem);
-                } else {
-                    Toast.makeText(BillingActivity.this, "Product details not found.", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
+        lstCartSummary.setLayoutManager(new LinearLayoutManager(this));
 
         txtCartItemsCount = findViewById(R.id.txtOverlayTotalItems);
         txtCartSalesSum = findViewById(R.id.txtOverlayTotalValue);
@@ -289,7 +284,11 @@ public class BillingActivity extends AppCompatActivity {
         setupCategorySpinner();
 
         // 🚨 Immediately trigger Customer Selection Dialog or draft resume at startup
-        if (hasDraftBill()) {
+        long incomingEditId = getIntent().getLongExtra("edit_invoice_id", -1);
+        if (incomingEditId != -1) {
+            editInvoiceId = incomingEditId;
+            loadInvoiceForEditing(editInvoiceId);
+        } else if (hasDraftBill()) {
             new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("Resume Invoice?")
                 .setMessage("An unfinished bill exists. Would you like to resume it?")
@@ -780,7 +779,17 @@ public class BillingActivity extends AppCompatActivity {
         if (btnConfirmCheckout != null) {
             btnConfirmCheckout.setEnabled(false);
         }
-        processDiscountPromptsAndCheckout();
+
+        showGlobalLoadingDialog("Acquiring GPS location...");
+        LocationHelper.captureCurrentLocation(this, new LocationHelper.LocationResultListener() {
+            @Override
+            public void onLocationResult(double latitude, double longitude) {
+                checkoutLatitude = latitude;
+                checkoutLongitude = longitude;
+                dismissGlobalLoadingDialog();
+                processDiscountPromptsAndCheckout();
+            }
+        });
     }
 
     private void processDiscountPromptsAndCheckout() {
@@ -887,36 +896,61 @@ public class BillingActivity extends AppCompatActivity {
             try {
                 db.beginTransaction();
                 try {
-                    String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+                    String invoiceNum = "";
+                    String uuidString = "";
+                    String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
-                    android.content.SharedPreferences seqPrefs = getSharedPreferences("CurtissPrefs", android.content.Context.MODE_PRIVATE);
-                    int seq = seqPrefs.getInt("global_invoice_seq", 0);
+                    if (editInvoiceId != -1) {
+                        Cursor origCursor = db.rawQuery("SELECT uuid, invoice_number FROM invoices WHERE id = ?", new String[]{String.valueOf(editInvoiceId)});
+                        if (origCursor.moveToFirst()) {
+                            uuidString = origCursor.getString(0);
+                            invoiceNum = origCursor.getString(1);
+                        }
+                        origCursor.close();
 
-                    if (seq == 0) {
-                        Cursor maxCursor = db.rawQuery(
-                            "SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1", null
-                        );
-                        if (maxCursor != null) {
-                            if (maxCursor.moveToFirst()) {
-                                String lastInvoiceNum = maxCursor.getString(0);
-                                if (lastInvoiceNum.length() >= 4) {
-                                    try {
-                                        String suffix = lastInvoiceNum.substring(lastInvoiceNum.length() - 4);
-                                        seq = Integer.parseInt(suffix);
-                                    } catch (Exception e) {
-                                        seq = 0;
+                        // REVERT old stock reservations
+                        Cursor oldItemsCursor = db.rawQuery("SELECT product_id, quantity FROM invoice_items WHERE invoice_id = ?", new String[]{String.valueOf(editInvoiceId)});
+                        while (oldItemsCursor.moveToNext()) {
+                            int oldProductId = oldItemsCursor.getInt(0);
+                            int oldQty = oldItemsCursor.getInt(1);
+                            db.execSQL("UPDATE products SET quantity_reserved = CASE WHEN (quantity_reserved - " + oldQty + ") < 0 THEN 0 ELSE (quantity_reserved - " + oldQty + ") END WHERE id = " + oldProductId);
+                        }
+                        oldItemsCursor.close();
+
+                        // DELETE old items
+                        db.delete("invoice_items", "invoice_id = ?", new String[]{String.valueOf(editInvoiceId)});
+                    } else {
+                        String todayDateCompact = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+
+                        android.content.SharedPreferences seqPrefs = getSharedPreferences("CurtissPrefs", android.content.Context.MODE_PRIVATE);
+                        int seq = seqPrefs.getInt("global_invoice_seq", 0);
+
+                        if (seq == 0) {
+                            Cursor maxCursor = db.rawQuery(
+                                "SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1", null
+                            );
+                            if (maxCursor != null) {
+                                if (maxCursor.moveToFirst()) {
+                                    String lastInvoiceNum = maxCursor.getString(0);
+                                    if (lastInvoiceNum.length() >= 4) {
+                                        try {
+                                            String suffix = lastInvoiceNum.substring(lastInvoiceNum.length() - 4);
+                                            seq = Integer.parseInt(suffix);
+                                        } catch (Exception e) {
+                                            seq = 0;
+                                        }
                                     }
                                 }
+                                maxCursor.close();
                             }
-                            maxCursor.close();
                         }
+
+                        seq++;
+                        seqPrefs.edit().putInt("global_invoice_seq", seq).apply();
+
+                        invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
+                        uuidString = java.util.UUID.randomUUID().toString();
                     }
-
-                    seq++;
-                    seqPrefs.edit().putInt("global_invoice_seq", seq).apply();
-
-                    String invoiceNum = String.format(Locale.getDefault(), "%s%04d", todayDateCompact, seq);
-                    String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
                     java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
                     for (CartItemModel item : cartList) {
@@ -945,30 +979,10 @@ public class BillingActivity extends AppCompatActivity {
                     }
                     String dueDateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(cal.getTime());
 
-                    double capturedLat = 7.1824;
-                    double capturedLng = 79.8801;
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                        try {
-                            LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                            Location loc = null;
-                            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                                loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                            }
-                            if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                                loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                            }
-                            if (loc != null) {
-                                capturedLat = loc.getLatitude();
-                                capturedLng = loc.getLongitude();
-                            }
-                        } catch (Exception e) {
-                            android.util.Log.e("BillingActivity", "Location capture exception: " + e.getMessage());
-                        }
-                    }
+                    double capturedLat = checkoutLatitude;
+                    double capturedLng = checkoutLongitude;
 
-                    String uuidString = java.util.UUID.randomUUID().toString();
                     ContentValues cvHeader = new ContentValues();
-                    cvHeader.put("invoice_number", invoiceNum);
                     cvHeader.put("customer_id", customer.id);
                     cvHeader.put("route_id", currentRouteLocalId);
                     cvHeader.put("invoice_date", dateString);
@@ -986,11 +1000,19 @@ public class BillingActivity extends AppCompatActivity {
                     cvHeader.put("latitude", capturedLat);
                     cvHeader.put("longitude", capturedLng);
                     cvHeader.put("is_synced", 0);
-                    cvHeader.put("uuid", uuidString);
                     cvHeader.put("sync_status", 1); // 1 = Pending Sync
                     cvHeader.put("sync_attempts", 0);
+                    cvHeader.putNull("failure_reason");
 
-                    long localInvId = db.insert("invoices", null, cvHeader);
+                    long localInvId;
+                    if (editInvoiceId != -1) {
+                        db.update("invoices", cvHeader, "id = ?", new String[]{String.valueOf(editInvoiceId)});
+                        localInvId = editInvoiceId;
+                    } else {
+                        cvHeader.put("invoice_number", invoiceNum);
+                        cvHeader.put("uuid", uuidString);
+                        localInvId = db.insert("invoices", null, cvHeader);
+                    }
 
                     for (CartItemModel item : cartList) {
                         ContentValues cvItem = new ContentValues();
@@ -1006,8 +1028,9 @@ public class BillingActivity extends AppCompatActivity {
                         db.execSQL("UPDATE products SET quantity_reserved = quantity_reserved + " + item.quantity + " WHERE id = " + item.productId);
                     }
 
-                    // Create initial sync logs entry
+                    // Create/update sync logs entry
                     try {
+                        db.delete("sync_logs", "bill_id = ?", new String[]{String.valueOf(localInvId)});
                         ContentValues cvLog = new ContentValues();
                         cvLog.put("bill_id", localInvId);
                         cvLog.put("uuid", uuidString);
@@ -1019,11 +1042,12 @@ public class BillingActivity extends AppCompatActivity {
                         cvLog.put("retry_count", 0);
                         db.insert("sync_logs", null, cvLog);
                     } catch (Exception ex) {
-                        android.util.Log.e("BillingActivity", "Error creating initial sync log: " + ex.getMessage());
+                        android.util.Log.e("BillingActivity", "Error updating sync log: " + ex.getMessage());
                     }
 
                     db.setTransactionSuccessful();
                     clearDraftBill();
+                    editInvoiceId = -1; // Reset edit mode
 
                     // Auto sync on checkout removed in favor of manual sync.
 
@@ -1396,7 +1420,102 @@ public class BillingActivity extends AppCompatActivity {
         prefs.edit().clear().apply();
     }
 
+    private void loadInvoiceForEditing(long editId) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM invoices WHERE id = ?", new String[]{String.valueOf(editId)});
+        if (c.moveToFirst()) {
+            long customerId = c.getLong(c.getColumnIndexOrThrow("customer_id"));
+            String paymentMethod = c.getString(c.getColumnIndexOrThrow("payment_method"));
+            double discount = c.getDouble(c.getColumnIndexOrThrow("discount"));
+            long paymentTermId = c.isNull(c.getColumnIndexOrThrow("payment_term_id")) ? -1 : c.getLong(c.getColumnIndexOrThrow("payment_term_id"));
+
+            // Resolve Customer
+            selectedCustomer = null;
+            Cursor custCursor = db.rawQuery("SELECT * FROM customers WHERE id = ?", new String[]{String.valueOf(customerId)});
+            if (custCursor.moveToFirst()) {
+                CustomerModel cust = new CustomerModel();
+                cust.id = (int) customerId;
+                cust.name = DatabaseHelper.safeGetString(custCursor, "name", "");
+                cust.phone = DatabaseHelper.safeGetString(custCursor, "phone", "");
+                cust.email = DatabaseHelper.safeGetString(custCursor, "email", "");
+                cust.address = DatabaseHelper.safeGetString(custCursor, "address", "");
+                cust.whatsapp = DatabaseHelper.safeGetString(custCursor, "whatsapp", "");
+                cust.creditLimit = CurrencyUtils.toBigDecimal(DatabaseHelper.safeGetString(custCursor, "credit_limit", "0.00"));
+                cust.outstanding = CurrencyUtils.toBigDecimal(DatabaseHelper.safeGetString(custCursor, "outstanding", "0.00"));
+                selectedCustomer = cust;
+            }
+            custCursor.close();
+
+            if (selectedCustomer != null) {
+                txtSelectedCustomerName.setText(selectedCustomer.name);
+                if (txtOverlayCustomerName != null) {
+                    txtOverlayCustomerName.setText(selectedCustomer.name);
+                }
+                if (txtOverlayCustomerBalance != null) {
+                    txtOverlayCustomerBalance.setText(String.format(Locale.getDefault(), "Outstanding: LKR %.2f | Limit: LKR %.2f", selectedCustomer.outstanding.doubleValue(), selectedCustomer.creditLimit.doubleValue()));
+                }
+            }
+
+            // Select Payment Method
+            if (spinnerPaymentMethod != null) {
+                for (int i = 0; i < spinnerPaymentMethod.getCount(); i++) {
+                    if (spinnerPaymentMethod.getItemAtPosition(i).toString().equalsIgnoreCase(paymentMethod)) {
+                        spinnerPaymentMethod.setSelection(i);
+                        break;
+                    }
+                }
+            }
+
+            // Select Payment Term
+            if (spinnerPaymentTerm != null && paymentTermId != -1) {
+                for (int i = 0; i < paymentTermList.size(); i++) {
+                    if (paymentTermList.get(i).id == paymentTermId) {
+                        spinnerPaymentTerm.setSelection(i);
+                        break;
+                    }
+                }
+            }
+
+            // Set Discount
+            if (discount > 0) {
+                edtDiscount.setText(String.format(Locale.getDefault(), "%.2f", discount));
+            } else {
+                edtDiscount.setText("");
+            }
+            edtDirectDiscountPct.setText("");
+
+            // Load Invoice Items into cartList
+            cartList.clear();
+            Cursor itemCursor = db.rawQuery("SELECT * FROM invoice_items WHERE invoice_id = ?", new String[]{String.valueOf(editId)});
+            while (itemCursor.moveToNext()) {
+                CartItemModel item = new CartItemModel();
+                item.productId = itemCursor.getInt(itemCursor.getColumnIndexOrThrow("product_id"));
+                item.name = itemCursor.getString(itemCursor.getColumnIndexOrThrow("product_name"));
+                item.quantity = itemCursor.getInt(itemCursor.getColumnIndexOrThrow("quantity"));
+                double unitPrice = itemCursor.getDouble(itemCursor.getColumnIndexOrThrow("unit_price"));
+                double discVal = itemCursor.getDouble(itemCursor.getColumnIndexOrThrow("discount_val"));
+                double total = itemCursor.getDouble(itemCursor.getColumnIndexOrThrow("total"));
+
+                item.price = java.math.BigDecimal.valueOf(unitPrice);
+                item.wholesalePrice = java.math.BigDecimal.valueOf(unitPrice);
+                item.activePrice = java.math.BigDecimal.valueOf(unitPrice);
+                item.customPrice = java.math.BigDecimal.valueOf(unitPrice);
+                item.discountPercent = java.math.BigDecimal.ZERO;
+                item.discountAmount = java.math.BigDecimal.valueOf(discVal);
+                item.discountVal = java.math.BigDecimal.valueOf(discVal);
+                item.total = java.math.BigDecimal.valueOf(total);
+
+                cartList.add(item);
+            }
+            itemCursor.close();
+
+            setupCartSummary();
+        }
+        c.close();
+    }
+
     private void saveDraftBill() {
+        if (editInvoiceId != -1) return; // Do not save drafts for edit mode
         try {
             android.content.SharedPreferences prefs = getSharedPreferences("billing_draft_prefs", MODE_PRIVATE);
             android.content.SharedPreferences.Editor editor = prefs.edit();
@@ -1773,102 +1892,129 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     // Product visual catalog list adapter
-    private class ProductAdapter extends BaseAdapter {
+    private class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductViewHolder> {
         @Override
-        public int getCount() { return productList.size(); }
-        @Override
-        public Object getItem(int position) { return productList.get(position); }
-        @Override
-        public long getItemId(int position) { return productList.get(position).id; }
+        public int getItemCount() {
+            return productList.size();
+        }
 
         @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            if (convertView == null) {
-                convertView = LayoutInflater.from(BillingActivity.this).inflate(R.layout.item_product, parent, false);
-            }
+        public ProductViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(BillingActivity.this).inflate(R.layout.item_product, parent, false);
+            return new ProductViewHolder(view);
+        }
 
+        @Override
+        public void onBindViewHolder(final ProductViewHolder holder, int position) {
             final ProductModel p = productList.get(position);
 
-            TextView lblProductName = convertView.findViewById(R.id.lblProductName);
-            TextView lblCategory = convertView.findViewById(R.id.lblCategory);
-            TextView lblSampleCode = convertView.findViewById(R.id.lblSampleCode);
-            TextView lblPrice = convertView.findViewById(R.id.lblPrice);
-            TextView lblStock = convertView.findViewById(R.id.lblStock);
-
-            lblProductName.setText(p.name);
-            lblCategory.setText(p.category);
+            holder.lblProductName.setText(p.name);
+            holder.lblCategory.setText(p.category);
             
             if (p.sampleCode != null && !p.sampleCode.trim().isEmpty()) {
-                lblSampleCode.setText("Sample Code: " + p.sampleCode);
-                lblSampleCode.setVisibility(View.VISIBLE);
+                holder.lblSampleCode.setText("Sample Code: " + p.sampleCode);
+                holder.lblSampleCode.setVisibility(View.VISIBLE);
             } else {
-                lblSampleCode.setVisibility(View.GONE);
+                holder.lblSampleCode.setVisibility(View.GONE);
             }
 
             final java.math.BigDecimal currentPrice = p.price;
-            lblPrice.setText(String.format(Locale.getDefault(), "LKR %.2f", currentPrice.doubleValue()));
+            holder.lblPrice.setText(String.format(Locale.getDefault(), "LKR %.2f", currentPrice.doubleValue()));
 
             int available = p.qtyOnHand - p.qtyReserved;
-            lblStock.setText("Available Stock: " + available);
+            holder.lblStock.setText("Available Stock: " + available);
 
             if (available <= 0) {
-                lblStock.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                lblStock.setText("Out of Stock");
+                holder.lblStock.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                holder.lblStock.setText("Out of Stock");
             } else {
-                lblStock.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+                holder.lblStock.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
             }
 
-            convertView.setOnClickListener(new View.OnClickListener() {
+            holder.itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     showProductConfigDialog(p);
                 }
             });
 
-            convertView.setOnLongClickListener(new View.OnLongClickListener() {
+            holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
                     showProductQuickViewDialog(p);
                     return true;
                 }
             });
+        }
 
-            return convertView;
+        class ProductViewHolder extends RecyclerView.ViewHolder {
+            TextView lblProductName;
+            TextView lblCategory;
+            TextView lblSampleCode;
+            TextView lblPrice;
+            TextView lblStock;
+
+            ProductViewHolder(View itemView) {
+                super(itemView);
+                lblProductName = itemView.findViewById(R.id.lblProductName);
+                lblCategory = itemView.findViewById(R.id.lblCategory);
+                lblSampleCode = itemView.findViewById(R.id.lblSampleCode);
+                lblPrice = itemView.findViewById(R.id.lblPrice);
+                lblStock = itemView.findViewById(R.id.lblStock);
+            }
         }
     }
 
     // Shopping Cart Summary popup adapter
-    private class CartAdapter extends BaseAdapter {
+    private class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder> {
         @Override
-        public int getCount() { return cartList.size(); }
-        @Override
-        public Object getItem(int position) { return cartList.get(position); }
-        @Override
-        public long getItemId(int position) { return cartList.get(position).productId; }
+        public int getItemCount() {
+            return cartList.size();
+        }
 
         @Override
-        public View getView(int position, View parentConvertView, ViewGroup parent) {
-            View view = parentConvertView;
-            if (view == null) {
-                // Instantiation row inside Dialog lists
-                view = LayoutInflater.from(BillingActivity.this).inflate(android.R.layout.simple_list_item_2, parent, false);
-            }
+        public CartViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(BillingActivity.this).inflate(R.layout.item_cart, parent, false);
+            return new CartViewHolder(view);
+        }
 
-            CartItemModel item = cartList.get(position);
-            TextView text1 = view.findViewById(android.R.id.text1);
-            TextView text2 = view.findViewById(android.R.id.text2);
-
-            text1.setText(item.name);
-            text1.setTextColor(getResources().getColor(android.R.color.white));
+        @Override
+        public void onBindViewHolder(final CartViewHolder holder, int position) {
+            final CartItemModel item = cartList.get(position);
+            holder.txtCartItemName.setText(item.name);
 
             if (item.discountVal.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                text2.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f (Less LKR %.2f Disc)  =  LKR %.2f", item.quantity, item.activePrice.doubleValue(), item.discountVal.doubleValue(), item.total.doubleValue()));
+                holder.txtCartItemDetails.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f (Less LKR %.2f Disc)  =  LKR %.2f", item.quantity, item.activePrice.doubleValue(), item.discountVal.doubleValue(), item.total.doubleValue()));
             } else {
-                text2.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f   =   LKR %.2f", item.quantity, item.activePrice.doubleValue(), item.total.doubleValue()));
+                holder.txtCartItemDetails.setText(String.format(Locale.getDefault(), "Qty: %d  x  LKR %.2f   =   LKR %.2f", item.quantity, item.activePrice.doubleValue(), item.total.doubleValue()));
             }
-            text2.setTextColor(getResources().getColor(android.R.color.holo_blue_light));
 
-            return view;
+            holder.itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    int pos = holder.getAdapterPosition();
+                    if (pos != RecyclerView.NO_POSITION) {
+                        CartItemModel cartItem = cartList.get(pos);
+                        ProductModel product = getProductById(cartItem.productId);
+                        if (product != null) {
+                            showProductConfigDialog(product, cartItem);
+                        } else {
+                            Toast.makeText(BillingActivity.this, "Product details not found.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+            });
+        }
+
+        class CartViewHolder extends RecyclerView.ViewHolder {
+            TextView txtCartItemName;
+            TextView txtCartItemDetails;
+
+            CartViewHolder(View itemView) {
+                super(itemView);
+                txtCartItemName = itemView.findViewById(R.id.txtCartItemName);
+                txtCartItemDetails = itemView.findViewById(R.id.txtCartItemDetails);
+            }
         }
     }
 

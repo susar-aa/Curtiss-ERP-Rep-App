@@ -255,45 +255,16 @@ public class CustomerActivity extends AppCompatActivity {
             return;
         }
 
-        try {
-            LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            Location loc = null;
-            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, new LocationListener() {
-                    @Override
-                    public void onLocationChanged(@NonNull Location location) {
-                        updateGPSState(location);
-                        lm.removeUpdates(this);
-                    }
-                    @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
-                    @Override public void onProviderEnabled(@NonNull String provider) {}
-                    @Override public void onProviderDisabled(@NonNull String provider) {}
-                });
-                loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        txtGPSCoordinates.setText("GPS: Acquiring live coordinates...");
+        LocationHelper.captureCurrentLocation(this, new LocationHelper.LocationResultListener() {
+            @Override
+            public void onLocationResult(double latitude, double longitude) {
+                capturedLatitude = latitude;
+                capturedLongitude = longitude;
+                txtGPSCoordinates.setText(String.format("GPS: %.5f, %.5f (Tagged)", capturedLatitude, capturedLongitude));
+                Toast.makeText(CustomerActivity.this, "Live Shop Location Captured!", Toast.LENGTH_SHORT).show();
             }
-            if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            }
-
-            if (loc != null) {
-                updateGPSState(loc);
-            } else {
-                // Fallback elegant mock to proceed in case satellites are blockaded inside tests
-                capturedLatitude = 7.1824;
-                capturedLongitude = 79.8801;
-                txtGPSCoordinates.setText("GPS: 7.1824, 79.8801 (Mock Tagged)");
-                Toast.makeText(this, "Acquiring satellites... Tagged fallback GPS.", Toast.LENGTH_SHORT).show();
-            }
-        } catch (SecurityException e) {
-            Toast.makeText(this, "Permission denied.", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void updateGPSState(Location loc) {
-        capturedLatitude = loc.getLatitude();
-        capturedLongitude = loc.getLongitude();
-        txtGPSCoordinates.setText(String.format("GPS: %.5f, %.5f (Tagged)", capturedLatitude, capturedLongitude));
-        Toast.makeText(this, "Live Shop Location Captured!", Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void saveCustomer() {

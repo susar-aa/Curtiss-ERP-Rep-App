@@ -2,19 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.0] - 2026-06-20
+## [1.3.0] - 2026-06-22
 ### Added
-- **testo Release Build**: This is a test release (testo) to verify the end-to-end update release system:
-  - APK built with `versionCode=3`, `versionName=1.2.0`
-  - Uploaded via ERP Release Panel to test automatic APK metadata extraction
-  - Android client detects `serverCode(3) > currentCode(2)` → prompts update
-  - Diagnostics panel (StatsActivity) confirms "Update Available" / "Up to Date"
+- **Production Release**: This is a proper release build following the successful testo test (v1.2.0).
+  - Sample Code on Billing Screen 
+  - APK built with `versionCode=4`, `versionName=1.3.0`
+  - Update system fully validated — Android client detects `serverCode(4) > currentCode(3)` → prompts update
+  - Diagnostics panel (StatsActivity) confirms update status in real-time
 
 ### Changed
-- **All v1.1.0 features fully implemented and finalized**: Automatic APK metadata extraction, update diagnostics panel, streamlined versionCode comparison, catalog browsing, billing workflow, synced worker, and restructured navigation.
+- All v1.2.0 features now promoted from test to production-ready.
 
 ---
-*Checkpoint: v1.2.0 (Build 3) — Test release (testo) to validate the APK update release system end-to-end.*
+*Checkpoint: v1.3.0 (Build 4) — Production release. Next release will increment to versionCode=5.*
 
 ## [1.0.0] - 2024-05-22
 ### Added

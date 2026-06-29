@@ -30,7 +30,8 @@ public class HistoryActivity extends AppCompatActivity {
     private ListView lstInvoices, lstDetailItems;
     private RelativeLayout layoutInvoiceDetailOverlay;
     private TextView txtDetailInvNumber, txtDetailInvCust, txtDetailSubtotal, txtDetailDiscount, txtDetailTax, txtDetailNetTotal;
-    private Button btnCloseDetail;
+    private Button btnCloseDetail, btnEditInvoice;
+    private InvoiceModel selectedInvoice;
 
     private DatabaseHelper dbHelper;
     private List<InvoiceModel> invoiceList = new ArrayList<>();
@@ -60,6 +61,7 @@ public class HistoryActivity extends AppCompatActivity {
         txtDetailTax = findViewById(R.id.txtDetailTax);
         txtDetailNetTotal = findViewById(R.id.txtDetailNetTotal);
         btnCloseDetail = findViewById(R.id.btnCloseDetail);
+        btnEditInvoice = findViewById(R.id.btnEditInvoice);
 
         bottomNavigation = findViewById(R.id.bottom_navigation);
         if (bottomNavigation != null) {
@@ -112,6 +114,18 @@ public class HistoryActivity extends AppCompatActivity {
             }
         });
 
+        btnEditInvoice.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (selectedInvoice != null) {
+                    Intent intent = new Intent(HistoryActivity.this, BillingActivity.class);
+                    intent.putExtra("edit_invoice_id", (long) selectedInvoice.id);
+                    startActivity(intent);
+                    layoutInvoiceDetailOverlay.setVisibility(View.GONE);
+                }
+            }
+        });
+
         // Search watcher
         edtInvoiceSearch.addTextChangedListener(new TextWatcher() {
             @Override
@@ -148,18 +162,17 @@ public class HistoryActivity extends AppCompatActivity {
         Cursor cursor = db.rawQuery(query, args);
         while (cursor.moveToNext()) {
             InvoiceModel inv = new InvoiceModel();
-            inv.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-            inv.serverId = cursor.getInt(cursor.getColumnIndexOrThrow("server_id"));
-            inv.invoiceNumber = cursor.getString(cursor.getColumnIndexOrThrow("invoice_number"));
-            inv.customerName = cursor.getString(cursor.getColumnIndexOrThrow("customer_name"));
-            if (inv.customerName == null) inv.customerName = "Unknown Shop";
-            inv.date = cursor.getString(cursor.getColumnIndexOrThrow("invoice_date"));
-            inv.subtotal = cursor.getDouble(cursor.getColumnIndexOrThrow("subtotal"));
-            inv.discount = cursor.getDouble(cursor.getColumnIndexOrThrow("discount"));
-            inv.tax = cursor.getDouble(cursor.getColumnIndexOrThrow("tax"));
-            inv.grandTotal = cursor.getDouble(cursor.getColumnIndexOrThrow("grand_total"));
-            inv.paymentMethod = cursor.getString(cursor.getColumnIndexOrThrow("payment_method"));
-            inv.isSynced = cursor.getInt(cursor.getColumnIndexOrThrow("is_synced"));
+            inv.id = DatabaseHelper.safeGetInt(cursor, "id", 0);
+            inv.serverId = DatabaseHelper.safeGetInt(cursor, "server_id", 0);
+            inv.invoiceNumber = DatabaseHelper.safeGetString(cursor, "invoice_number", "");
+            inv.customerName = DatabaseHelper.safeGetString(cursor, "customer_name", "Unknown Shop");
+            inv.date = DatabaseHelper.safeGetString(cursor, "invoice_date", "");
+            inv.subtotal = DatabaseHelper.safeGetDouble(cursor, "subtotal", 0.0);
+            inv.discount = DatabaseHelper.safeGetDouble(cursor, "discount", 0.0);
+            inv.tax = DatabaseHelper.safeGetDouble(cursor, "tax", 0.0);
+            inv.grandTotal = DatabaseHelper.safeGetDouble(cursor, "grand_total", 0.0);
+            inv.paymentMethod = DatabaseHelper.safeGetString(cursor, "payment_method", "Term");
+            inv.isSynced = DatabaseHelper.safeGetInt(cursor, "is_synced", 0);
             invoiceList.add(inv);
         }
         cursor.close();
@@ -173,16 +186,17 @@ public class HistoryActivity extends AppCompatActivity {
     }
 
     private void openInvoiceDetails(InvoiceModel inv) {
+        this.selectedInvoice = inv;
         detailItemList.clear();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        Cursor cursor = db.rawQuery("SELECT * FROM invoice_items WHERE invoice_id = " + inv.id, null);
+        Cursor cursor = db.rawQuery("SELECT * FROM invoice_items WHERE invoice_id = ?", new String[]{String.valueOf(inv.id)});
         while (cursor.moveToNext()) {
             InvoiceItemModel item = new InvoiceItemModel();
-            item.productName = cursor.getString(cursor.getColumnIndexOrThrow("product_name"));
-            item.quantity = cursor.getInt(cursor.getColumnIndexOrThrow("quantity"));
-            item.unitPrice = cursor.getDouble(cursor.getColumnIndexOrThrow("unit_price"));
-            item.total = cursor.getDouble(cursor.getColumnIndexOrThrow("total"));
+            item.productName = DatabaseHelper.safeGetString(cursor, "product_name", "");
+            item.quantity = DatabaseHelper.safeGetInt(cursor, "quantity", 0);
+            item.unitPrice = DatabaseHelper.safeGetDouble(cursor, "unit_price", 0.0);
+            item.total = DatabaseHelper.safeGetDouble(cursor, "total", 0.0);
             detailItemList.add(item);
         }
         cursor.close();

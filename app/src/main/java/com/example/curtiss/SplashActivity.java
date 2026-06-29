@@ -45,7 +45,7 @@ public class SplashActivity extends AppCompatActivity {
         txtSplashDetail = findViewById(R.id.txtSplashDetail);
         splashProgress = findViewById(R.id.splashProgress);
 
-        prefs = getSharedPreferences("rep_session", Context.MODE_PRIVATE);
+        prefs = SecurePreferences.getSessionPrefs(this);
         dbHelper = DatabaseHelper.getInstance(this);
         mainHandler = new Handler(Looper.getMainLooper());
 

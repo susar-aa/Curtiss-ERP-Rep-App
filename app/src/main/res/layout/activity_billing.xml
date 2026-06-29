@@ -183,12 +183,10 @@
             android:layout_weight="1">
 
             <!-- 1. Standard Billing List -->
-            <ListView
+            <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/lstProducts"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:divider="#1E293B"
-                android:dividerHeight="8dp"
                 android:visibility="visible" />
 
             <!-- 2. Visual Catalog Grid -->
@@ -398,12 +396,10 @@
             </LinearLayout>
 
             <!-- Cart items summary list inside popup -->
-            <ListView
+            <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/lstCartSummary"
                 android:layout_width="match_parent"
                 android:layout_height="180dp"
-                android:divider="#334155"
-                android:dividerHeight="1dp"
                 android:layout_marginBottom="12dp"/>
 
             <!-- Computations & Inputs (Only visible in Checkout Mode) -->
