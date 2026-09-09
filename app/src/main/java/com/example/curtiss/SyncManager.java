@@ -1253,12 +1253,15 @@ public class SyncManager {
 
             // 1. Fetch local unsynced Customers
             JSONArray custArray = new JSONArray();
+            java.util.List<Integer> attemptedCustomerIds = new java.util.ArrayList<>();
             Cursor custCursor = db.rawQuery(
                     "SELECT * FROM customers WHERE (is_synced = 0 OR sync_status IN (1, 2, 4)) AND (server_id = 0 OR is_profile_synced = 0)",
                     null);
             while (custCursor.moveToNext()) {
                 JSONObject c = new JSONObject();
-                c.put("local_id", DatabaseHelper.safeGetInt(custCursor, "id", 0));
+                int localCustId = DatabaseHelper.safeGetInt(custCursor, "id", 0);
+                attemptedCustomerIds.add(localCustId);
+                c.put("local_id", localCustId);
                 c.put("server_id", DatabaseHelper.safeGetInt(custCursor, "server_id", 0));
                 c.put("name", DatabaseHelper.safeGetString(custCursor, "name", ""));
                 c.put("phone", DatabaseHelper.safeGetString(custCursor, "phone", ""));
@@ -1277,11 +1280,14 @@ public class SyncManager {
 
             // 2. Fetch local unsynced Routes
             JSONArray routeArray = new JSONArray();
+            java.util.List<Integer> attemptedRouteIds = new java.util.ArrayList<>();
             Cursor rCursor = db.rawQuery("SELECT * FROM daily_routes WHERE is_synced = 0 OR sync_status IN (1, 2, 4)",
                     null);
             while (rCursor.moveToNext()) {
                 JSONObject r = new JSONObject();
-                r.put("local_id", DatabaseHelper.safeGetInt(rCursor, "id", 0));
+                int localRouteId = DatabaseHelper.safeGetInt(rCursor, "id", 0);
+                attemptedRouteIds.add(localRouteId);
+                r.put("local_id", localRouteId);
                 r.put("route_name", DatabaseHelper.safeGetString(rCursor, "route_name", ""));
                 r.put("start_meter", DatabaseHelper.safeGetDouble(rCursor, "start_meter", 0.0));
                 r.put("start_time", DatabaseHelper.safeGetString(rCursor, "start_time", ""));
@@ -1662,96 +1668,113 @@ public class SyncManager {
                             db.beginTransaction();
                             try {
                                 // 1. Mark customers synced and update server_id
-                                JSONArray cMaps = mappings.getJSONArray("customers");
-                                for (int i = 0; i < cMaps.length(); i++) {
-                                    JSONObject map = cMaps.getJSONObject(i);
-                                    int localId = map.getInt("local_id");
-                                    int serverId = map.getInt("server_id");
-
-                                    ContentValues cv = new ContentValues();
-                                    cv.put("server_id", serverId);
-                                    cv.put("is_synced", 1);
-                                    cv.put("sync_status", 3); // 3 = Synced
-                                    db.update("customers", cv, "id = ?", new String[] { String.valueOf(localId) });
+                                JSONArray cMaps = mappings.optJSONArray("customers");
+                                if (cMaps != null) {
+                                    android.database.sqlite.SQLiteStatement cStmt = db.compileStatement("UPDATE customers SET server_id = ?, is_synced = 1, sync_status = 3 WHERE id = ?");
+                                    for (int i = 0; i < cMaps.length(); i++) {
+                                        JSONObject map = cMaps.getJSONObject(i);
+                                        cStmt.bindLong(1, map.getInt("server_id"));
+                                        cStmt.bindLong(2, map.getInt("local_id"));
+                                        cStmt.executeUpdateDelete();
+                                        cStmt.clearBindings();
+                                    }
+                                    cStmt.close();
                                 }
 
                                 // 2. Mark routes synced
-                                JSONArray rMaps = mappings.getJSONArray("routes");
-                                for (int i = 0; i < rMaps.length(); i++) {
-                                    JSONObject map = rMaps.getJSONObject(i);
-                                    int localId = map.getInt("local_id");
-                                    int serverId = map.getInt("server_id");
-
-                                    ContentValues cv = new ContentValues();
-                                    cv.put("server_id", serverId);
-                                    cv.put("is_synced", 1);
-                                    cv.put("sync_status", 3); // 3 = Synced
-                                    db.update("daily_routes", cv, "id = ?", new String[] { String.valueOf(localId) });
+                                JSONArray rMaps = mappings.optJSONArray("routes");
+                                if (rMaps != null) {
+                                    android.database.sqlite.SQLiteStatement rStmt = db.compileStatement("UPDATE daily_routes SET server_id = ?, is_synced = 1, sync_status = 3 WHERE id = ?");
+                                    for (int i = 0; i < rMaps.length(); i++) {
+                                        JSONObject map = rMaps.getJSONObject(i);
+                                        rStmt.bindLong(1, map.getInt("server_id"));
+                                        rStmt.bindLong(2, map.getInt("local_id"));
+                                        rStmt.executeUpdateDelete();
+                                        rStmt.clearBindings();
+                                    }
+                                    rStmt.close();
                                 }
 
                                 // 3. Mark invoices synced
-                                JSONArray iMaps = mappings.getJSONArray("invoices");
+                                JSONArray iMaps = mappings.optJSONArray("invoices");
                                 java.util.Set<Integer> mappedInvoiceIds = new java.util.HashSet<>();
-                                for (int i = 0; i < iMaps.length(); i++) {
-                                    JSONObject map = iMaps.getJSONObject(i);
-                                    int localId = map.getInt("local_id");
-                                    int serverId = map.getInt("server_id");
-                                    mappedInvoiceIds.add(localId);
+                                if (iMaps != null) {
+                                    android.database.sqlite.SQLiteStatement iStmt = db.compileStatement("UPDATE invoices SET server_id = ?, is_synced = 1, sync_status = 3, failure_reason = ?, invoice_number = ? WHERE id = ?");
+                                    android.database.sqlite.SQLiteStatement logStmt = db.compileStatement("UPDATE sync_logs SET upload_completed = ?, erp_response = 'Success (Mapped)' WHERE bill_id = ?");
+                                    String completedTime = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date());
+                                    
+                                    for (int i = 0; i < iMaps.length(); i++) {
+                                        JSONObject map = iMaps.getJSONObject(i);
+                                        int localId = map.getInt("local_id");
+                                        int serverId = map.getInt("server_id");
+                                        mappedInvoiceIds.add(localId);
 
-                                    ContentValues cv = new ContentValues();
-                                    cv.put("server_id", serverId);
-                                    cv.put("is_synced", 1);
-                                    cv.put("sync_status", 3); // 3 = Synced
-                                    cv.put("failure_reason", "");
-                                    if (map.has("invoice_number")) {
-                                        String mappedNum = map.getString("invoice_number");
-                                        cv.put("invoice_number", mappedNum);
+                                        iStmt.bindLong(1, serverId);
+                                        iStmt.bindString(2, ""); // failure_reason
+                                        
+                                        if (map.has("invoice_number")) {
+                                            String mappedNum = map.getString("invoice_number");
+                                            iStmt.bindString(3, mappedNum);
 
-                                        // Parse suffix and update SharedPreferences so next invoice starts from here!
-                                        if (mappedNum.length() >= 4) {
-                                            try {
-                                                String suffix = mappedNum.substring(mappedNum.length() - 4);
-                                                int parsedSeq = Integer.parseInt(suffix);
-                                                android.content.SharedPreferences seqPrefs = context
-                                                        .getSharedPreferences("CurtissPrefs", Context.MODE_PRIVATE);
-                                                int currentSeq = seqPrefs.getInt("global_invoice_seq", 0);
-                                                if (parsedSeq > currentSeq) {
-                                                    seqPrefs.edit().putInt("global_invoice_seq", parsedSeq).apply();
+                                            // Parse suffix and update SharedPreferences so next invoice starts from here!
+                                            if (mappedNum.length() >= 4) {
+                                                try {
+                                                    String suffix = mappedNum.substring(mappedNum.length() - 4);
+                                                    int parsedSeq = Integer.parseInt(suffix);
+                                                    android.content.SharedPreferences seqPrefs = context
+                                                            .getSharedPreferences("CurtissPrefs", Context.MODE_PRIVATE);
+                                                    int currentSeq = seqPrefs.getInt("global_invoice_seq", 0);
+                                                    if (parsedSeq > currentSeq) {
+                                                        seqPrefs.edit().putInt("global_invoice_seq", parsedSeq).apply();
+                                                    }
+                                                } catch (Exception e) {
+                                                    // Ignore parsing errors
                                                 }
-                                            } catch (Exception e) {
-                                                // Ignore parsing errors
                                             }
+                                        } else {
+                                            // Fallback for invoice_number
+                                            Cursor fallbackInvCursor = db.rawQuery("SELECT invoice_number FROM invoices WHERE id = ?", new String[]{String.valueOf(localId)});
+                                            if (fallbackInvCursor.moveToFirst()) {
+                                                iStmt.bindString(3, DatabaseHelper.safeGetString(fallbackInvCursor, "invoice_number", ""));
+                                            } else {
+                                                iStmt.bindNull(3);
+                                            }
+                                            fallbackInvCursor.close();
+                                        }
+                                        
+                                        iStmt.bindLong(4, localId);
+                                        iStmt.executeUpdateDelete();
+                                        iStmt.clearBindings();
+
+                                        // Update sync_logs table
+                                        try {
+                                            logStmt.bindString(1, completedTime);
+                                            logStmt.bindLong(2, localId);
+                                            logStmt.executeUpdateDelete();
+                                            logStmt.clearBindings();
+                                        } catch (Exception e) {
+                                            Log.e(TAG, "Error updating sync_logs upload_completed for invoice " + localId
+                                                    + ": " + e.getMessage());
                                         }
                                     }
-                                    db.update("invoices", cv, "id = ?", new String[] { String.valueOf(localId) });
-
-                                    // Update sync_logs table
-                                    try {
-                                        String completedTime = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
-                                                java.util.Locale.getDefault()).format(new java.util.Date());
-                                        db.execSQL(
-                                                "UPDATE sync_logs SET upload_completed = ?, erp_response = 'Success (Mapped)' WHERE bill_id = ?",
-                                                new Object[] { completedTime, localId });
-                                    } catch (Exception e) {
-                                        Log.e(TAG, "Error updating sync_logs upload_completed for invoice " + localId
-                                                + ": " + e.getMessage());
-                                    }
+                                    iStmt.close();
+                                    logStmt.close();
                                 }
 
                                 // Mark any attempted invoices that were NOT in the server's mapping response as
                                 // failed
                                 for (int attemptedId : attemptedInvoiceIds) {
                                     if (!mappedInvoiceIds.contains(attemptedId)) {
-                                        ContentValues cv = new ContentValues();
-                                        cv.put("sync_status", 4); // 4 = Failed
-                                        cv.put("failure_reason", "Server failed to return a mapping - check ERP logs.");
-                                        db.update("invoices", cv, "id = ?",
-                                                new String[] { String.valueOf(attemptedId) });
+                                        android.database.sqlite.SQLiteStatement failIStmt = db.compileStatement("UPDATE invoices SET sync_status = 4, failure_reason = 'Server failed to return a mapping - check ERP logs.' WHERE id = ?");
+                                        failIStmt.bindLong(1, attemptedId);
+                                        failIStmt.executeUpdateDelete();
+                                        failIStmt.close();
 
                                         try {
-                                            db.execSQL(
-                                                    "UPDATE sync_logs SET failure_reason = 'Server failed to return a mapping' WHERE bill_id = ?",
-                                                    new Object[] { attemptedId });
+                                            android.database.sqlite.SQLiteStatement failLogStmt = db.compileStatement("UPDATE sync_logs SET failure_reason = 'Server failed to return a mapping' WHERE bill_id = ?");
+                                            failLogStmt.bindLong(1, attemptedId);
+                                            failLogStmt.executeUpdateDelete();
+                                            failLogStmt.close();
                                         } catch (Exception e) {
                                             Log.e(TAG, "Error updating sync_logs failure reason for invoice "
                                                     + attemptedId + ": " + e.getMessage());
@@ -1765,64 +1788,45 @@ public class SyncManager {
                                 JSONArray pMaps = mappings.optJSONArray("payments");
                                 java.util.Set<Integer> mappedPaymentIds = new java.util.HashSet<>();
                                 if (pMaps != null) {
+                                    android.database.sqlite.SQLiteStatement pStmt = db.compileStatement("UPDATE payments SET server_id = ?, is_synced = 1, sync_status = 3 WHERE id = ?");
                                     for (int i = 0; i < pMaps.length(); i++) {
                                         JSONObject map = pMaps.getJSONObject(i);
                                         int localId = map.getInt("local_id");
-                                        int serverId = map.getInt("server_id");
                                         mappedPaymentIds.add(localId);
 
-                                        ContentValues cv = new ContentValues();
-                                        cv.put("server_id", serverId);
-                                        cv.put("is_synced", 1);
-                                        cv.put("sync_status", 3); // 3 = Synced
-                                        db.update("payments", cv, "id = ?", new String[] { String.valueOf(localId) });
+                                        pStmt.bindLong(1, map.getInt("server_id"));
+                                        pStmt.bindLong(2, localId);
+                                        pStmt.executeUpdateDelete();
+                                        pStmt.clearBindings();
                                     }
+                                    pStmt.close();
 
                                     // Mark any attempted payments that were NOT in the server's mapping response as
                                     // failed
                                     for (int attemptedId : attemptedPaymentIds) {
                                         if (!mappedPaymentIds.contains(attemptedId)) {
-                                            ContentValues cv = new ContentValues();
-                                            cv.put("sync_status", 4); // 4 = Failed
-                                            db.update("payments", cv, "id = ?",
-                                                    new String[] { String.valueOf(attemptedId) });
+                                            android.database.sqlite.SQLiteStatement failPStmt = db.compileStatement("UPDATE payments SET sync_status = 4 WHERE id = ?");
+                                            failPStmt.bindLong(1, attemptedId);
+                                            failPStmt.executeUpdateDelete();
+                                            failPStmt.close();
                                             Log.w(TAG, "Payment local ID " + attemptedId
                                                     + " was pushed but server returned no mapping for it.");
                                         }
-                                    }
-                                } else {
-                                    // Fallback: If server does not support payments mapping response yet, mark all
-                                    // attempted payments as synced!
-                                    for (int attemptedId : attemptedPaymentIds) {
-                                        ContentValues cv = new ContentValues();
-                                        cv.put("is_synced", 1);
-                                        cv.put("sync_status", 3); // 3 = Synced
-                                        db.update("payments", cv, "id = ?",
-                                                new String[] { String.valueOf(attemptedId) });
-                                        Log.d(TAG, "Fallback: Marked Payment local ID " + attemptedId
-                                                + " as synced without server mapping.");
                                     }
                                 }
 
                                 // 5. Mark unproductive visits synced
                                 JSONArray uMaps = mappings.optJSONArray("unproductive_visits");
                                 if (uMaps != null) {
+                                    android.database.sqlite.SQLiteStatement uStmt = db.compileStatement("UPDATE unproductive_visits SET server_id = ?, sync_status = 3 WHERE uuid = ?");
                                     for (int i = 0; i < uMaps.length(); i++) {
                                         JSONObject map = uMaps.getJSONObject(i);
-                                        String uuid = map.getString("uuid");
-                                        int serverId = map.optInt("server_id", 0);
-
-                                        ContentValues cv = new ContentValues();
-                                        cv.put("server_id", serverId);
-                                        cv.put("sync_status", 3); // 3 = Synced
-                                        db.update("unproductive_visits", cv, "uuid = ?", new String[] { uuid });
+                                        uStmt.bindLong(1, map.optInt("server_id", 0));
+                                        uStmt.bindString(2, map.getString("uuid"));
+                                        uStmt.executeUpdateDelete();
+                                        uStmt.clearBindings();
                                     }
-                                } else {
-                                    for (String uuid : attemptedUnproductiveUuids) {
-                                        ContentValues cv = new ContentValues();
-                                        cv.put("sync_status", 3);
-                                        db.update("unproductive_visits", cv, "uuid = ?", new String[] { uuid });
-                                    }
+                                    uStmt.close();
                                 }
 
                                 // Perform post-sync checksum/integrity verification before committing
@@ -1886,6 +1890,31 @@ public class SyncManager {
                                                     + attemptedId + ": " + e.getMessage());
                                 }
                             }
+
+                            for (int attemptedId : attemptedCustomerIds) {
+                                ContentValues cv = new ContentValues();
+                                cv.put("sync_status", 4);
+                                db.update("customers", cv, "id = ?", new String[] { String.valueOf(attemptedId) });
+                            }
+
+                            for (int attemptedId : attemptedRouteIds) {
+                                ContentValues cv = new ContentValues();
+                                cv.put("sync_status", 4);
+                                db.update("daily_routes", cv, "id = ?", new String[] { String.valueOf(attemptedId) });
+                            }
+
+                            for (int attemptedId : attemptedPaymentIds) {
+                                ContentValues cv = new ContentValues();
+                                cv.put("sync_status", 4);
+                                db.update("payments", cv, "id = ?", new String[] { String.valueOf(attemptedId) });
+                            }
+
+                            for (String attemptedUuid : attemptedUnproductiveUuids) {
+                                ContentValues cv = new ContentValues();
+                                cv.put("sync_status", 4);
+                                db.update("unproductive_visits", cv, "uuid = ?", new String[] { attemptedUuid });
+                            }
+
                             db.setTransactionSuccessful();
                         } finally {
                             db.endTransaction();
@@ -1930,7 +1959,10 @@ public class SyncManager {
                 return true;
             }
 
-            JSONArray serverIds = mappings.getJSONArray(mappingKey);
+            JSONArray serverIds = mappings.optJSONArray(mappingKey);
+            if (serverIds == null) {
+                return true;
+            }
             SQLiteDatabase db = dbHelper.getReadableDatabase();
 
             // Check that every mapped record returned by the server exists in our local

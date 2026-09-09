@@ -18,6 +18,11 @@ public class PushWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        if (getRunAttemptCount() > 3) {
+            Log.e(TAG, "PushWorker: Maximum retry attempts reached (" + getRunAttemptCount() + "). Failing permanently to prevent battery drain.");
+            return Result.failure();
+        }
+
         Context context = getApplicationContext();
         SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
         
