@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#F5F5F5"
+    android:padding="16dp"
+    android:layout_marginBottom="16dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cheque Details"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_centerVertical="true"/>
+        <Button
+            android:id="@+id/btnRemoveCheque"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Remove ✖"
+            android:textSize="10sp"
+            android:backgroundTint="#E03A3A"
+            android:textColor="#FFFFFF"
+            android:layout_alignParentEnd="true"/>
+    </RelativeLayout>
+
+    <EditText
+        android:id="@+id/edtChequeBank"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Bank Name"
+        android:padding="12dp"
+        android:layout_marginTop="8dp"/>
+
+    <EditText
+        android:id="@+id/edtChequeNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Cheque Number"
+        android:padding="12dp"
+        android:layout_marginTop="8dp"/>
+
+    <EditText
+        android:id="@+id/edtChequeDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Clearing Date (YYYY-MM-DD)"
+        android:padding="12dp"
+        android:focusable="false"
+        android:clickable="true"
+        android:layout_marginTop="8dp"/>
+
+    <EditText
+        android:id="@+id/edtChequeAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="LKR 0.00"
+        android:padding="12dp"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>

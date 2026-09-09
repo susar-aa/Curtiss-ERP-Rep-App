@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbarCreditBills"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#2E7D32"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:title="Outstanding Collections"
+        app:titleTextColor="#FFFFFF"/>
+
+    <EditText
+        android:id="@+id/edtSearchCreditCustomer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Search Customer by Name..."
+        android:padding="16dp"
+        android:layout_margin="8dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp"
+        android:drawableStart="@android:drawable/ic_menu_search"
+        android:drawablePadding="8dp"
+        android:singleLine="true"
+        android:imeOptions="actionSearch"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerCreditBills"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        android:clipToPadding="false"/>
+
+    <TextView
+        android:id="@+id/txtNoOutstanding"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="No outstanding customers found in ongoing route."
+        android:textColor="#757575"
+        android:textSize="16sp"
+        android:visibility="gone"/>
+
+</LinearLayout>

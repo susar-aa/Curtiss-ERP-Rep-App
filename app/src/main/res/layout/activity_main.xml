@@ -1,570 +1,885 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F172A">
+    android:background="#FFFFFF">
 
+    <!-- List spans the entire screen behind the floating nav -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@id/bottom_navigation">
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#0F172A"
+            android:background="#FFFFFF"
+            android:scrollbars="none"
             android:fillViewport="true">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
-
-        <!-- 1. Header Segment with Gradient Styling -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="20dp">
-
+            <!-- Added generous 120dp bottom padding so bottom items scroll under the nav bar -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingLeft="24dp"
+                android:paddingRight="24dp"
+                android:paddingBottom="120dp">
 
-                <TextView
-                    android:id="@+id/txtAppNameHeader"
-                    android:layout_width="wrap_content"
+                <!-- 1. Header (High Contrast) -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="CURTISS ERP"
-                    android:textColor="#3B82F6"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.05"
+                    android:layout_marginTop="32dp"
+                    android:layout_marginBottom="32dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_centerVertical="true">
+
+                        <TextView
+                            android:id="@+id/txtAppNameHeader"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Curtiss ERP"
+                            android:textColor="#000000"
+                            android:fontFamily="@font/sf_pro_display_bold"
+                            android:textSize="28sp"
+                            android:letterSpacing="-0.02"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="?android:attr/selectableItemBackgroundBorderless" />
+
+
+
+                    </LinearLayout>
+
+                    <!-- Sync badge + profile avatar (Sleek monochrome pills) -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <!-- Sync Badge -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/btnSyncNow"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:cardCornerRadius="50dp"
+                            app:cardBackgroundColor="#F2F2F7"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp"
+                            android:layout_marginEnd="8dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="?android:attr/selectableItemBackground">
+
+                            <TextView
+                                android:id="@+id/txtPendingSyncCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:paddingLeft="14dp"
+                                android:paddingRight="14dp"
+                                android:paddingTop="8dp"
+                                android:paddingBottom="8dp"
+                                android:text="Sync"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:textSize="12sp" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- Online Badge -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:cardCornerRadius="50dp"
+                            app:cardBackgroundColor="#000000"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- Profile Vector Icon -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_marginStart="12dp"
+                            app:cardCornerRadius="50dp"
+                            app:cardBackgroundColor="#F2F2F7"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+
+                            <ImageView
+                                android:id="@+id/btnProfileHeader"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:padding="10dp"
+                                android:src="@drawable/ic_person"
+                                app:tint="#000000"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?android:attr/selectableItemBackgroundBorderless" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                    </LinearLayout>
+
+                </RelativeLayout>
+
+                <!-- 2. Metrics grid (Inverted Contrast Design) -->
+                <LinearLayout
+                    android:id="@+id/layoutMetricsGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <!-- Primary Metric (Black Card) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#000000"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TODAY'S SALES"
+                                android:textColor="#A1A1A6"
+                                android:fontFamily="@font/sf_pro_display_medium"
+                                android:letterSpacing="0.05"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:id="@+id/txtSalesTotal"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="LKR 0.00"
+                                android:textColor="#FFFFFF"
+                                android:fontFamily="@font/sf_pro_display_bold"
+                                android:textSize="20sp"
+                                android:layout_marginTop="8dp" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Secondary Metric (Light Gray Card) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/sf_pro_display_medium"
+                                android:letterSpacing="0.05"
+                                android:text="TOTAL CALLS"
+                                android:textColor="#8E8E93"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:id="@+id/txtBillsCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0 Invoices"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_bold"
+                                android:textSize="20sp"
+                                android:layout_marginTop="8dp" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
+                <!-- 3. Daily trip / odometer panel (Widget Style) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#F2F2F7"
+                    app:strokeWidth="0dp"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="DAILY TRIP RADAR"
+                            android:textColor="#8E8E93"
+                            android:fontFamily="@font/sf_pro_display_semibold"
+                            android:letterSpacing="0.08"
+                            android:textSize="11sp" />
+
+                        <!-- Route INACTIVE controls -->
+                        <LinearLayout
+                            android:id="@+id/layoutStartRoute"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp"
+                            android:visibility="visible">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnStartRoute"
+                                android:layout_width="match_parent"
+                                android:layout_height="56dp"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:text="START DAY"
+                                android:textAllCaps="false"
+                                android:textColor="#FFFFFF"
+                                android:textSize="16sp"
+                                app:backgroundTint="#000000"
+                                app:cornerRadius="16dp" />
+
+                        </LinearLayout>
+
+                        <!-- Route ACTIVE controls -->
+                        <LinearLayout
+                            android:id="@+id/layoutEndRoute"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/txtActiveRouteName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Active Route: Negombo Territory"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:textSize="16sp"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/txtRouteStartTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Started At: 2026-05-29 08:30 AM"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:textSize="13sp"
+                                android:layout_marginTop="4dp"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Enter End Odometer (KM)"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_medium"
+                                android:textSize="13sp"
+                                android:layout_marginTop="20dp"
+                                android:visibility="gone" />
+
+                            <EditText
+                                android:id="@+id/edtEndOdo"
+                                android:layout_width="match_parent"
+                                android:layout_height="54dp"
+                                android:layout_marginTop="8dp"
+                                android:background="#E5E5EA"
+                                android:paddingLeft="16dp"
+                                android:paddingRight="16dp"
+                                android:hint="e.g. 14350"
+                                android:inputType="numberDecimal"
+                                android:textColor="#000000"
+                                android:textColorHint="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:textSize="16sp"
+                                android:visibility="gone" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnEndRoute"
+                                android:layout_width="match_parent"
+                                android:layout_height="56dp"
+                                android:layout_marginTop="16dp"
+                                android:text="End Day"
+                                android:textAllCaps="false"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:textSize="16sp"
+                                app:cornerRadius="16dp"
+                                app:backgroundTint="#000000"
+                                android:textColor="#FFFFFF" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnCancelRoute"
+                                android:layout_width="match_parent"
+                                android:layout_height="56dp"
+                                android:layout_marginTop="12dp"
+                                android:text="Cancel Route"
+                                android:textAllCaps="false"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:textSize="16sp"
+                                app:cornerRadius="16dp"
+                                app:backgroundTint="#EF4444"
+                                android:textColor="#FFFFFF" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- 4. Credit collections banner -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardCreditCollections"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#F2F2F7"
+                    app:strokeWidth="0dp"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:id="@+id/txtCreditPendingMsg"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="You have 0 Pending Payment Collections"
+                            android:textColor="#000000"
+                            android:fontFamily="@font/sf_pro_display_medium"
+                            android:textSize="14sp"
+                            android:layout_marginEnd="12dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnOpenCreditBills"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:text="Open"
+                            android:textAllCaps="false"
+                            android:fontFamily="@font/sf_pro_display_semibold"
+                            android:textSize="13sp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            app:cornerRadius="20dp"
+                            app:backgroundTint="#000000"
+                            android:textColor="#FFFFFF"
+                            android:paddingLeft="20dp"
+                            android:paddingRight="20dp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- 4.5. Rep Performance Insights Banner -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/navInsights"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#0F172A"
+                    app:strokeWidth="0dp"
+                    android:layout_marginBottom="16dp"
                     android:clickable="true"
                     android:focusable="true"
-                    android:foreground="?android:attr/selectableItemBackground" />
+                    android:foreground="?attr/selectableItemBackground">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Mobile Representative Terminal"
-                    android:textColor="#CBD5E1"
-                    android:textSize="12sp"
-                    android:layout_marginTop="2dp" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
 
-            </LinearLayout>
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="14dp"
+                            app:cardBackgroundColor="#3B82F6"
+                            app:cardElevation="0dp"
+                            android:layout_marginEnd="16dp">
 
-            <!-- Profile and Sync Badges Container -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:text="📈"
+                                android:textSize="22sp" />
+                        </com.google.android.material.card.MaterialCardView>
 
-                <!-- Sync Indicator Badge -->
-                <TextView
-                    android:id="@+id/txtSyncBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@android:drawable/toast_frame"
-                    android:backgroundTint="#1E293B"
-                    android:paddingLeft="12dp"
-                    android:paddingRight="12dp"
-                    android:paddingTop="6dp"
-                    android:paddingBottom="6dp"
-                    android:text="✓ Online"
-                    android:textColor="#10B981"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
-                <!-- Small Profile Icon -->
-                <TextView
-                    android:id="@+id/btnProfileHeader"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="10dp"
-                    android:background="@android:drawable/toast_frame"
-                    android:backgroundTint="#1E293B"
-                    android:gravity="center"
-                    android:text="👤"
-                    android:textSize="16sp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?android:attr/selectableItemBackground" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Rep Performance Insights"
+                                android:textColor="#FFFFFF"
+                                android:fontFamily="@font/sf_pro_display_bold"
+                                android:textSize="17sp" />
 
-            </LinearLayout>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Interactive charts, KPIs &amp; rankings"
+                                android:textColor="#94A3B8"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:textSize="13sp"
+                                android:layout_marginTop="2dp" />
 
-        </RelativeLayout>
+                        </LinearLayout>
 
-        <!-- 2. Real-Time Offline Metrics Grid -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="24dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="OPEN ➔"
+                            android:textColor="#3B82F6"
+                            android:fontFamily="@font/sf_pro_display_bold"
+                            android:textSize="13sp" />
 
-            <!-- Today's Sales Card -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:orientation="vertical"
-                android:padding="16dp">
+                    </LinearLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="TODAY'S SALES"
-                    android:textColor="#CBD5E1"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:id="@+id/txtSalesTotal"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="LKR 0.00"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="6dp"/>
-
-            </LinearLayout>
-
-            <!-- Active Invoices Count Card -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="BILLS GENERATED"
-                    android:textColor="#CBD5E1"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/txtBillsCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0 Invoices"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="6dp"/>
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- 3. Dynamic Daily Route / Odometer Panel -->
-        <!-- Credit Collections Banner -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@android:drawable/dialog_holo_dark_frame"
-            android:backgroundTint="#0B1220"
-            android:padding="12dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:id="@+id/txtCreditPendingMsg"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="You have 0 Pending Payment Collections"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp" />
-
-            <Button
-                android:id="@+id/btnOpenCreditBills"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:backgroundTint="#10B981"
-                android:text="Open Collections"
-                android:textColor="#FFFFFF" />
-
-        </LinearLayout>
-
-        <!-- 4. Sync Control Console -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:drawable/dialog_holo_dark_frame"
-            android:backgroundTint="#1E293B"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:layout_marginBottom="24dp">
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ERP SYNCHRONIZER"
-                    android:textColor="#10B981"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.1" />
-
-                <TextView
-                    android:id="@+id/txtPendingSyncCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
-                    android:text="Pending: 0"
-                    android:textColor="#F59E0B"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-            </RelativeLayout>
-
-            <TextView
-                android:id="@+id/txtSyncStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Last synced: Today 18:00"
-                android:textColor="#CBD5E1"
-                android:textSize="13sp"
-                android:layout_marginTop="10dp" />
-
-            <ProgressBar
-                android:id="@+id/progressSync"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:indeterminate="true"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/btnSyncNow"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="16dp"
-                android:backgroundTint="#10B981"
-                android:text="Sync Offline Data"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
-
-        </LinearLayout>
-
-        <!-- 5. Primary Grid Navigation Cards -->
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:rowCount="3"
-            android:alignmentMode="alignMargins"
-            android:columnOrderPreserved="false"
-            android:layout_marginBottom="20dp">
-
-            <!-- Card A: Customers list -->
-            <LinearLayout
-                android:id="@+id/navCustomers"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:layout_margin="6dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="👥"
-                    android:textSize="32sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Territory Shops"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="10dp"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Add &amp; tag customers"
-                    android:textColor="#CBD5E1"
-                    android:layout_marginTop="4dp"
-                    android:textSize="11sp" />
-
-            </LinearLayout>
-
-            <!-- Card B: POS Billing -->
-            <LinearLayout
-                android:id="@+id/navBilling"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:layout_margin="6dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🛒"
-                    android:textSize="32sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Billing POS"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="10dp"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Visual invoice catalog"
-                    android:textColor="#CBD5E1"
-                    android:layout_marginTop="4dp"
-                    android:textSize="11sp" />
-
-            </LinearLayout>
-
-            <!-- Card C: Sales Logs -->
-            <LinearLayout
-                android:id="@+id/navHistory"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:layout_margin="6dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="📋"
-                    android:textSize="32sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Sales History"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="10dp"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Local logs &amp; audits"
-                    android:textColor="#CBD5E1"
-                    android:layout_marginTop="4dp"
-                    android:textSize="11sp" />
-
-            </LinearLayout>
-
-
-
-            <!-- Card E: Product Catalog -->
-            <LinearLayout
-                android:id="@+id/navCatalog"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:layout_margin="6dp"
-                android:background="@android:drawable/dialog_holo_dark_frame"
-                android:backgroundTint="#1E293B"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="📖"
-                    android:textSize="32sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Product Catalog"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="10dp"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Browse items &amp; stock"
-                    android:textColor="#CBD5E1"
-                    android:layout_marginTop="4dp"
-                    android:textSize="11sp" />
-
-            </LinearLayout>
-
-        </GridLayout>
-
-        <!-- 3. Dynamic Daily Route / Odometer Panel -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:drawable/dialog_holo_dark_frame"
-            android:backgroundTint="#1E293B"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:layout_marginBottom="24dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="DAILY TRIP RADAR"
-                android:textColor="#3B82F6"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.1" />
-
-            <!-- Route INACTIVE Controls -->
-            <LinearLayout
-                android:id="@+id/layoutStartRoute"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp"
-                android:visibility="visible">
-
-                <Button
-                    android:id="@+id/btnStartRoute"
+                <!-- 5. Primary navigation grid with Professional Icons -->
+                <GridLayout
                     android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:backgroundTint="#3B82F6"
-                    android:text="Start Territory Route"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:rowCount="3"
+                    android:alignmentMode="alignMargins"
+                    android:columnOrderPreserved="false"
+                    android:layout_marginBottom="16dp">
+
+                    <!-- Territory Shops -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navCustomers"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        android:layout_margin="6dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#000000"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_people"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Customers"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Add &amp; tag customers"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Billing POS -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navBilling"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        android:layout_margin="6dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#000000"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_shopping_cart"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Create Invoice"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Visual invoice catalog"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Sales History -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navHistory"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        android:layout_margin="6dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#000000"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_receipt_long"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Active Bills"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Local logs &amp; audits"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Product Catalog -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navCatalog"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        android:layout_margin="6dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#000000"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_inventory"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Product Catalog"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Browse items &amp; stock"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Route History -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navRouteHistory"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        android:layout_margin="6dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#000000"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_map"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Sales History"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Real-time server logs"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Unproductive Sales -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navUnproductiveSales"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        android:layout_margin="6dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#D97706"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_unproductive_visit"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Unproductive Sales"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Log visit without order"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </GridLayout>
 
             </LinearLayout>
 
-            <!-- Route ACTIVE Controls -->
-            <LinearLayout
-                android:id="@+id/layoutEndRoute"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/txtActiveRouteName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Active Route: Negombo Territory"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/txtRouteStartTime"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Started At: 2026-05-29 08:30 AM"
-                    android:textColor="#CBD5E1"
-                    android:textSize="13sp"
-                    android:layout_marginTop="4dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Enter End Odometer (KM):"
-                    android:textColor="#CBD5E1"
-                    android:textSize="13sp"
-                    android:layout_marginTop="16dp"
-                    android:visibility="gone" />
-
-                <EditText
-                    android:id="@+id/edtEndOdo"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
-                    android:backgroundTint="#334155"
-                    android:hint="e.g. 14350"
-                    android:inputType="numberDecimal"
-                    android:textColor="#000000"
-                    android:textColorHint="#94A3B8"
-                    android:textSize="15sp"
-                    android:paddingLeft="10dp"
-                    android:background="@android:drawable/editbox_background_normal"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/btnEndRoute"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:backgroundTint="#EF4444"
-                    android:text="End Day"
-                    android:textColor="#FFFFFF"
-                    android:textStyle="bold" />
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-    </LinearLayout>
         </ScrollView>
+
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_navigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="#1E293B"
-        app:backgroundTint="#1E293B"
-        app:itemIconTint="@color/bottom_nav_color"
-        app:itemTextColor="@color/bottom_nav_color"
-        app:menu="@menu/bottom_nav_menu" />
+    <!-- Floating Stark Black Navigation Capsule with ConstraintLayout sizing rules -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/bottom_navigation_card"
+        android:layout_width="0dp"
+        android:layout_height="72dp"
+        android:layout_marginBottom="32dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        app:layout_constraintWidth_max="380dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:cardCornerRadius="36dp"
+        app:cardBackgroundColor="#000000"
+        app:cardElevation="24dp"
+        app:strokeWidth="0dp">
 
-</RelativeLayout>
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottom_navigation"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            app:itemIconTint="@color/bottom_nav_color_bw"
+            app:itemTextColor="@color/bottom_nav_color_bw"
+            app:itemIconSize="26dp"
+            app:itemTextAppearanceActive="@style/BottomNavText"
+            app:itemTextAppearanceInactive="@style/BottomNavText"
+            app:itemActiveIndicatorStyle="@null"
+            app:labelVisibilityMode="unlabeled"
+            app:elevation="0dp"
+            app:menu="@menu/bottom_nav_menu" />
+    </com.google.android.material.card.MaterialCardView>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="#1E293B">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Product Name & Code -->
+        <TextView
+            android:id="@+id/txtProdName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Product Name (PROD-001)"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <!-- Line Total -->
+        <TextView
+            android:id="@+id/txtLineTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:text="LKR 12,000.00"
+            android:textColor="#10B981"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        android:weightSum="3">
+
+        <!-- Qty -->
+        <TextView
+            android:id="@+id/txtProdQty"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Qty: 10"
+            android:textColor="#94A3B8"
+            android:textSize="11sp" />
+
+        <!-- Unit Price -->
+        <TextView
+            android:id="@+id/txtProdPrice"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Price: LKR 1,200.00"
+            android:textColor="#94A3B8"
+            android:textSize="11sp"
+            android:gravity="center_horizontal" />
+
+        <!-- Discount -->
+        <TextView
+            android:id="@+id/txtProdDiscount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Disc: LKR 0.00"
+            android:textColor="#EF4444"
+            android:textSize="11sp"
+            android:gravity="end" />
+
+    </LinearLayout>
+
+</LinearLayout>

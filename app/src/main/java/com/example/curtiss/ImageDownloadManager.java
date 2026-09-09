@@ -35,7 +35,6 @@ public class ImageDownloadManager {
         return instance;
     }
 
-    // Schedule background download for a product image via SQLite Queue
     public void queueImageDownload(Context context, int productId, String imageUrlString) {
         if (imageUrlString == null || imageUrlString.trim().isEmpty()) {
             return;
@@ -43,23 +42,24 @@ public class ImageDownloadManager {
 
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
-        // Check if this image URL is already in products and local_image_path exists and file exists
-        Cursor cursor = db.rawQuery("SELECT local_image_path, image_url FROM products WHERE id = ?", new String[]{String.valueOf(productId)});
-        boolean alreadyDownloaded = false;
-        if (cursor.moveToFirst()) {
-            String localPath = cursor.getString(0);
-            String dbImageUrl = cursor.getString(1);
-            if (localPath != null && !localPath.isEmpty() && imageUrlString.equals(dbImageUrl)) {
-                File file = new File(localPath);
-                if (file.exists() && file.length() > 0) {
-                    alreadyDownloaded = true;
-                }
+        // Check if this image file already exists locally
+        String fileName;
+        if (imageUrlString.contains("var_") || imageUrlString.contains("prod_")) {
+            int lastSlash = imageUrlString.lastIndexOf('/');
+            if (lastSlash != -1) {
+                fileName = imageUrlString.substring(lastSlash + 1);
+            } else {
+                fileName = "item_img_" + productId + "_" + System.currentTimeMillis() + ".jpg";
             }
+        } else {
+            fileName = "item_img_" + productId + ".jpg";
         }
-        cursor.close();
 
-        if (alreadyDownloaded) {
-            Log.d(TAG, "Image already cached for product " + productId);
+        File outputDir = context.getDir("item_images", Context.MODE_PRIVATE);
+        File outputFile = new File(outputDir, fileName);
+
+        if (outputFile.exists() && outputFile.length() > 0) {
+            Log.d(TAG, "Image already cached for URL: " + imageUrlString);
             return;
         }
 
@@ -74,6 +74,7 @@ public class ImageDownloadManager {
         // Update pending count in SharedPreferences
         updatePendingImageCount(context);
     }
+
 
     // Start background worker for queued downloads
     public synchronized void startQueueDownload(final Context context) {
@@ -98,7 +99,7 @@ public class ImageDownloadManager {
             // Update status to downloading in database
             ContentValues cv = new ContentValues();
             cv.put("status", "downloading");
-            db.update("image_download_queue", cv, "product_id = ?", new String[]{String.valueOf(productId)});
+            db.update("image_download_queue", cv, "image_url = ?", new String[]{imageUrl});
 
             executorService.submit(new Runnable() {
                 @Override
@@ -111,15 +112,36 @@ public class ImageDownloadManager {
         updatePendingImageCount(context);
     }
 
+
     private void downloadImageTask(Context context, int productId, String imageUrlString, int currentAttempts) {
+        if (imageUrlString != null) {
+            int httpIndex = imageUrlString.indexOf("http://");
+            if (httpIndex == -1) {
+                httpIndex = imageUrlString.indexOf("https://");
+            }
+            if (httpIndex != -1) {
+                imageUrlString = imageUrlString.substring(httpIndex);
+            }
+        }
         String absoluteUrl = imageUrlString;
         File outputFile = null;
         File tempFile = null;
         try {
-            String fileName = "item_img_" + productId + ".jpg";
+            String fileName;
+            if (imageUrlString.contains("var_") || imageUrlString.contains("prod_")) {
+                int lastSlash = imageUrlString.lastIndexOf('/');
+                if (lastSlash != -1) {
+                    fileName = imageUrlString.substring(lastSlash + 1);
+                } else {
+                    fileName = "item_img_" + productId + "_" + System.currentTimeMillis() + ".jpg";
+                }
+            } else {
+                fileName = "item_img_" + productId + ".jpg";
+            }
             File outputDir = context.getDir("item_images", Context.MODE_PRIVATE);
             outputFile = new File(outputDir, fileName);
             tempFile = new File(outputDir, fileName + ".tmp");
+
 
             // Form candidate URLs to try
             java.util.List<String> candidateUrls = new java.util.ArrayList<>();
@@ -243,11 +265,55 @@ public class ImageDownloadManager {
                 if (tempFile.renameTo(outputFile)) {
                     String localPath = outputFile.getAbsolutePath();
 
-                    // 1. Update products table
-                    dbHelper.updateProductLocalImagePath(productId, localPath);
+                    // Check if the downloaded URL is the main image or a variation image
+                    SQLiteDatabase db = dbHelper.getWritableDatabase();
+                    db.beginTransaction();
+                    try {
+                        Cursor pCursor = db.rawQuery("SELECT image_url, variations_json FROM products WHERE id = ?", new String[]{String.valueOf(productId)});
+                        String mainImgUrl = "";
+                        String varsJsonStr = "";
+                        if (pCursor.moveToFirst()) {
+                            mainImgUrl = pCursor.getString(0);
+                            varsJsonStr = pCursor.getString(1);
+                        }
+                        pCursor.close();
+
+                        if (imageUrlString.equals(mainImgUrl)) {
+                            // 1. Update products table main image
+                            ContentValues cv = new ContentValues();
+                            cv.put("local_image_path", localPath);
+                            db.update("products", cv, "id = ?", new String[]{String.valueOf(productId)});
+                        } else {
+                            // 2. Update variations_json with local path
+                            if (varsJsonStr != null && !varsJsonStr.isEmpty()) {
+                                org.json.JSONArray varArray = new org.json.JSONArray(varsJsonStr);
+                                boolean updated = false;
+                                for (int v = 0; v < varArray.length(); v++) {
+                                    org.json.JSONObject varObj = varArray.getJSONObject(v);
+                                    String varImgUrl = varObj.optString("image_path", "");
+                                    if (imageUrlString.equals(varImgUrl)) {
+                                        varObj.put("local_image_path", localPath);
+                                        varObj.put("image_path", localPath); // Set both to be safe
+                                        updated = true;
+                                    }
+                                }
+                                if (updated) {
+                                    ContentValues cv = new ContentValues();
+                                    cv.put("variations_json", varArray.toString());
+                                    db.update("products", cv, "id = ?", new String[]{String.valueOf(productId)});
+                                }
+                            }
+                        }
+                        db.setTransactionSuccessful();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error updating products/variations within transaction for product " + productId + ": " + e.getMessage());
+                    } finally {
+                        db.endTransaction();
+                    }
+
 
                     // 2. Update queue status to completed
-                    updateQueueStatusWithRetry(productId, "completed", currentAttempts + 1, null);
+                    updateQueueStatusWithRetry(imageUrlString, "completed", currentAttempts + 1, null);
 
                     // Increment diagnostics success
                     incrementImageCount(context, true);
@@ -269,7 +335,7 @@ public class ImageDownloadManager {
 
             // Update queue status
             int newAttempts = currentAttempts + 1;
-            updateQueueStatusWithRetry(productId, newAttempts >= 3 ? "failed" : "pending", newAttempts, errMsg);
+            updateQueueStatusWithRetry(imageUrlString, newAttempts >= 3 ? "failed" : "pending", newAttempts, errMsg);
 
             if (newAttempts >= 3) {
                 incrementImageCount(context, false);
@@ -282,7 +348,7 @@ public class ImageDownloadManager {
         }
     }
 
-    private void updateQueueStatusWithRetry(int productId, String status, int attempts, String lastError) {
+    private void updateQueueStatusWithRetry(String imageUrl, String status, int attempts, String lastError) {
         int retries = 5;
         for (int i = 1; i <= retries; i++) {
             try {
@@ -295,11 +361,11 @@ public class ImageDownloadManager {
                 } else {
                     cv.putNull("last_error");
                 }
-                db.update("image_download_queue", cv, "product_id = ?", new String[]{String.valueOf(productId)});
+                db.update("image_download_queue", cv, "image_url = ?", new String[]{imageUrl});
                 return; // Success
             } catch (Exception e) {
                 if (e.getMessage() != null && (e.getMessage().contains("locked") || e.getMessage().contains("BUSY") || e.getMessage().contains("code 5"))) {
-                    Log.w(TAG, "Database is locked during queue status update for product " + productId + ". Attempt " + i + " of " + retries + ". Retrying...");
+                    Log.w(TAG, "Database is locked during queue status update for URL " + imageUrl + ". Attempt " + i + " of " + retries + ". Retrying...");
                     try {
                         Thread.sleep(100 * i);
                     } catch (InterruptedException ie) {
@@ -313,6 +379,7 @@ public class ImageDownloadManager {
             }
         }
     }
+
 
     private void incrementImageCount(Context context, boolean success) {
         android.content.SharedPreferences prefs = context.getSharedPreferences("CurtissPrefs", Context.MODE_PRIVATE);
@@ -357,11 +424,37 @@ public class ImageDownloadManager {
 
             SQLiteDatabase db = dbHelper.getReadableDatabase();
             java.util.HashSet<String> activePaths = new java.util.HashSet<>();
-            Cursor cursor = db.rawQuery("SELECT local_image_path FROM products WHERE local_image_path IS NOT NULL", null);
+            Cursor cursor = db.rawQuery("SELECT local_image_path, variations_json FROM products", null);
             while (cursor.moveToNext()) {
-                activePaths.add(cursor.getString(0));
+                String mainPath = cursor.getString(0);
+                if (mainPath != null) {
+                    activePaths.add(mainPath);
+                }
+                String varsJson = cursor.getString(1);
+                if (varsJson != null && !varsJson.isEmpty()) {
+                    try {
+                        org.json.JSONArray varArray = new org.json.JSONArray(varsJson);
+                        for (int v = 0; v < varArray.length(); v++) {
+                            org.json.JSONObject varObj = varArray.getJSONObject(v);
+                            String varLocalPath = varObj.optString("local_image_path", "");
+                            if (!varLocalPath.isEmpty()) {
+                                activePaths.add(varLocalPath);
+                            }
+                            String varImgUrlPath = varObj.optString("image_path", "");
+                            if (!varImgUrlPath.isEmpty() && varImgUrlPath.contains("/")) {
+                                File f = new File(varImgUrlPath);
+                                if (f.isAbsolute()) {
+                                    activePaths.add(varImgUrlPath);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing variations_json for activePaths: " + e.getMessage());
+                    }
+                }
             }
             cursor.close();
+
 
             int deleteCount = 0;
             for (File file : files) {

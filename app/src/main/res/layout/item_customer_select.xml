@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardCornerRadius="18dp"
+    app:cardBackgroundColor="#F2F2F7"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Top Header: Shop Name & Outstanding Badge -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/lblCustSelectName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Shop Name"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_bold"
+                android:textSize="16sp"
+                android:letterSpacing="-0.01" />
+
+            <!-- Outstanding Balance Badge -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardCustSelectBal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="50dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
+
+                <TextView
+                    android:id="@+id/lblCustSelectBal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp"
+                    android:text="Bal: LKR 0.00"
+                    android:textColor="#34C759"
+                    android:fontFamily="@font/sf_pro_display_bold"
+                    android:textSize="11sp" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+        <!-- Route and Phone Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:id="@+id/lblCustSelectRoute"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Route: Colombo North"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_semibold"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/lblCustSelectDot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="  •  "
+                android:textColor="#8E8E93"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/lblCustSelectPhone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="077 123 4567"
+                android:textColor="#8E8E93"
+                android:fontFamily="@font/sf_pro_display_medium"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <!-- Address Description (Optional) -->
+        <TextView
+            android:id="@+id/lblCustSelectAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Shop Address details here"
+            android:textColor="#8E8E93"
+            android:fontFamily="@font/sf_pro_display_regular"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

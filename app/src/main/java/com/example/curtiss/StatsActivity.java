@@ -1,7 +1,6 @@
 package com.example.curtiss;
 
 import android.content.Intent;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -14,7 +13,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -137,23 +135,41 @@ public class StatsActivity extends AppCompatActivity {
             }
         }
 
-        // Read log file
-        try {
-            File logFile = new File(getFilesDir(), "sync_diagnostics.txt");
-            if (logFile.exists()) {
-                java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(logFile));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
+        // Read log file in a background thread to prevent UI thread blocking / ANR (Fix P-04)
+        final File logFile = new File(getFilesDir(), "sync_diagnostics.txt");
+        if (logFile.exists()) {
+            txtDiagnosticsLog.setText("Loading logs...");
+            java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable() {
+                @Override
+                public void run() {
+                    final StringBuilder sb = new StringBuilder();
+                    boolean success = false;
+                    try {
+                        java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(logFile));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            sb.append(line).append("\n");
+                        }
+                        reader.close();
+                        success = true;
+                    } catch (final Exception e) {
+                        sb.append("Error reading logs: ").append(e.getMessage());
+                    }
+                    final boolean finalSuccess = success;
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (finalSuccess) {
+                                txtDiagnosticsLog.setText(sb.toString().trim());
+                            } else {
+                                txtDiagnosticsLog.setText(sb.toString());
+                            }
+                        }
+                    });
                 }
-                reader.close();
-                txtDiagnosticsLog.setText(sb.toString().trim());
-            } else {
-                txtDiagnosticsLog.setText("[No logs recorded yet]");
-            }
-        } catch (Exception e) {
-            txtDiagnosticsLog.setText("Error reading logs: " + e.getMessage());
+            });
+        } else {
+            txtDiagnosticsLog.setText("[No logs recorded yet]");
         }
 
         // Load App Update System Diagnostics
@@ -187,13 +203,19 @@ public class StatsActivity extends AppCompatActivity {
         txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#F59E0B")); // Amber
 
         final long localCode = versionCode;
-        new AsyncTask<String, Void, String>() {
+
+        // Fix B-10: AsyncTask removed in API 33; use ExecutorService + Handler instead
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
+        executor.execute(new Runnable() {
             @Override
-            protected String doInBackground(String... urls) {
+            public void run() {
                 HttpURLConnection conn = null;
-                InputStream is = null;
+                java.io.InputStream is = null;
+                String responseBody = null;
                 try {
-                    URL url = new URL(urls[0]);
+                    URL url = new URL(apiUrl);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setUseCaches(false);
                     conn.setConnectTimeout(5000);
@@ -207,51 +229,52 @@ public class StatsActivity extends AppCompatActivity {
                         while ((line = reader.readLine()) != null) {
                             sb.append(line);
                         }
-                        return sb.toString();
+                        responseBody = sb.toString();
                     }
                 } catch (Exception e) {
                     android.util.Log.e("StatsActivity", "Error checking update diagnostics", e);
                 } finally {
-                    try {
-                        if (is != null) is.close();
-                    } catch (Exception ignored) {}
+                    try { if (is != null) is.close(); } catch (Exception ignored) {}
                     if (conn != null) conn.disconnect();
                 }
-                return null;
-            }
 
-            @Override
-            protected void onPostExecute(String result) {
-                if (result != null) {
-                    try {
-                        JSONObject json = new JSONObject(result);
-                        String serverVersion = json.getString("latestVersion");
-                        long serverCode = json.getLong("latestVersionCode");
-                        boolean forceUpdate = json.getBoolean("forceUpdate");
+                final String finalResponse = responseBody;
+                uiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (finalResponse != null) {
+                            try {
+                                JSONObject json = new JSONObject(finalResponse);
+                                String serverVersion = json.getString("latestVersion");
+                                long serverCode = json.getLong("latestVersionCode");
+                                boolean forceUpdate = json.getBoolean("forceUpdate");
 
-                        String serverPackage = json.optString("packageName", "");
-                        String currentPackage = getPackageName();
+                                String serverPackage = json.optString("packageName", "");
+                                String currentPackage = getPackageName();
 
-                        txtServerVersionInfo.setText("v" + serverVersion + " (Code: " + serverCode + ")");
+                                txtServerVersionInfo.setText("v" + serverVersion + " (Code: " + serverCode + ")");
 
-                        if (serverCode > localCode && (serverPackage.isEmpty() || currentPackage.equalsIgnoreCase(serverPackage))) {
-                            txtUpdateSystemStatus.setText("Update Available" + (forceUpdate ? " [REQUIRED]" : ""));
-                            txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#EF4444")); // Red
+                                if (serverCode > localCode && (serverPackage.isEmpty() || currentPackage.equalsIgnoreCase(serverPackage))) {
+                                    txtUpdateSystemStatus.setText("Update Available" + (forceUpdate ? " [REQUIRED]" : ""));
+                                    txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#EF4444")); // Red
+                                } else {
+                                    txtUpdateSystemStatus.setText("Up to Date");
+                                    txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#34D399")); // Emerald Green
+                                }
+                            } catch (Exception e) {
+                                txtServerVersionInfo.setText("Error");
+                                txtUpdateSystemStatus.setText("Failed to parse response");
+                                txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#EF4444"));
+                            }
                         } else {
-                            txtUpdateSystemStatus.setText("Up to Date");
-                            txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#34D399")); // Emerald Green
+                            txtServerVersionInfo.setText("Unreachable");
+                            txtUpdateSystemStatus.setText("Server offline or host unresolved");
+                            txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#EF4444"));
                         }
-                    } catch (Exception e) {
-                        txtServerVersionInfo.setText("Error");
-                        txtUpdateSystemStatus.setText("Failed to parse response");
-                        txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#EF4444"));
                     }
-                } else {
-                    txtServerVersionInfo.setText("Unreachable");
-                    txtUpdateSystemStatus.setText("Server offline or host unresolved");
-                    txtUpdateSystemStatus.setTextColor(android.graphics.Color.parseColor("#EF4444"));
-                }
+                });
             }
-        }.execute(apiUrl);
+        });
+        executor.shutdown();
     }
 }

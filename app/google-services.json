@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "659903414969",
+    "firebase_url": "https://curtiss-erp-cc0c0-default-rtdb.firebaseio.com",
+    "project_id": "curtiss-erp-cc0c0",
+    "storage_bucket": "curtiss-erp-cc0c0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659903414969:android:b50ac0bdba6976ce3b5168",
+        "android_client_info": {
+          "package_name": "com.example.curtiss"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrz_ItuArN9lTcITiaGaWjTUAxp4MU4ZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

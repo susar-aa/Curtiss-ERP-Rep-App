@@ -1,125 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F172A">
+    android:background="#FFFFFF">
 
-    <!-- Header (Fixed at top) -->
-    <RelativeLayout
+    <!-- Header -->
+    <LinearLayout
         android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
+        <ImageButton
             android:id="@+id/btnBack"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@android:drawable/ic_menu_revert"
-            android:backgroundTint="#FFFFFF"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true" />
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="#000000" />
 
-        <!-- Collapsed Search Button/Icon at top-right -->
-        <ImageButton
-            android:id="@+id/btnSearchToggle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_search"
-            android:tint="#FFFFFF" />
-
-        <!-- Expanded Search Bar (toggled by Search Button) -->
-        <LinearLayout
-            android:id="@+id/layoutExpandedSearch"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_toEndOf="@id/btnBack"
-            android:layout_toStartOf="@id/btnSearchToggle"
-            android:layout_centerVertical="true"
-            android:orientation="horizontal"
-            android:background="@android:drawable/editbox_background_normal"
-            android:backgroundTint="#1E293B"
-            android:paddingLeft="8dp"
-            android:paddingRight="8dp"
-            android:gravity="center_vertical"
-            android:visibility="gone"
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp">
+            android:text="Create Invoice"
+            android:textColor="#000000"
+            android:fontFamily="@font/sf_pro_display_bold"
+            android:textSize="24sp"
+            android:letterSpacing="-0.02" />
 
-            <EditText
-                android:id="@+id/edtProductSearch"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@null"
-                android:hint="Search products..."
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:textSize="14sp"
-                android:imeOptions="actionSearch"
-                android:inputType="text" />
+        <!-- Sleek Cart Badge at top-right -->
+        <FrameLayout
+            android:id="@+id/cardCartBadge"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true">
 
-            <ImageButton
-                android:id="@+id/btnClearSearch"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
-                android:tint="#94A3B8" />
-        </LinearLayout>
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_shopping_cart"
+                app:tint="#000000" />
 
-    </RelativeLayout>
+            <!-- Circle Badge with count -->
+            <FrameLayout
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/bg_avatar_circle"
+                android:backgroundTint="#EF4444">
+                <TextView
+                    android:id="@+id/txtCartCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="0"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+        </FrameLayout>
 
-    <!-- Floating Bottom Checkout Strip -->
-    <LinearLayout
-        android:id="@+id/layoutBottomActionBar"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:layout_alignParentBottom="true"
-        android:background="#1E293B"
-        android:orientation="horizontal"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:gravity="center_vertical"
-        android:elevation="8dp">
-
+        <!-- Hidden View Cart Button to avoid crash if referenced -->
         <Button
             android:id="@+id/btnViewCart"
             android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#3B82F6"
-            android:text="View"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnCheckout"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:backgroundTint="#10B981"
-            android:text="Checkout"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
     </LinearLayout>
 
-    <!-- Content Area (strictly between Header and Bottom Action Bar) -->
+    <!-- Content Area -->
     <LinearLayout
+        android:id="@+id/contentArea"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/layoutHeader"
-        android:layout_above="@id/layoutBottomActionBar"
+        android:layout_height="0dp"
         android:orientation="vertical"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:paddingBottom="8dp">
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <!-- Category Horizontal Scroll Bar -->
         <HorizontalScrollView
@@ -127,6 +102,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="none"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:clipToPadding="false"
             android:layout_marginBottom="12dp">
 
             <LinearLayout
@@ -144,35 +122,44 @@
         <LinearLayout
             android:id="@+id/layoutSegmentedTabs"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:orientation="horizontal"
             android:layout_marginBottom="12dp"
-            android:background="#1E293B"
-            android:padding="2dp">
+            android:background="@drawable/bg_input_bordered"
+            android:backgroundTint="#F2F2F7"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:padding="4dp">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnModeStandard"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:backgroundTint="#3B82F6"
+                app:backgroundTint="#000000"
                 android:text="Standard List"
+                android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                style="?android:attr/borderlessButtonStyle" />
+                android:textSize="13sp"
+                android:fontFamily="@font/sf_pro_display_semibold"
+                app:cornerRadius="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnModeVisual"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:backgroundTint="#334155"
+                app:backgroundTint="@android:color/transparent"
                 android:text="Visual Catalog"
-                android:textColor="#CBD5E1"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                style="?android:attr/borderlessButtonStyle" />
+                android:textAllCaps="false"
+                android:textColor="#8E8E93"
+                android:textSize="13sp"
+                android:fontFamily="@font/sf_pro_display_medium"
+                app:cornerRadius="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
 
         </LinearLayout>
 
@@ -180,431 +167,750 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:clipToPadding="false">
+
+            <!-- iOS Loading State -->
+            <LinearLayout
+                android:id="@+id/layoutBillingLoading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:id="@+id/progressLoadingBilling"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:indeterminate="true"
+                    android:indeterminateTint="#000000" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Loading Catalog..."
+                    android:textColor="#8E8E93"
+                    android:fontFamily="@font/sf_pro_display_medium"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <!-- 1. Standard Billing List -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/lstProducts"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:paddingBottom="120dp"
+                android:clipToPadding="false"
+                android:scrollbars="none"
                 android:visibility="visible" />
 
             <!-- 2. Visual Catalog Grid -->
-            <GridView
+            <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/gridProducts"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:numColumns="2"
-                android:horizontalSpacing="8dp"
-                android:verticalSpacing="8dp"
+                android:paddingBottom="120dp"
+                android:clipToPadding="false"
+                android:scrollbars="none"
                 android:visibility="gone" />
 
         </FrameLayout>
 
     </LinearLayout>
 
+    <!-- Floating Search & Action Capsule (Checkout) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardFloatingSearch"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="32dp"
+        app:layout_constraintWidth_max="420dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:cardCornerRadius="50dp"
+        app:cardBackgroundColor="#1C1C1E"
+        app:cardElevation="24dp"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="8dp">
+
+            <!-- Floating Search Input -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_search_box_dark"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="#8E8E93" />
+
+                <EditText
+                    android:id="@+id/edtProductSearch"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="12dp"
+                    android:background="@android:color/transparent"
+                    android:hint="Search catalog..."
+                    android:inputType="text"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#8E8E93"
+                    android:fontFamily="@font/sf_pro_display_medium"
+                    android:textSize="15sp"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:imeOptions="actionSearch"/>
+            </LinearLayout>
+
+            <!-- Vertical Divider -->
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:background="#333333" />
+
+            <!-- Checkout Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCheckout"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="Checkout"
+                android:textAllCaps="false"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_semibold"
+                android:textSize="15sp"
+                app:backgroundTint="#FFFFFF"
+                app:cornerRadius="24dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
     <!-- Sleek Overlay: Interactive Checkout Shopping Cart -->
     <RelativeLayout
         android:id="@+id/layoutCartOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#E00F172A"
+        android:background="#B3000000"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"
-        android:padding="20dp">
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:background="@android:drawable/dialog_holo_dark_frame"
-            android:backgroundTint="#1E293B"
-            android:orientation="vertical"
-            android:padding="20dp">
+            app:cardCornerRadius="28dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardElevation="32dp">
 
-            <TextView
-                android:id="@+id/txtCartOverlayTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="REVIEW SHOPPING CART"
-                android:textColor="#3B82F6"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp"/>
-
-            <!-- State A: Cart View Mode Container -->
             <LinearLayout
-                android:id="@+id/layoutCartViewMode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <!-- Customer Details Card -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@android:drawable/dialog_holo_dark_frame"
-                    android:backgroundTint="#2D3748"
-                    android:orientation="vertical"
-                    android:padding="12dp"
-                    android:layout_marginBottom="12dp">
-                    
-                    <TextView
-                        android:id="@+id/txtOverlayCustomerName"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Select Customer..."
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/txtOverlayCustomerBalance"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Outstanding: LKR 0.00"
-                        android:textColor="#F87171"
-                        android:textSize="13sp"
-                        android:layout_marginTop="4dp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="8dp"
-                        android:gravity="center_vertical">
-
-                        <Button
-                            android:id="@+id/btnOverlayChangeCustomer"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:backgroundTint="#4B5563"
-                            android:text="Change Customer"
-                            android:textColor="#E5E7EB"
-                            android:textSize="11sp"
-                            android:paddingLeft="10dp"
-                            android:paddingRight="10dp"
-                            style="?android:attr/borderlessButtonStyle" />
-
-                        <Button
-                            android:id="@+id/btnOverlayEditCustomer"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:layout_marginStart="8dp"
-                            android:backgroundTint="#3B82F6"
-                            android:text="Edit Customer"
-                            android:textColor="#FFFFFF"
-                            android:textSize="11sp"
-                            android:paddingLeft="10dp"
-                            android:paddingRight="10dp"
-                            style="?android:attr/borderlessButtonStyle" />
-                    </LinearLayout>
-                </LinearLayout>
-
-                <!-- Cart Stats Card -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@android:drawable/dialog_holo_dark_frame"
-                    android:backgroundTint="#1F2937"
-                    android:orientation="horizontal"
-                    android:padding="12dp"
-                    android:layout_marginBottom="12dp">
-                    
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="TOTAL ITEMS"
-                            android:textColor="#9CA3AF"
-                            android:textSize="11sp" />
-                        <TextView
-                            android:id="@+id/txtOverlayTotalItems"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textColor="#FFFFFF"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1.2"
-                        android:orientation="vertical"
-                        android:gravity="end">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="TOTAL VALUE"
-                            android:textColor="#9CA3AF"
-                            android:textSize="11sp" />
-                        <TextView
-                            android:id="@+id/txtOverlayTotalValue"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="LKR 0.00"
-                            android:textColor="#10B981"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- State B: Checkout Mode Container -->
-            <LinearLayout
-                android:id="@+id/layoutCartCheckoutMode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:visibility="gone">
+                android:paddingTop="24dp"
+                android:paddingBottom="24dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp">
 
-                <!-- Bill Summary Card -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@android:drawable/dialog_holo_dark_frame"
-                    android:backgroundTint="#2D3748"
-                    android:orientation="vertical"
-                    android:padding="12dp"
-                    android:layout_marginBottom="12dp">
-
-                    <TextView
-                        android:id="@+id/txtCheckoutCustomerName"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Customer Name"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/txtCheckoutItemSummary"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0 Items"
-                        android:textColor="#9CA3AF"
-                        android:textSize="13sp"
-                        android:layout_marginTop="4dp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Cart items summary list inside popup -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/lstCartSummary"
-                android:layout_width="match_parent"
-                android:layout_height="180dp"
-                android:layout_marginBottom="12dp"/>
-
-            <!-- Computations & Inputs (Only visible in Checkout Mode) -->
-            <LinearLayout
-                android:id="@+id/layoutCheckoutDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <!-- Subtotal row -->
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Subtotal:"
-                        android:textColor="#CBD5E1"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:id="@+id/txtSubtotal"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:text="LKR 0.00"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp" />
-
-                </RelativeLayout>
-
-                <!-- Offline custom discounts entry (Double-mode) -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Direct Disc (%):"
-                        android:textColor="#CBD5E1"
-                        android:textSize="13sp" />
-
-                    <EditText
-                        android:id="@+id/edtDirectDiscountPct"
-                        android:layout_width="70dp"
-                        android:layout_height="36dp"
-                        android:background="@android:drawable/editbox_background_normal"
-                        android:backgroundTint="#334155"
-                        android:gravity="center"
-                        android:hint="0.0%"
-                        android:inputType="numberDecimal"
-                        android:textColor="#000000"
-                        android:textColorHint="#94A3B8"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="  Amt (LKR):"
-                        android:textColor="#CBD5E1"
-                        android:textSize="13sp" />
-
-                    <EditText
-                        android:id="@+id/edtDiscount"
-                        android:layout_width="85dp"
-                        android:layout_height="36dp"
-                        android:background="@android:drawable/editbox_background_normal"
-                        android:backgroundTint="#334155"
-                        android:gravity="center"
-                        android:hint="0.00"
-                        android:inputType="numberDecimal"
-                        android:textColor="#000000"
-                        android:textColorHint="#94A3B8"
-                        android:textSize="13sp" />
-
-                </LinearLayout>
-
-                <!-- Rounding Adjustment row -->
-                <RelativeLayout
-                    android:id="@+id/layoutRoundingAdjustment"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Rounding Adjustment:"
-                        android:textColor="#94A3B8"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:id="@+id/txtRoundingAdjustment"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:text="LKR 0.00"
-                        android:textColor="#94A3B8"
-                        android:textSize="13sp" />
-
-                </RelativeLayout>
-
-                <!-- Net Total row -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#334155"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="12dp" />
-
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="NET TOTAL:"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/txtNetTotal"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:text="LKR 0.00"
-                        android:textColor="#10B981"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                </RelativeLayout>
-
-                <!-- Payment Term Selection inside Review Dialog -->
                 <TextView
+                    android:id="@+id/txtCartOverlayTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Select Payment Term:"
-                    android:textColor="#CBD5E1"
-                    android:textSize="12sp"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="4dp"/>
+                    android:text="Review Order"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/sf_pro_display_bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="16dp"/>
 
-                <Spinner
-                    android:id="@+id/spinnerPaymentTerm"
+                <!-- Checkout Segmented Tabs -->
+                <LinearLayout
+                    android:id="@+id/layoutCheckoutTabs"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:backgroundTint="#FFFFFF"
-                    android:spinnerMode="dropdown"
-                    android:layout_marginBottom="8dp" />
-
-                <!-- Hide payment method & tax since it's term only & no VAT -->
-                <Spinner
-                    android:id="@+id/spinnerPaymentMethod"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:visibility="gone" />
-                <TextView
-                    android:id="@+id/txtTax"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:visibility="gone" />
-
-            </LinearLayout>
-
-            <!-- Save / Cancel Checkout actions -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="12dp">
-
-                <Button
-                    android:id="@+id/btnCancelCart"
-                    android:layout_width="0dp"
                     android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_input_bordered"
+                    android:backgroundTint="#F2F2F7"
+                    android:padding="4dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnTabCheckout"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        app:backgroundTint="#000000"
+                        android:text="Checkout Details"
+                        android:textAllCaps="false"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:fontFamily="@font/sf_pro_display_semibold"
+                        app:cornerRadius="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnTabItems"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        app:backgroundTint="@android:color/transparent"
+                        android:text="Cart Items"
+                        android:textAllCaps="false"
+                        android:textColor="#8E8E93"
+                        android:textSize="13sp"
+                        android:fontFamily="@font/sf_pro_display_medium"
+                        app:cornerRadius="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
+                </LinearLayout>
+
+                <!-- Content Area For Tabs -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:backgroundTint="#EF4444"
-                    android:text="Cancel"
-                    android:textColor="#FFFFFF" />
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/btnConfirmCheckout"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1.2"
-                    android:layout_marginStart="8dp"
-                    android:backgroundTint="#10B981"
-                    android:text="Confirm Bill"
-                    android:textColor="#FFFFFF"
-                    android:textStyle="bold" />
+                    <!-- Tab 1: Checkout Details Container -->
+                    <LinearLayout
+                        android:id="@+id/layoutTabCheckoutContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <!-- State A: Cart View Mode Container -->
+                        <LinearLayout
+                            android:id="@+id/layoutCartViewMode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <!-- Customer Details Card -->
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_bordered"
+                                android:backgroundTint="#F2F2F7"
+                                android:padding="16dp"
+                                android:layout_marginBottom="12dp">
+                                
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:layout_alignParentStart="true"
+                                    android:layout_toStartOf="@+id/layoutCustomerActions"
+                                    android:layout_centerVertical="true"
+                                    android:layout_marginEnd="12dp">
+                                    
+                                    <TextView
+                                        android:id="@+id/txtOverlayCustomerName"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Select Customer..."
+                                        android:textColor="#000000"
+                                        android:fontFamily="@font/sf_pro_display_bold"
+                                        android:textSize="15sp" />
+
+                                    <TextView
+                                        android:id="@+id/txtOverlayCustomerBalance"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Outstanding: LKR 0.00"
+                                        android:textColor="#EF4444"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        android:textSize="13sp"
+                                        android:layout_marginTop="4dp" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:id="@+id/layoutCustomerActions"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:layout_alignParentEnd="true"
+                                    android:layout_centerVertical="true"
+                                    android:gravity="end">
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnOverlayChangeCustomer"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="32dp"
+                                        app:backgroundTint="#E5E5EA"
+                                        android:text="Change"
+                                        android:textAllCaps="false"
+                                        android:textColor="#000000"
+                                        android:textSize="11sp"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        app:cornerRadius="16dp"
+                                        android:insetTop="0dp"
+                                        android:insetBottom="0dp"
+                                        android:paddingStart="12dp"
+                                        android:paddingEnd="12dp"
+                                        android:minWidth="0dp" />
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnOverlayEditCustomer"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="32dp"
+                                        android:layout_marginTop="6dp"
+                                        app:backgroundTint="#000000"
+                                        android:text="Edit"
+                                        android:textAllCaps="false"
+                                        android:textColor="#FFFFFF"
+                                        android:textSize="11sp"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        app:cornerRadius="16dp"
+                                        android:insetTop="0dp"
+                                        android:insetBottom="0dp"
+                                        android:paddingStart="12dp"
+                                        android:paddingEnd="12dp"
+                                        android:minWidth="0dp" />
+                                </LinearLayout>
+                            </RelativeLayout>
+
+                            <!-- Cart Stats Card -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_bordered"
+                                android:backgroundTint="#F2F2F7"
+                                android:orientation="horizontal"
+                                android:padding="16dp"
+                                android:layout_marginBottom="16dp">
+                                
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Total Items"
+                                        android:textColor="#8E8E93"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        android:textSize="12sp" />
+                                    <TextView
+                                        android:id="@+id/txtOverlayTotalItems"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="0"
+                                        android:textColor="#000000"
+                                        android:fontFamily="@font/sf_pro_display_bold"
+                                        android:textSize="18sp"
+                                        android:layout_marginTop="2dp" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1.2"
+                                    android:orientation="vertical"
+                                    android:gravity="end">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Total Value"
+                                        android:textColor="#8E8E93"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        android:textSize="12sp" />
+                                    <TextView
+                                        android:id="@+id/txtOverlayTotalValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="LKR 0.00"
+                                        android:textColor="#10B981"
+                                        android:fontFamily="@font/sf_pro_display_bold"
+                                        android:textSize="18sp"
+                                        android:layout_marginTop="2dp" />
+                                </LinearLayout>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- State B: Checkout Mode Container -->
+                        <LinearLayout
+                            android:id="@+id/layoutCartCheckoutMode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <!-- Bill Summary Card -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_bordered"
+                                android:backgroundTint="#F2F2F7"
+                                android:orientation="vertical"
+                                android:padding="16dp"
+                                android:layout_marginBottom="16dp">
+
+                                <TextView
+                                    android:id="@+id/txtCheckoutCustomerName"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Customer Name"
+                                    android:textColor="#000000"
+                                    android:fontFamily="@font/sf_pro_display_bold"
+                                    android:textSize="15sp" />
+
+                                <TextView
+                                    android:id="@+id/txtCheckoutItemSummary"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="0 Items"
+                                    android:textColor="#8E8E93"
+                                    android:fontFamily="@font/sf_pro_display_medium"
+                                    android:textSize="13sp"
+                                    android:layout_marginTop="4dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Computations & Inputs (Only visible in Checkout Mode) -->
+                        <LinearLayout
+                            android:id="@+id/layoutCheckoutDetails"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <!-- Subtotal row -->
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Subtotal"
+                                    android:textColor="#8E8E93"
+                                    android:fontFamily="@font/sf_pro_display_medium"
+                                    android:textSize="14sp" />
+
+                                <TextView
+                                    android:id="@+id/txtSubtotal"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:text="LKR 0.00"
+                                    android:textColor="#000000"
+                                    android:fontFamily="@font/sf_pro_display_semibold"
+                                    android:textSize="14sp" />
+
+                            </RelativeLayout>
+
+                            <!-- Offline custom discounts entry (Double-mode) -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:layout_marginEnd="8dp">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Discount (%)"
+                                        android:textColor="#8E8E93"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        android:textSize="12sp"
+                                        android:layout_marginBottom="6dp" />
+
+                                    <EditText
+                                        android:id="@+id/edtDirectDiscountPct"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="44dp"
+                                        android:background="@drawable/bg_input_bordered"
+                                        android:backgroundTint="#F2F2F7"
+                                        android:paddingStart="12dp"
+                                        android:paddingEnd="12dp"
+                                        android:hint="0.0%"
+                                        android:inputType="numberDecimal"
+                                        android:textColor="#000000"
+                                        android:textColorHint="#C7C7CC"
+                                        android:fontFamily="@font/sf_pro_display_semibold"
+                                        android:textSize="14sp" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:layout_marginStart="8dp">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Discount (LKR)"
+                                        android:textColor="#8E8E93"
+                                        android:fontFamily="@font/sf_pro_display_medium"
+                                        android:textSize="12sp"
+                                        android:layout_marginBottom="6dp" />
+
+                                    <EditText
+                                        android:id="@+id/edtDiscount"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="44dp"
+                                        android:background="@drawable/bg_input_bordered"
+                                        android:backgroundTint="#F2F2F7"
+                                        android:paddingStart="12dp"
+                                        android:paddingEnd="12dp"
+                                        android:hint="0.00"
+                                        android:inputType="numberDecimal"
+                                        android:textColor="#000000"
+                                        android:textColorHint="#C7C7CC"
+                                        android:fontFamily="@font/sf_pro_display_semibold"
+                                        android:textSize="14sp" />
+                                </LinearLayout>
+                            </LinearLayout>
+
+                            <!-- Rounding Adjustment row -->
+                            <RelativeLayout
+                                android:id="@+id/layoutRoundingAdjustment"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:visibility="gone">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Rounding Adjustment"
+                                    android:textColor="#8E8E93"
+                                    android:fontFamily="@font/sf_pro_display_medium"
+                                    android:textSize="13sp" />
+
+                                <TextView
+                                    android:id="@+id/txtRoundingAdjustment"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:text="LKR 0.00"
+                                    android:textColor="#8E8E93"
+                                    android:fontFamily="@font/sf_pro_display_medium"
+                                    android:textSize="13sp" />
+
+                            </RelativeLayout>
+
+                            <!-- Outstanding Balance row -->
+                            <RelativeLayout
+                                android:id="@+id/layoutOutstandingBalance"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Outstanding Balance"
+                                    android:textColor="#8E8E93"
+                                    android:fontFamily="@font/sf_pro_display_medium"
+                                    android:textSize="13sp" />
+
+                                <TextView
+                                    android:id="@+id/txtCheckoutOutstanding"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:text="LKR 0.00"
+                                    android:textColor="#000000"
+                                    android:fontFamily="@font/sf_pro_display_semibold"
+                                    android:textSize="13sp" />
+
+                            </RelativeLayout>
+
+                            <!-- Net Total row -->
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="#E5E5EA"
+                                android:layout_marginTop="20dp"
+                                android:layout_marginBottom="16dp" />
+
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Net Total"
+                                    android:textColor="#000000"
+                                    android:fontFamily="@font/sf_pro_display_bold"
+                                    android:textSize="16sp" />
+
+                                <TextView
+                                    android:id="@+id/txtNetTotal"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:text="LKR 0.00"
+                                    android:textColor="#10B981"
+                                    android:fontFamily="@font/sf_pro_display_bold"
+                                    android:textSize="18sp" />
+
+                            </RelativeLayout>
+
+                            <!-- Payment Term Selection -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Payment Term"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_medium"
+                                android:textSize="12sp"
+                                android:layout_marginTop="20dp"
+                                android:layout_marginBottom="8dp"/>
+
+                            <FrameLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:background="@drawable/bg_input_bordered"
+                                android:backgroundTint="#F2F2F7"
+                                android:layout_marginBottom="8dp">
+
+                                <Spinner
+                                    android:id="@+id/spinnerPaymentTerm"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:background="@android:color/transparent"
+                                    android:spinnerMode="dropdown"
+                                    android:theme="@style/ThemeOverlay.AppCompat.Light"
+                                    android:popupBackground="@drawable/bg_input_bordered"
+                                    android:paddingStart="12dp"
+                                    android:paddingEnd="40dp" />
+
+                                <!-- Custom Chevron down -->
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="end|center_vertical"
+                                    android:layout_marginEnd="16dp"
+                                    android:text="▼"
+                                    android:textColor="#8E8E93"
+                                    android:textSize="12sp" />
+                            </FrameLayout>
+
+                            <!-- Hide payment method & tax since it's term only & no VAT -->
+                            <Spinner
+                                android:id="@+id/spinnerPaymentMethod"
+                                android:layout_width="0dp"
+                                android:layout_height="0dp"
+                                android:visibility="gone" />
+                            <TextView
+                                android:id="@+id/txtTax"
+                                android:layout_width="0dp"
+                                android:layout_height="0dp"
+                                android:visibility="gone" />
+
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Tab 2: Cart Items (Hidden by default) -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/lstCartSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone"
+                        android:layout_marginBottom="16dp" />
+
+                </LinearLayout>
+
+                <!-- Save / Cancel Checkout actions -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="24dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEmptyCart"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        app:backgroundTint="#FFEBEB"
+                        android:text="Empty Cart"
+                        android:textAllCaps="false"
+                        android:fontFamily="@font/sf_pro_display_medium"
+                        app:cornerRadius="16dp"
+                        android:textColor="#D32F2F"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancelCart"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        app:backgroundTint="#F2F2F7"
+                        android:text="Cancel"
+                        android:textAllCaps="false"
+                        android:fontFamily="@font/sf_pro_display_medium"
+                        app:cornerRadius="16dp"
+                        android:textColor="#000000"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnConfirmCheckout"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1.2"
+                        android:layout_marginStart="6dp"
+                        app:backgroundTint="#000000"
+                        android:text="Confirm Bill"
+                        android:textAllCaps="false"
+                        android:fontFamily="@font/sf_pro_display_semibold"
+                        app:cornerRadius="16dp"
+                        android:textColor="#FFFFFF"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
+
+                </LinearLayout>
 
             </LinearLayout>
-
-        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </RelativeLayout>
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

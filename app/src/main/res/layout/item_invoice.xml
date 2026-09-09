@@ -1,83 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:drawable/dialog_holo_dark_frame"
-    android:backgroundTint="#1E293B"
-    android:orientation="vertical"
-    android:padding="16dp">
+    app:cardCornerRadius="20dp"
+    app:cardBackgroundColor="#F2F2F7"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
 
-    <!-- Top header: invoice number and sync badge -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <TextView
-            android:id="@+id/lblInvNumber"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="INV-OFFLINE-2839"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/lblInvSyncStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:text="✓ Synced"
-            android:textColor="#10B981"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-    </RelativeLayout>
-
-    <!-- Customer target -->
-    <TextView
-        android:id="@+id/lblInvCustomer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Shops: Lakeside Wholesale"
-        android:textColor="#3B82F6"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:layout_marginTop="4dp" />
-
-    <!-- Date/Time of creation -->
-    <TextView
-        android:id="@+id/lblInvDate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Billed on: 2026-05-29 19:42"
-        android:textColor="#CBD5E1"
-        android:textSize="12sp"
-        android:layout_marginTop="6dp" />
-
-    <!-- Total Sales summary row -->
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp">
+        android:orientation="vertical"
+        android:padding="20dp">
 
+        <!-- Top header: invoice number and sync badge -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/lblInvNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="INV-OFFLINE-2839"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_bold"
+                android:textSize="17sp"
+                android:letterSpacing="-0.01" />
+
+            <TextView
+                android:id="@+id/lblInvSyncStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="✓ Synced"
+                android:textColor="#16A34A"
+                android:fontFamily="@font/sf_pro_display_semibold"
+                android:textSize="12sp" />
+
+        </RelativeLayout>
+
+        <!-- Customer target -->
         <TextView
-            android:id="@+id/lblInvPaymentMethod"
+            android:id="@+id/lblInvCustomer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Payment: Cheque"
-            android:textColor="#94A3B8"
-            android:textSize="12sp" />
+            android:text="Shop: Lakeside Wholesale"
+            android:textColor="#000000"
+            android:fontFamily="@font/sf_pro_display_semibold"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp" />
 
+        <!-- Date/Time of creation -->
         <TextView
-            android:id="@+id/lblInvTotal"
+            android:id="@+id/lblInvDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:text="LKR 18,450.00"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:text="Billed on: 2026-05-29 19:42"
+            android:textColor="#8E8E93"
+            android:fontFamily="@font/sf_pro_display_regular"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp" />
 
-    </RelativeLayout>
+        <!-- Divider Line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E5E5EA"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="12dp"/>
 
-</LinearLayout>
+        <!-- Total Sales summary row -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/lblInvPaymentMethod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:text="Method: Cheque"
+                android:textColor="#8E8E93"
+                android:fontFamily="@font/sf_pro_display_medium"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/lblInvTotal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="LKR 18,450.00"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_bold"
+                android:textSize="16sp" />
+
+        </RelativeLayout>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -79,16 +79,61 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
+    private void setViewsEnabled(final boolean enabled) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                edtUsername.setEnabled(enabled);
+                edtPassword.setEnabled(enabled);
+                btnLogin.setEnabled(enabled);
+                if (enabled) {
+                    btnLogin.setText("AUTHENTICATE SECURELY");
+                } else {
+                    btnLogin.setText("AUTHENTICATING...");
+                }
+            }
+        });
+    }
+
     private void attemptAuthentication() {
         final String username = edtUsername.getText().toString().trim();
         final String password = edtPassword.getText().toString().trim();
 
-        if (username.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Please enter both username and password.", Toast.LENGTH_SHORT).show();
+        // 1. Input Validation
+        boolean hasError = false;
+        if (username.isEmpty()) {
+            edtUsername.setError("Username cannot be empty");
+            edtUsername.requestFocus();
+            hasError = true;
+        } else if (username.length() < 3) {
+            edtUsername.setError("Username must be at least 3 characters");
+            edtUsername.requestFocus();
+            hasError = true;
+        } else if (username.contains(" ")) {
+            edtUsername.setError("Username cannot contain spaces");
+            edtUsername.requestFocus();
+            hasError = true;
+        }
+
+        if (password.isEmpty()) {
+            edtPassword.setError("Password cannot be empty");
+            if (!hasError) {
+                edtPassword.requestFocus();
+            }
+            hasError = true;
+        } else if (password.length() < 4) {
+            edtPassword.setError("Password must be at least 4 characters");
+            if (!hasError) {
+                edtPassword.requestFocus();
+            }
+            hasError = true;
+        }
+
+        if (hasError) {
             return;
         }
 
-        btnLogin.setEnabled(false);
+        setViewsEnabled(false);
         txtSyncDetails.setText("Authenticating credentials in real-time...");
 
         // Run authentication in background thread to avoid blocking main UI
@@ -101,7 +146,10 @@ public class LoginActivity extends AppCompatActivity {
 
                 // 1. Try saved base_url first (if set), otherwise fall back to sequence
                 if (isNetworkAvailable()) {
-                    String savedBaseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+                    String savedBaseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com").trim();
+                    if (savedBaseUrl.isEmpty()) {
+                        savedBaseUrl = "https://curtiss.suzxlabs.com";
+                    }
                     try {
                         userObj = performNetworkLogin(username, password, savedBaseUrl + "/rep/RepDashboard/api_login?api_sync=1");
                         if (userObj != null) {
@@ -109,36 +157,21 @@ public class LoginActivity extends AppCompatActivity {
                             prefs.edit().putString("base_url", savedBaseUrl).apply();
                         }
                     } catch (Exception e) {
-                        android.util.Log.e("LoginActivity", "Saved base URL auth failed, trying backups: " + e.getMessage());
-                        try {
-                            // Try localhost public subfolder fallback
-                            userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/public/rep/RepDashboard/api_login?api_sync=1");
-                            if (userObj != null) {
-                                authenticated = true;
-                                prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP/public").apply();
-                            }
-                        } catch (Exception ex) {
-                            android.util.Log.e("LoginActivity", "Localhost public auth failed, trying backup: " + ex.getMessage());
+                        android.util.Log.e("LoginActivity", "Saved base URL auth failed: " + e.getMessage());
+                        errorMsg = e.getMessage();
+                        
+                        // Try production fallback direct "curtiss.suzxlabs.com"
+                        if (!savedBaseUrl.equalsIgnoreCase("https://curtiss.suzxlabs.com") && 
+                            !savedBaseUrl.equalsIgnoreCase("https://curtiss.suzxlabs.com/")) {
                             try {
-                                // Try localhost emulator backup fallback
-                                userObj = performNetworkLogin(username, password, "http://10.0.2.2/Curtiss-ERP/rep/RepDashboard/api_login?api_sync=1");
+                                userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
                                 if (userObj != null) {
                                     authenticated = true;
-                                    prefs.edit().putString("base_url", "http://10.0.2.2/Curtiss-ERP").apply();
+                                    prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
                                 }
-                            } catch (Exception ex2) {
-                                android.util.Log.e("LoginActivity", "Localhost backup auth failed, trying production: " + ex2.getMessage());
-                                try {
-                                    // Fall back to production real-time login
-                                    userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
-                                    if (userObj != null) {
-                                        authenticated = true;
-                                        prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
-                                    }
-                                } catch (Exception ex3) {
-                                    android.util.Log.e("LoginActivity", "Production auth failed: " + ex3.getMessage());
-                                    errorMsg = ex3.getMessage();
-                                }
+                            } catch (Exception ex3) {
+                                android.util.Log.e("LoginActivity", "Production auth fallback failed: " + ex3.getMessage());
+                                errorMsg = ex3.getMessage();
                             }
                         }
                     }
@@ -148,17 +181,18 @@ public class LoginActivity extends AppCompatActivity {
                 if (!authenticated) {
                     android.util.Log.d("LoginActivity", "Server unreachable or offline. Falling back to local authentication.");
                     final boolean localSuccess = performLocalAuthentication(username, password);
+                    final String finalError = errorMsg;
                     
                     mainHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            btnLogin.setEnabled(true);
+                            setViewsEnabled(true);
                             if (localSuccess) {
                                 Toast.makeText(LoginActivity.this, "Offline Login Successful!", Toast.LENGTH_SHORT).show();
                                 navigateToSplash();
                             } else {
                                 txtSyncDetails.setText("Secure connection is encrypted using standard SSL/TLS.");
-                                Toast.makeText(LoginActivity.this, "Authentication failed. (Verify network or local password)", Toast.LENGTH_LONG).show();
+                                Toast.makeText(LoginActivity.this, "Login Failed: " + finalError, Toast.LENGTH_LONG).show();
                             }
                         }
                     });
@@ -171,25 +205,44 @@ public class LoginActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         try {
-                            int repUserId = finalUserObj.getInt("id");
-                            int employeeId = finalUserObj.getInt("employee_id");
-                            String firstName = finalUserObj.getString("first_name");
-                            String lastName = finalUserObj.getString("last_name");
+                            int repUserId = finalUserObj.getJSONObject("user").getInt("id");
+                            int employeeId = finalUserObj.getJSONObject("user").getInt("employee_id");
+                            String firstName = finalUserObj.getJSONObject("user").getString("first_name");
+                            String lastName = finalUserObj.getJSONObject("user").getString("last_name");
+                            String token = finalUserObj.optString("token", "");
 
                             // Cache session locally in SharedPreferences
                             SharedPreferences.Editor editor = prefs.edit();
                             editor.putInt("user_id", repUserId);
                             editor.putString("username", username);
+                            editor.putString("api_token", token);
                             editor.putInt("employee_id", employeeId);
                             editor.putString("first_name", firstName);
                             editor.putString("last_name", lastName);
                             editor.apply();
 
+                            // Store password hash locally for offline login
+                            try {
+                                SQLiteDatabase db = dbHelper.getWritableDatabase();
+                                db.execSQL("CREATE TABLE IF NOT EXISTS representatives (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, employee_id INTEGER, first_name TEXT, last_name TEXT)");
+                                String localHash = BCrypt.hashpw(password, BCrypt.gensalt());
+                                android.content.ContentValues cv = new android.content.ContentValues();
+                                cv.put("id", repUserId);
+                                cv.put("username", username);
+                                cv.put("password_hash", localHash);
+                                cv.put("employee_id", employeeId);
+                                cv.put("first_name", firstName);
+                                cv.put("last_name", lastName);
+                                db.insertWithOnConflict("representatives", null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+                            } catch (Exception dbEx) {
+                                android.util.Log.e("LoginActivity", "Error caching password hash: " + dbEx.getMessage());
+                            }
+
                             Toast.makeText(LoginActivity.this, "Welcome, " + firstName + " " + lastName + "!", Toast.LENGTH_LONG).show();
                             navigateToSplash();
 
                         } catch (Exception e) {
-                            btnLogin.setEnabled(true);
+                            setViewsEnabled(true);
                             txtSyncDetails.setText("Session initialization error.");
                             Toast.makeText(LoginActivity.this, "Session error: " + e.getMessage(), Toast.LENGTH_LONG).show();
                         }
@@ -206,7 +259,8 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private JSONObject performNetworkLogin(String username, String password, String endpoint) throws Exception {
-        int maxRetries = 3;
+        boolean isLocal = endpoint.contains("10.0.2.2") || endpoint.contains("192.168.");
+        int maxRetries = isLocal ? 1 : 3;
         int attempt = 0;
         Exception lastException = null;
 
@@ -220,8 +274,8 @@ public class LoginActivity extends AppCompatActivity {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Accept", "application/json");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
+                conn.setConnectTimeout(isLocal ? 2500 : 8000);
+                conn.setReadTimeout(isLocal ? 2500 : 8000);
 
                 JSONObject payload = new JSONObject();
                 payload.put("username", username);
@@ -251,7 +305,7 @@ public class LoginActivity extends AppCompatActivity {
                     try {
                         JSONObject res = new JSONObject(responseText);
                         if (res.getBoolean("success")) {
-                            return res.getJSONObject("user");
+                            return res;
                         } else {
                             throw new Exception(res.optString("message", "Invalid credentials."));
                         }
@@ -335,8 +389,20 @@ public class LoginActivity extends AppCompatActivity {
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
-            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-            return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                android.net.Network activeNetwork = cm.getActiveNetwork();
+                if (activeNetwork != null) {
+                    android.net.NetworkCapabilities capabilities = cm.getNetworkCapabilities(activeNetwork);
+                    return capabilities != null && (
+                            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET));
+                }
+            } else {
+                @SuppressWarnings("deprecation")
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+            }
         }
         return false;
     }

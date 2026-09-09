@@ -1,269 +1,420 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F172A">
+    android:background="#FFFFFF">
 
-    <!-- Primary Layout List and Search Header -->
+    <!-- Header -->
     <LinearLayout
+        android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@id/bottom_navigation"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Header back button + Title -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
-
-            <Button
-                android:id="@+id/btnBack"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@android:drawable/ic_menu_revert"
-                android:backgroundTint="#FFFFFF" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_toEndOf="@id/btnBack"
-                android:layout_marginStart="16dp"
-                android:text="Territory Shops"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-        </RelativeLayout>
-
-        <!-- Search Bar -->
-        <EditText
-            android:id="@+id/edtSearch"
-            android:layout_width="match_parent"
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginBottom="16dp"
-            android:background="@android:drawable/editbox_background_normal"
-            android:backgroundTint="#1E293B"
-            android:hint="Search shops by name or territory..."
-            android:inputType="text"
-            android:textColor="#000000"
-            android:textColorHint="#94A3B8"
-            android:textSize="15sp"
-            android:paddingLeft="12dp" />
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="#000000" />
 
-        <!-- Customers List -->
-        <ListView
-            android:id="@+id/lstCustomers"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:divider="#1E293B"
-            android:dividerHeight="8dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="Customer Center"
+            android:textColor="#000000"
+            android:fontFamily="@font/sf_pro_display_bold"
+            android:textSize="24sp"
+            android:letterSpacing="-0.02" />
 
     </LinearLayout>
 
-    <Button
-        android:id="@+id/fabAddCustomer"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_alignParentEnd="true"
-        android:layout_above="@id/bottom_navigation"
-        android:layout_margin="24dp"
-        android:backgroundTint="#3B82F6"
-        android:elevation="6dp"
-        android:text="+"
-        android:textColor="#FFFFFF"
-        android:textSize="28sp"
-        android:textStyle="bold" />
+    <!-- iOS Loading Indicator -->
+    <LinearLayout
+        android:id="@+id/layoutCustomerLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ProgressBar
+            android:id="@+id/progressLoadingCustomers"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:indeterminate="true"
+            android:indeterminateTint="#000000" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Loading Customers..."
+            android:textColor="#8E8E93"
+            android:fontFamily="@font/sf_pro_display_medium"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <!-- Customers List -->
+    <ListView
+        android:id="@+id/lstCustomers"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="12dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="120dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Floating Search & Action Capsule (Added ID to hide it later) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardFloatingSearch"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="32dp"
+        app:layout_constraintWidth_max="420dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:cardCornerRadius="50dp"
+        app:cardBackgroundColor="#1C1C1E"
+        app:cardElevation="24dp"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="8dp">
+
+            <!-- Floating Search Input -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_search_box_dark"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="#8E8E93" />
+
+                <EditText
+                    android:id="@+id/edtSearch"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="12dp"
+                    android:background="@android:color/transparent"
+                    android:hint="Search"
+                    android:inputType="text"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#8E8E93"
+                    android:fontFamily="@font/sf_pro_display_medium"
+                    android:textSize="15sp"
+                    android:maxLines="1"
+                    android:singleLine="true"/>
+            </LinearLayout>
+
+            <!-- Vertical Divider -->
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:background="#333333" />
+
+            <!-- + New Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/fabAddCustomer"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="+ New"
+                android:textAllCaps="false"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_semibold"
+                android:textSize="15sp"
+                app:backgroundTint="#FFFFFF"
+                app:cornerRadius="24dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Sleek Overlay: Add Customer Offline Form -->
     <RelativeLayout
         android:id="@+id/layoutAddCustomerOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#E00F172A"
+        android:background="#B3000000"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"
-        android:padding="24dp">
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:background="@android:drawable/dialog_holo_dark_frame"
-            android:backgroundTint="#1E293B"
-            android:orientation="vertical"
-            android:padding="24dp">
+            app:cardCornerRadius="24dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardElevation="0dp">
 
-            <TextView
-                android:id="@+id/txtOverlayTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="TAG NEW SHOP"
-                android:textColor="#3B82F6"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Enter profile details below completely offline"
-                android:textColor="#CBD5E1"
-                android:textSize="12sp"
-                android:layout_marginTop="4dp" />
-
-            <!-- Shop name -->
-            <EditText
-                android:id="@+id/edtShopName"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="16dp"
-                android:hint="Shop / Customer Name"
-                android:inputType="textPersonName"
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:background="@android:drawable/editbox_background_normal"
-                android:paddingLeft="10dp" />
-
-            <!-- Telephone -->
-            <EditText
-                android:id="@+id/edtShopPhone"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="12dp"
-                android:hint="Telephone Number"
-                android:inputType="phone"
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:background="@android:drawable/editbox_background_normal"
-                android:paddingLeft="10dp" />
-
-            <!-- WhatsApp -->
-            <EditText
-                android:id="@+id/edtShopWhatsApp"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="12dp"
-                android:hint="WhatsApp Number"
-                android:inputType="phone"
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:background="@android:drawable/editbox_background_normal"
-                android:paddingLeft="10dp" />
-
-            <!-- Address Line 1: Address with Number -->
-            <EditText
-                android:id="@+id/edtShopAddressLine1"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="12dp"
-                android:hint="Address with Number (e.g. 123 Galle Rd)"
-                android:inputType="textPostalAddress"
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:background="@android:drawable/editbox_background_normal"
-                android:paddingLeft="10dp" />
-
-            <!-- Address Line 2: Area / State -->
-            <EditText
-                android:id="@+id/edtShopAddressLine2"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:hint="Area / State (e.g. Kollupitiya)"
-                android:inputType="textPostalAddress"
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:background="@android:drawable/editbox_background_normal"
-                android:paddingLeft="10dp" />
-
-            <!-- Address Line 3: City -->
-            <EditText
-                android:id="@+id/edtShopAddressLine3"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:hint="City (e.g. Colombo)"
-                android:inputType="textPostalAddress"
-                android:textColor="#000000"
-                android:textColorHint="#94A3B8"
-                android:background="@android:drawable/editbox_background_normal"
-                android:paddingLeft="10dp" />
-
-            <!-- Live GPS Status Display -->
-            <LinearLayout
+            <!-- Wrapped in a ScrollView to prevent keyboard from covering fields -->
+            <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical">
+                android:scrollbars="none">
 
-                <TextView
-                    android:id="@+id/txtGPSCoordinates"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="GPS: Location Pending..."
-                    android:textColor="#E2E8F0"
-                    android:textSize="12sp" />
+                    android:orientation="vertical"
+                    android:padding="24dp">
 
-                <Button
-                    android:id="@+id/btnCaptureGPS"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:backgroundTint="#3B82F6"
-                    android:text="Tag GPS"
-                    android:textSize="11sp"
-                    android:textColor="#FFFFFF"/>
+                    <TextView
+                        android:id="@+id/txtOverlayTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TAG NEW SHOP"
+                        android:textColor="#000000"
+                        android:fontFamily="@font/sf_pro_display_bold"
+                        android:textSize="16sp"
+                        android:letterSpacing="0.05" />
 
-            </LinearLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Enter profile details completely offline"
+                        android:textColor="#8E8E93"
+                        android:fontFamily="@font/sf_pro_display_regular"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp" />
 
-            <!-- Save / Cancel Actions -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="24dp">
+                    <!-- Shop Name: ALL CAPS -->
+                    <EditText
+                        android:id="@+id/edtShopName"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:layout_marginTop="20dp"
+                        android:background="@drawable/bg_input_bordered"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:textSize="15sp"
+                        android:textColor="#000000"
+                        android:textColorHint="#8E8E93"
+                        android:hint="Shop / Customer Name"
+                        android:inputType="textCapCharacters" />
 
-                <Button
-                    android:id="@+id/btnCancelAdd"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:backgroundTint="#EF4444"
-                    android:text="Cancel"
-                    android:textColor="#FFFFFF" />
+                    <!-- Phone: Max 10 Numbers -->
+                    <EditText
+                        android:id="@+id/edtShopPhone"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_input_bordered"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:textSize="15sp"
+                        android:textColor="#000000"
+                        android:textColorHint="#8E8E93"
+                        android:hint="Telephone Number"
+                        android:inputType="phone"
+                        android:maxLength="10" />
 
-                <Button
-                    android:id="@+id/btnSaveCustomer"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:backgroundTint="#10B981"
-                    android:text="Save Shop"
-                    android:textColor="#FFFFFF" />
+                    <!-- WhatsApp: Max 10 Numbers -->
+                    <EditText
+                        android:id="@+id/edtShopWhatsApp"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_input_bordered"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:textSize="15sp"
+                        android:textColor="#000000"
+                        android:textColorHint="#8E8E93"
+                        android:hint="WhatsApp Number"
+                        android:inputType="phone"
+                        android:maxLength="10" />
 
-            </LinearLayout>
+                    <!-- Address: Capitalize First Letter of Every Word -->
+                    <EditText
+                        android:id="@+id/edtShopAddressLine1"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_input_bordered"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:textSize="15sp"
+                        android:textColor="#000000"
+                        android:textColorHint="#8E8E93"
+                        android:hint="Address with Number (e.g. 123 Galle Rd)"
+                        android:inputType="textPostalAddress|textCapWords" />
 
-        </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
 
+                        <!-- Area: Capitalize First Letter -->
+                        <EditText
+                            android:id="@+id/edtShopAddressLine2"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_input_bordered"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:textSize="15sp"
+                            android:textColor="#000000"
+                            android:textColorHint="#8E8E93"
+                            android:hint="Area / State"
+                            android:inputType="textPostalAddress|textCapWords" />
+
+                        <!-- City: Capitalize First Letter -->
+                        <EditText
+                            android:id="@+id/edtShopAddressLine3"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:background="@drawable/bg_input_bordered"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:textSize="15sp"
+                            android:textColor="#000000"
+                            android:textColorHint="#8E8E93"
+                            android:hint="City"
+                            android:inputType="textPostalAddress|textCapWords" />
+                    </LinearLayout>
+
+                    <!-- Live GPS Status Display -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:cardElevation="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/ic_map"
+                                app:tint="#8E8E93" />
+
+                            <TextView
+                                android:id="@+id/txtGPSCoordinates"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="8dp"
+                                android:text="GPS: Location Pending..."
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_medium"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnCaptureGPS"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:text="Tag"
+                                android:textAllCaps="false"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                app:backgroundTint="#000000"
+                                app:cornerRadius="10dp"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:textColor="#FFFFFF" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Save / Cancel Actions -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="24dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCancelAdd"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            app:backgroundTint="#F2F2F7"
+                            android:text="Cancel"
+                            android:textAllCaps="false"
+                            android:fontFamily="@font/sf_pro_display_medium"
+                            app:cornerRadius="14dp"
+                            android:textColor="#000000" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaveCustomer"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            app:backgroundTint="#000000"
+                            android:text="Save Shop"
+                            android:textAllCaps="false"
+                            android:fontFamily="@font/sf_pro_display_semibold"
+                            app:cornerRadius="14dp"
+                            android:textColor="#FFFFFF" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
     </RelativeLayout>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_navigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="#1E293B"
-        app:backgroundTint="#1E293B"
-        app:itemIconTint="@color/bottom_nav_color"
-        app:itemTextColor="@color/bottom_nav_color"
-        app:menu="@menu/bottom_nav_menu" />
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

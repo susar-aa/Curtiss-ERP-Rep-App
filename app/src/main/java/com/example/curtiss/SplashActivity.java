@@ -70,6 +70,7 @@ public class SplashActivity extends AppCompatActivity {
         }
 
         // Online pull database sync
+        boolean isFullSync = SyncManager.shouldRunDailyFullSync(this);
         SyncManager.getInstance(this).startPullSync(this, userId, new SyncManager.SyncListener() {
             @Override
             public void onSyncStarted() {
@@ -155,14 +156,26 @@ public class SplashActivity extends AppCompatActivity {
                     }
                 });
             }
-        });
+        }, isFullSync);
     }
 
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
-            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-            return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                android.net.Network activeNetwork = cm.getActiveNetwork();
+                if (activeNetwork != null) {
+                    android.net.NetworkCapabilities capabilities = cm.getNetworkCapabilities(activeNetwork);
+                    return capabilities != null && (
+                            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET));
+                }
+            } else {
+                @SuppressWarnings("deprecation")
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+            }
         }
         return false;
     }

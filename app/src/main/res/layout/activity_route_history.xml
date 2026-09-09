@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0F172A">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layout_above="@+id/layoutPagination">
+
+        <!-- Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:drawable/ic_menu_revert"
+                android:backgroundTint="#FFFFFF" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/btnBack"
+                android:layout_marginStart="16dp"
+                android:text="Route History"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </RelativeLayout>
+
+        <!-- Offline Banner -->
+        <TextView
+            android:id="@+id/txtOfflineBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#EF4444"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:padding="8dp"
+            android:gravity="center"
+            android:text="⚠️ Offline Mode: Internet connection required"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Search & Date Filters Container -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1E293B"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"
+            android:elevation="2dp">
+
+            <!-- Search box -->
+            <EditText
+                android:id="@+id/edtRouteSearch"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@android:drawable/editbox_background_normal"
+                android:backgroundTint="#0F172A"
+                android:hint="Search by route or shop name..."
+                android:textColor="#FFFFFF"
+                android:textColorHint="#94A3B8"
+                android:textSize="14sp"
+                android:paddingLeft="10dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Date Range Pickers -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <Button
+                    android:id="@+id/btnStartDate"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginRight="4dp"
+                    android:backgroundTint="#334155"
+                    android:text="Start Date"
+                    android:textSize="11sp"
+                    android:textColor="#CBD5E1"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/btnEndDate"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="4dp"
+                    android:backgroundTint="#334155"
+                    android:text="End Date"
+                    android:textSize="11sp"
+                    android:textColor="#CBD5E1"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnClearFilters"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#EF4444"
+                android:text="Clear Date Filters"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF"
+                android:textAllCaps="false"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Swipe Refresh and ListView -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshRouteHistory"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ListView
+                android:id="@+id/lstRoutes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:divider="#1E293B"
+                android:dividerHeight="8dp" />
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    </LinearLayout>
+
+    <!-- Pagination Footer -->
+    <LinearLayout
+        android:id="@+id/layoutPagination"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_alignParentBottom="true"
+        android:background="#1E293B"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="8dp">
+
+        <Button
+            android:id="@+id/btnPrevPage"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#334155"
+            android:text="Previous"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textAllCaps="false" />
+
+        <TextView
+            android:id="@+id/txtPageStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Page 1 of 1"
+            android:textColor="#CBD5E1"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnNextPage"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#334155"
+            android:text="Next"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textAllCaps="false" />
+
+    </LinearLayout>
+
+    <!-- Loading Indicator overlay -->
+    <RelativeLayout
+        android:id="@+id/layoutLoadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#990F172A"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:indeterminateTint="#3B82F6" />
+
+    </RelativeLayout>
+
+</RelativeLayout>

@@ -27,6 +27,7 @@ public class SyncProgressActivity extends AppCompatActivity {
     private Button btnSyncCancel;
     private Button btnSyncRetry;
     private Button btnSyncFinish;
+    private Button btnSyncDiagnosis;
 
     private SyncManager syncManager;
     private int userId;
@@ -47,6 +48,7 @@ public class SyncProgressActivity extends AppCompatActivity {
         btnSyncCancel = findViewById(R.id.btnSyncCancel);
         btnSyncRetry = findViewById(R.id.btnSyncRetry);
         btnSyncFinish = findViewById(R.id.btnSyncFinish);
+        btnSyncDiagnosis = findViewById(R.id.btnSyncDiagnosis);
 
         syncManager = SyncManager.getInstance(this);
         mainHandler = new Handler(Looper.getMainLooper());
@@ -54,10 +56,28 @@ public class SyncProgressActivity extends AppCompatActivity {
         SharedPreferences prefs = SecurePreferences.getSessionPrefs(this);
         userId = prefs.getInt("user_id", -1);
 
+        btnSyncDiagnosis.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                android.content.Intent intent = new android.content.Intent(SyncProgressActivity.this, SyncLogsActivity.class);
+                startActivity(intent);
+            }
+        });
+
         btnSyncCancel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                finish();
+                new androidx.appcompat.app.AlertDialog.Builder(SyncProgressActivity.this)
+                        .setTitle("Cancel Sync?")
+                        .setMessage("Synchronization will continue in the background. Are you sure you want to close this screen?")
+                        .setPositiveButton("Close", new android.content.DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(android.content.DialogInterface dialog, int which) {
+                                finish();
+                            }
+                        })
+                        .setNegativeButton("Keep Open", null)
+                        .show();
             }
         });
 
@@ -103,11 +123,11 @@ public class SyncProgressActivity extends AppCompatActivity {
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // Reset UI status
-        imgPhase1Status.setImageResource(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.presence_away).getResId());
+        imgPhase1Status.setImageResource(android.R.drawable.presence_away);
         imgPhase1Status.setImageTintList(ColorStateList.valueOf(Color.parseColor("#F59E0B"))); // Orange
         txtPhase1Title.setTextColor(Color.parseColor("#FFFFFF"));
 
-        imgPhase2Status.setImageResource(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.presence_invisible).getResId());
+        imgPhase2Status.setImageResource(android.R.drawable.presence_invisible);
         imgPhase2Status.setImageTintList(ColorStateList.valueOf(Color.parseColor("#94A3B8"))); // Slate
         txtPhase2Title.setTextColor(Color.parseColor("#94A3B8"));
 
@@ -132,10 +152,31 @@ public class SyncProgressActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         txtSyncProgressStatus.setText(message);
+                        if (syncProgressBar != null) {
+                            if (message != null && message.contains("%")) {
+                                int startIdx = message.lastIndexOf('(');
+                                int endIdx = message.lastIndexOf('%');
+                                if (startIdx != -1 && endIdx != -1 && startIdx < endIdx) {
+                                    try {
+                                        String pct = message.substring(startIdx + 1, endIdx).trim();
+                                        int val = Integer.parseInt(pct);
+                                        syncProgressBar.setIndeterminate(false);
+                                        syncProgressBar.setProgress(val);
+                                    } catch (NumberFormatException e) {
+                                        syncProgressBar.setIndeterminate(true);
+                                    }
+                                } else {
+                                    syncProgressBar.setIndeterminate(true);
+                                }
+                            } else {
+                                syncProgressBar.setIndeterminate(true);
+                            }
+                        }
                         if (message.contains("Phase 1") || message.contains("Uploading")) {
                             imgPhase1Status.setImageResource(android.R.drawable.presence_away);
                             imgPhase1Status.setImageTintList(ColorStateList.valueOf(Color.parseColor("#F59E0B"))); // Orange
                             txtSyncProgressDetail.setText("Packaging bills, routes, and payment collections...");
+                            txtSyncProgressDetail.setTextColor(Color.parseColor("#94A3B8"));
                         } else if (message.contains("Phase 2") || message.contains("Verifying")) {
                             // Phase 1 finished successfully
                             imgPhase1Status.setImageResource(android.R.drawable.presence_online);
@@ -146,6 +187,12 @@ public class SyncProgressActivity extends AppCompatActivity {
                             imgPhase2Status.setImageTintList(ColorStateList.valueOf(Color.parseColor("#F59E0B"))); // Orange
                             txtPhase2Title.setTextColor(Color.parseColor("#FFFFFF"));
                             txtSyncProgressDetail.setText("Checking UUIDs against ERP database...");
+                            txtSyncProgressDetail.setTextColor(Color.parseColor("#94A3B8"));
+                        }
+
+                        if (message.contains("Discrepancy") || message.contains("Retrying")) {
+                            txtSyncProgressDetail.setText(message);
+                            txtSyncProgressDetail.setTextColor(Color.parseColor("#F59E0B")); // Orange warning
                         }
                     }
                 });

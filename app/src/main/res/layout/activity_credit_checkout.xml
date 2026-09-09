@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbarCreditCheckout"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#2E7D32"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:title="Collect Payment"
+        app:titleTextColor="#FFFFFF"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txtCheckoutCustomerDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#000000"
+                android:textSize="15sp"
+                android:paddingBottom="24dp"
+                android:text="👤 Customer: \n💰 Total Arrears: LKR 0.00" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="#CCCCCC"/>
+
+            <!-- Cash Payment -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💵 CASH PAYMENT AMOUNT"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/holo_green_dark"
+                android:paddingTop="24dp"
+                android:paddingBottom="8dp"/>
+
+            <EditText
+                android:id="@+id/edtCashAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="LKR 0.00"
+                android:inputType="numberDecimal"
+                android:padding="16dp"/>
+
+            <!-- Bank Transfer Payment -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🏛️ BANK TRANSFER AMOUNT"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/holo_blue_dark"
+                android:paddingTop="24dp"
+                android:paddingBottom="8dp"/>
+
+            <EditText
+                android:id="@+id/edtBankAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="LKR 0.00"
+                android:inputType="numberDecimal"
+                android:padding="16dp"/>
+
+            <!-- Cheques -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="✍️ CHEQUES COLLECTION"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#444444"
+                android:paddingTop="24dp"
+                android:paddingBottom="8dp"/>
+
+            <LinearLayout
+                android:id="@+id/layoutChequesContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <!-- Cheque rows will be added here -->
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnAddCheque"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="➕ Add Cheque"
+                android:backgroundTint="#DDDDDD"
+                android:textColor="#000000"
+                android:layout_marginTop="8dp"/>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#FAFAFA"
+        android:elevation="8dp">
+
+        <TextView
+            android:id="@+id/txtTotalToCollect"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Total Collected:\nLKR 0.00"
+            android:textStyle="bold"
+            android:textColor="#D32F2F"
+            android:textSize="16sp"/>
+
+        <Button
+            android:id="@+id/btnConfirmCollection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save Collection"
+            android:backgroundTint="#2E7D32"
+            android:textColor="#FFFFFF"/>
+
+    </LinearLayout>
+
+</LinearLayout>

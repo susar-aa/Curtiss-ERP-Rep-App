@@ -1,72 +1,154 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:drawable/dialog_holo_dark_frame"
-    android:backgroundTint="#1E293B"
-    android:orientation="horizontal"
-    android:padding="12dp"
-    android:gravity="center_vertical"
-    android:layout_marginBottom="8dp">
+    android:layout_marginBottom="10dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardCornerRadius="20dp"
+    app:cardBackgroundColor="#F2F2F7"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
 
-    <!-- 1. Product Information -->
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="0dp"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/lblProductName"
+        <!-- Product Image -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginEnd="14dp"
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="#E5E5EA"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
+
+            <ImageView
+                android:id="@+id/imgProduct"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@android:drawable/ic_menu_gallery" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Product Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/lblProductName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Product Name"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_semibold"
+                android:textSize="15sp"
+                android:letterSpacing="-0.01" />
+
+            <TextView
+                android:id="@+id/lblCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Category Name"
+                android:textColor="#8E8E93"
+                android:fontFamily="@font/sf_pro_display_regular"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/lblSampleCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Code: -"
+                android:textColor="#8E8E93"
+                android:fontFamily="@font/sf_pro_display_regular"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <!-- Variations Badge -->
+            <TextView
+                android:id="@+id/lblVariations"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Red (10) | Blue (5)"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_medium"
+                android:textSize="11sp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone" />
+
+            <!-- Variation Chips Container with Images -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:layout_marginTop="4dp">
+
+                <LinearLayout
+                    android:id="@+id/layoutVariations"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical" />
+
+            </HorizontalScrollView>
+
+            <!-- Price -->
+            <TextView
+                android:id="@+id/lblPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LKR 1,250.00"
+                android:textColor="#000000"
+                android:fontFamily="@font/sf_pro_display_bold"
+                android:textSize="14sp"
+                android:layout_marginTop="6dp" />
+
+        </LinearLayout>
+
+        <!-- Stock badge (right side) -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Product Name"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:gravity="end|center_vertical"
+            android:layout_marginStart="8dp">
 
-        <TextView
-            android:id="@+id/lblCategory"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Category Name"
-            android:textColor="#94A3B8"
-            android:textSize="11sp"
-            android:layout_marginTop="2dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="50dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
 
-        <TextView
-            android:id="@+id/lblSampleCode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Sample Code: -"
-            android:textColor="#F59E0B"
-            android:textSize="11sp"
-            android:layout_marginTop="2dp" />
+                <TextView
+                    android:id="@+id/lblStock"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp"
+                    android:text="120 units"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/sf_pro_display_medium"
+                    android:textSize="11sp" />
 
-        <!-- Price -->
-        <TextView
-            android:id="@+id/lblPrice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="LKR 1,250.00"
-            android:textColor="#3B82F6"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:layout_marginTop="6dp" />
+            </com.google.android.material.card.MaterialCardView>
 
-        <!-- Stock levels -->
-        <TextView
-            android:id="@+id/lblStock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Stock: 120 Units"
-            android:textColor="#10B981"
-            android:textSize="11sp"
-            android:layout_marginTop="4dp" />
+        </LinearLayout>
 
     </LinearLayout>
 
-
-
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

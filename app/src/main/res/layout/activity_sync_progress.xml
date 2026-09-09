@@ -175,5 +175,16 @@
 
         </LinearLayout>
 
+        <Button
+            android:id="@+id/btnSyncDiagnosis"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="#475569"
+            android:textColor="#FFFFFF"
+            android:text="Sync Diagnosis"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp" />
+
     </LinearLayout>
 </RelativeLayout>

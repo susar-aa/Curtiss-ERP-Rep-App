@@ -1,0 +1,1777 @@
+--- app/src/main/java/com/example/curtiss/BillingActivity.java
++++ app/src/main/java/com/example/curtiss/BillingActivity.java
+@@ -2115,123 +2539,446 @@ public class BillingActivity extends AppCompatActivity {
+ 
+     private void showProductQuickViewDialog(final ProductModel p) {
+         final androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+-        
++
+         android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+-        scrollView.setBackgroundColor(android.graphics.Color.parseColor("#0F172A")); // Slate 900
+-        
++        scrollView.setBackgroundColor(android.graphics.Color.WHITE);
++        scrollView.setVerticalScrollBarEnabled(false);
++
+         android.widget.LinearLayout root = new android.widget.LinearLayout(this);
+         root.setOrientation(android.widget.LinearLayout.VERTICAL);
+-        root.setPadding(48, 48, 48, 48);
+-        
+-        // Title
+-        android.widget.TextView txtTitle = new android.widget.TextView(this);
+-        txtTitle.setText(p.name);
+-        txtTitle.setTextColor(android.graphics.Color.WHITE);
+-        txtTitle.setTextSize(22);
+-        txtTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+-        txtTitle.setPadding(0, 0, 0, 8);
+-        root.addView(txtTitle);
+-
+-        // SKU and Category Subheader
+-        android.widget.TextView txtSub = new android.widget.TextView(this);
+-        String skuText = (p.sku != null && !p.sku.isEmpty()) ? p.sku : "N/A";
+-        String sampleCodeText = (p.sampleCode != null && !p.sampleCode.isEmpty()) ? p.sampleCode : "N/A";
+-        txtSub.setText("Category: " + p.category + "  |  SKU: " + skuText + "  |  Sample: " + sampleCodeText);
+-        txtSub.setTextColor(android.graphics.Color.parseColor("#94A3B8")); // Slate 400
+-        txtSub.setTextSize(13);
+-        txtSub.setPadding(0, 0, 0, 24);
+-        root.addView(txtSub);
+-
+-        // Image Container
+-        android.widget.FrameLayout imgContainer = new android.widget.FrameLayout(this);
+-        android.widget.FrameLayout.LayoutParams imgContainerParams = new android.widget.FrameLayout.LayoutParams(
+-                android.view.ViewGroup.LayoutParams.MATCH_PARENT, (int) (260 * getResources().getDisplayMetrics().density));
+-        imgContainerParams.setMargins(0, 0, 0, 24);
+-        imgContainer.setLayoutParams(imgContainerParams);
+-        imgContainer.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Slate 800 background
+-        
++        root.setBackgroundColor(android.graphics.Color.WHITE);
++
++        final float dp = getResources().getDisplayMetrics().density;
++        int screenW = getResources().getDisplayMetrics().widthPixels;
++        int screenH = getResources().getDisplayMetrics().heightPixels;
++        int dialogWidth = (int) (screenW * 0.92f);
++
++        // 1. HERO IMAGE (edge-to-edge, clips top corners to match dialog radius)
++        android.widget.FrameLayout heroFrame = new android.widget.FrameLayout(this);
++        int heroSize = dialogWidth;
++        int maxHeroH = (int) (screenH * 0.48f);
++        if (heroSize > maxHeroH) heroSize = maxHeroH;
++        android.widget.LinearLayout.LayoutParams heroLp = new android.widget.LinearLayout.LayoutParams(
++                android.view.ViewGroup.LayoutParams.MATCH_PARENT, heroSize);
++        heroFrame.setLayoutParams(heroLp);
++        android.graphics.drawable.GradientDrawable heroClip = new android.graphics.drawable.GradientDrawable();
++        heroClip.setColor(android.graphics.Color.parseColor("#F2F2F7"));
++        heroClip.setCornerRadii(new float[]{28*dp, 28*dp, 28*dp, 28*dp, 0, 0, 0, 0});
++        heroFrame.setBackground(heroClip);
++        heroFrame.setClipToOutline(true);
++
+         final ZoomImageView zoomImage = new ZoomImageView(this);
+-        android.widget.FrameLayout.LayoutParams imgParams = new android.widget.FrameLayout.LayoutParams(
++        android.widget.FrameLayout.LayoutParams zoomLp = new android.widget.FrameLayout.LayoutParams(
+                 android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+-        zoomImage.setLayoutParams(imgParams);
++        zoomImage.setLayoutParams(zoomLp);
+         zoomImage.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+-        
+         if (p.localImagePath != null && !p.localImagePath.isEmpty()) {
+-            java.io.File file = new java.io.File(p.localImagePath);
+-            if (file.exists()) {
+-                zoomImage.setImageBitmap(android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath()));
+-            } else {
+-                zoomImage.setImageResource(android.R.drawable.ic_menu_gallery);
+-            }
++            android.graphics.Bitmap bm = getCachedThumbnail(p.localImagePath, 1);
++            if (bm != null) zoomImage.setImageBitmap(bm);
++            else zoomImage.setImageResource(android.R.drawable.ic_menu_gallery);
+         } else {
+             zoomImage.setImageResource(android.R.drawable.ic_menu_gallery);
+         }
+-        imgContainer.addView(zoomImage);
+-        root.addView(imgContainer);
+-
+-        // Specifications List
+-        android.widget.LinearLayout specsLayout = new android.widget.LinearLayout(this);
+-        specsLayout.setOrientation(android.widget.LinearLayout.VERTICAL);
+-        specsLayout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B")); // Slate 800
+-        specsLayout.setPadding(32, 24, 32, 24);
+-        android.widget.LinearLayout.LayoutParams specsParams = new android.widget.LinearLayout.LayoutParams(
++        heroFrame.addView(zoomImage);
++
++        // Floating close button top-right
++        android.widget.TextView btnClose = new android.widget.TextView(this);
++        btnClose.setText("???");
++        btnClose.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        btnClose.setTextSize(16);
++        btnClose.setTypeface(null, android.graphics.Typeface.BOLD);
++        btnClose.setGravity(android.view.Gravity.CENTER);
++        android.graphics.drawable.GradientDrawable closeBg = new android.graphics.drawable.GradientDrawable();
++        closeBg.setColor(android.graphics.Color.parseColor("#F0F0F0"));
++        closeBg.setAlpha(220);
++        closeBg.setCornerRadius(99 * dp);
++        btnClose.setBackground(closeBg);
++        android.widget.FrameLayout.LayoutParams closeLp = new android.widget.FrameLayout.LayoutParams(
++                (int)(36*dp), (int)(36*dp));
++        closeLp.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
++        closeLp.setMargins(0, (int)(12*dp), (int)(12*dp), 0);
++        btnClose.setLayoutParams(closeLp);
++        heroFrame.addView(btnClose);
++
++        root.addView(heroFrame);
++
++        // 2. PADDED CONTENT SECTION
++        android.widget.LinearLayout contentPad = new android.widget.LinearLayout(this);
++        contentPad.setOrientation(android.widget.LinearLayout.VERTICAL);
++        contentPad.setPadding((int)(20*dp),(int)(16*dp),(int)(20*dp),(int)(16*dp));
++        contentPad.setBackgroundColor(android.graphics.Color.WHITE);
++
++        // 2a. Category pill + Brand (left) | SKU + Sample Code (right)
++        android.widget.LinearLayout metaRow = new android.widget.LinearLayout(this);
++        metaRow.setOrientation(android.widget.LinearLayout.HORIZONTAL);
++        metaRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
++        android.widget.LinearLayout.LayoutParams metaLp = new android.widget.LinearLayout.LayoutParams(
+                 android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+-        specsParams.setMargins(0, 0, 0, 24);
+-        specsLayout.setLayoutParams(specsParams);
+-        
++        metaLp.setMargins(0, 0, 0, (int)(8*dp));
++        metaRow.setLayoutParams(metaLp);
++
++        android.widget.TextView catPill = new android.widget.TextView(this);
++        catPill.setText(p.category != null ? p.category.toUpperCase(Locale.getDefault()) : "PRODUCT");
++        catPill.setTextColor(android.graphics.Color.parseColor("#636366"));
++        catPill.setTextSize(10);
++        catPill.setTypeface(null, android.graphics.Typeface.BOLD);
++        android.graphics.drawable.GradientDrawable catBg = new android.graphics.drawable.GradientDrawable();
++        catBg.setColor(android.graphics.Color.parseColor("#F2F2F7"));
++        catBg.setCornerRadius(8*dp);
++        catPill.setBackground(catBg);
++        catPill.setPadding((int)(8*dp),(int)(3*dp),(int)(8*dp),(int)(3*dp));
++        metaRow.addView(catPill);
++
+         if (p.brand != null && !p.brand.isEmpty()) {
+-            addQuickViewSpecRow(specsLayout, "Brand", p.brand);
++            android.widget.TextView brandTxt = new android.widget.TextView(this);
++            brandTxt.setText("   ???   " + p.brand);
++            brandTxt.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++            brandTxt.setTextSize(11);
++            metaRow.addView(brandTxt);
+         }
+-        if (p.description != null && !p.description.isEmpty()) {
+-            addQuickViewSpecRow(specsLayout, "Description", p.description);
++
++        android.widget.Space spacer1 = new android.widget.Space(this);
++        spacer1.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, 1, 1f));
++        metaRow.addView(spacer1);
++
++        String skuText = (p.sku != null && !p.sku.isEmpty()) ? ("SKU: " + p.sku) : "";
++        String sampleText = (p.sampleCode != null && !p.sampleCode.isEmpty()) ? ("SAMPLE: " + p.sampleCode) : "";
++        String rightMeta = "";
++        if (!skuText.isEmpty() && !sampleText.isEmpty()) rightMeta = skuText + "   ???   " + sampleText;
++        else if (!skuText.isEmpty()) rightMeta = skuText;
++        else if (!sampleText.isEmpty()) rightMeta = sampleText;
++
++        if (!rightMeta.isEmpty()) {
++            android.widget.TextView txtRightMeta = new android.widget.TextView(this);
++            txtRightMeta.setText(rightMeta);
++            txtRightMeta.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++            txtRightMeta.setTextSize(11);
++            txtRightMeta.setTypeface(null, android.graphics.Typeface.BOLD);
++            txtRightMeta.setGravity(android.view.Gravity.END);
++            metaRow.addView(txtRightMeta);
+         }
+-        addQuickViewSpecRow(specsLayout, "Retail Price", "LKR " + String.format(Locale.getDefault(), "%,.2f", p.price.doubleValue()));
+-        addQuickViewSpecRow(specsLayout, "Wholesale Price", p.wholesalePrice.compareTo(java.math.BigDecimal.ZERO) > 0 ? "LKR " + String.format(Locale.getDefault(), "%,.2f", p.wholesalePrice.doubleValue()) : "N/A");
+-        addQuickViewSpecRow(specsLayout, "Physical Stock", String.valueOf(p.qtyOnHand));
+-        addQuickViewSpecRow(specsLayout, "Reserved Stock", String.valueOf(p.qtyReserved));
++        contentPad.addView(metaRow);
++
++        // 2b. Product Name
++        final android.widget.TextView txtTitle = new android.widget.TextView(this);
++        txtTitle.setText(p.name);
++        txtTitle.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        txtTitle.setTextSize(22);
++        txtTitle.setTypeface(null, android.graphics.Typeface.BOLD);
++        android.widget.LinearLayout.LayoutParams titleLp = new android.widget.LinearLayout.LayoutParams(
++                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
++        titleLp.setMargins(0, 0, 0, (int)(16*dp));
++        txtTitle.setLayoutParams(titleLp);
++        contentPad.addView(txtTitle);
++
++        // 2c. Price & Stock Card (Spacious 2-column card with crisp vertical divider)
++        android.widget.LinearLayout infoStrip = new android.widget.LinearLayout(this);
++        infoStrip.setOrientation(android.widget.LinearLayout.HORIZONTAL);
++        infoStrip.setGravity(android.view.Gravity.CENTER_VERTICAL);
++        android.graphics.drawable.GradientDrawable stripBg = new android.graphics.drawable.GradientDrawable();
++        stripBg.setColor(android.graphics.Color.parseColor("#F8F8FB"));
++        stripBg.setCornerRadius(16*dp);
++        stripBg.setStroke((int)(1*dp), android.graphics.Color.parseColor("#EBEBF0"));
++        infoStrip.setBackground(stripBg);
++        infoStrip.setPadding((int)(20*dp),(int)(16*dp),(int)(20*dp),(int)(16*dp));
++        android.widget.LinearLayout.LayoutParams stripLp = new android.widget.LinearLayout.LayoutParams(
++                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
++        stripLp.setMargins(0, 0, 0, (int)(12*dp));
++        infoStrip.setLayoutParams(stripLp);
++
++        // Price Column
++        android.widget.LinearLayout priceBlock = new android.widget.LinearLayout(this);
++        priceBlock.setOrientation(android.widget.LinearLayout.VERTICAL);
++        priceBlock.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
++        android.widget.TextView lblPrice = new android.widget.TextView(this);
++        lblPrice.setText("WHOLESALE PRICE");
++        lblPrice.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++        lblPrice.setTextSize(10);
++        lblPrice.setTypeface(null, android.graphics.Typeface.BOLD);
++        priceBlock.addView(lblPrice);
++        final android.widget.TextView txtPrice = new android.widget.TextView(this);
++        txtPrice.setText("LKR " + String.format(Locale.getDefault(), "%,.2f", p.wholesalePrice.doubleValue()));
++        txtPrice.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        txtPrice.setTextSize(20);
++        txtPrice.setTypeface(null, android.graphics.Typeface.BOLD);
++        txtPrice.setPadding(0, (int)(4*dp), 0, 0);
++        priceBlock.addView(txtPrice);
++        infoStrip.addView(priceBlock);
++
++        // Vertical divider
++        View stripDiv1 = new View(this);
++        android.widget.LinearLayout.LayoutParams div1Lp = new android.widget.LinearLayout.LayoutParams((int)(1*dp),(int)(40*dp));
++        div1Lp.setMargins((int)(16*dp),0,(int)(16*dp),0);
++        stripDiv1.setLayoutParams(div1Lp);
++        stripDiv1.setBackgroundColor(android.graphics.Color.parseColor("#E0E0E5"));
++        infoStrip.addView(stripDiv1);
++
++        // Stock Column
+         int available = p.qtyOnHand - p.qtyReserved;
+-        addQuickViewSpecRow(specsLayout, "Available Stock", String.valueOf(available));
+-        
+-        if (p.variationsJson != null && !p.variationsJson.isEmpty() && !p.variationsJson.equals("null")) {
++        android.widget.LinearLayout stockBlock = new android.widget.LinearLayout(this);
++        stockBlock.setOrientation(android.widget.LinearLayout.VERTICAL);
++        stockBlock.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
++        android.widget.TextView lblStock = new android.widget.TextView(this);
++        lblStock.setText("AVAILABLE STOCK");
++        lblStock.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++        lblStock.setTextSize(10);
++        lblStock.setTypeface(null, android.graphics.Typeface.BOLD);
++        stockBlock.addView(lblStock);
++        final android.widget.TextView txtStock = new android.widget.TextView(this);
++        if (available > 0) {
++            txtStock.setText(available + " Units");
++            txtStock.setTextColor(android.graphics.Color.parseColor("#30D158"));
++        } else {
++            txtStock.setText("Out of Stock");
++            txtStock.setTextColor(android.graphics.Color.parseColor("#FF453A"));
++        }
++        txtStock.setTextSize(20);
++        txtStock.setTypeface(null, android.graphics.Typeface.BOLD);
++        txtStock.setPadding(0, (int)(4*dp), 0, 0);
++        stockBlock.addView(txtStock);
++        infoStrip.addView(stockBlock);
++
++        contentPad.addView(infoStrip);
++
++        // 2d. Description row (if available)
++        if (p.description != null && !p.description.isEmpty()) {
++            android.widget.TextView txtDesc = new android.widget.TextView(this);
++            txtDesc.setText(p.description);
++            txtDesc.setTextColor(android.graphics.Color.parseColor("#636366"));
++            txtDesc.setTextSize(13);
++            txtDesc.setLineSpacing(2*dp, 1.0f);
++            android.widget.LinearLayout.LayoutParams descLp = new android.widget.LinearLayout.LayoutParams(
++                    android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
++            descLp.setMargins(0,(int)(4*dp),0,0);
++            txtDesc.setLayoutParams(descLp);
++            contentPad.addView(txtDesc);
++        }
++        root.addView(contentPad);
++
++        // 3. VARIATIONS CAROUSEL
++        if (hasProductVariations(p) && p.variationsJson != null && !p.variationsJson.isEmpty() && !p.variationsJson.equals("null")) {
+             try {
+                 org.json.JSONArray vars = new org.json.JSONArray(p.variationsJson);
+-                java.lang.StringBuilder varsBuilder = new java.lang.StringBuilder();
+-                for (int i = 0; i < vars.length(); i++) {
+-                    org.json.JSONObject vObj = vars.getJSONObject(i);
+-                    java.lang.String optionName = vObj.optString("option_name", "");
+-                    int qty = vObj.optInt("quantity_on_hand", 0);
+-                    if (i > 0) varsBuilder.append("\n");
+-                    varsBuilder.append("??? ").append(optionName).append(" (Stock: ").append(qty).append(")");
+-                }
+-                if (varsBuilder.length() > 0) {
+-                    addQuickViewSpecRow(specsLayout, "Variations", varsBuilder.toString());
++                if (vars.length() > 0) {
++                    // Thin divider
++                    View sectionDivider = new View(this);
++                    android.widget.LinearLayout.LayoutParams divLp = new android.widget.LinearLayout.LayoutParams(
++                            android.view.ViewGroup.LayoutParams.MATCH_PARENT, (int)(1*dp));
++                    divLp.setMargins((int)(20*dp),0,(int)(20*dp),0);
++                    sectionDivider.setLayoutParams(divLp);
++                    sectionDivider.setBackgroundColor(android.graphics.Color.parseColor("#F2F2F7"));
++                    root.addView(sectionDivider);
++
++                    // Section header
++                    android.widget.LinearLayout varHeader = new android.widget.LinearLayout(this);
++                    varHeader.setOrientation(android.widget.LinearLayout.HORIZONTAL);
++                    varHeader.setGravity(android.view.Gravity.CENTER_VERTICAL);
++                    varHeader.setPadding((int)(20*dp),(int)(14*dp),(int)(20*dp),(int)(8*dp));
++                    android.widget.TextView varHeaderTxt = new android.widget.TextView(this);
++                    varHeaderTxt.setText("VARIATIONS");
++                    varHeaderTxt.setTextColor(android.graphics.Color.parseColor("#3C3C43"));
++                    varHeaderTxt.setTextSize(13);
++                    varHeaderTxt.setTypeface(null, android.graphics.Typeface.BOLD);
++                    varHeaderTxt.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
++                    varHeader.addView(varHeaderTxt);
++                    android.widget.TextView varCount = new android.widget.TextView(this);
++                    varCount.setText(vars.length() + " options  ???  tap to select");
++                    varCount.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++                    varCount.setTextSize(11);
++                    varHeader.addView(varCount);
++                    root.addView(varHeader);
++
++                    // Horizontal carousel
++                    HorizontalScrollView varScroll = new HorizontalScrollView(this);
++                    varScroll.setHorizontalScrollBarEnabled(false);
++                    android.widget.LinearLayout.LayoutParams varScrollLp = new android.widget.LinearLayout.LayoutParams(
++                            android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
++                    varScrollLp.setMargins(0,0,0,(int)(12*dp));
++                    varScroll.setLayoutParams(varScrollLp);
++
++                    LinearLayout varContainer = new LinearLayout(this);
++                    varContainer.setOrientation(LinearLayout.HORIZONTAL);
++                    varContainer.setPadding((int)(20*dp),0,(int)(20*dp),(int)(20*dp));
++                    varScroll.addView(varContainer);
++
++                    final java.util.List<android.widget.FrameLayout> tileList = new java.util.ArrayList<>();
++
++                    for (int i = 0; i < vars.length(); i++) {
++                        final org.json.JSONObject vObj = vars.getJSONObject(i);
++                        String optName = vObj.optString("attribute", vObj.optString("option_name", ""));
++                        if (optName.startsWith(p.name + " - ")) {
++                            optName = optName.substring(p.name.length() + 3);
++                        } else if (optName.contains(" - ")) {
++                            optName = optName.substring(optName.lastIndexOf(" - ") + 3);
++                        }
++                        final String varName = optName;
++                        final int vQty = vObj.optInt("quantity_on_hand", vObj.optInt("qty", 0));
++                        final String varImgPath = vObj.optString("image_path", vObj.optString("image", ""));
++                        double calcPrice = vObj.optDouble("wholesale_price", 0.0);
++                        if (calcPrice <= 0) calcPrice = vObj.optDouble("price", 0.0);
++                        if (calcPrice <= 0) calcPrice = p.wholesalePrice.doubleValue();
++                        final double varPrice = calcPrice;
++
++                        // Tile: square FrameLayout
++                        final android.widget.FrameLayout tile = new android.widget.FrameLayout(this);
++                        android.graphics.drawable.GradientDrawable tileBg = new android.graphics.drawable.GradientDrawable();
++                        tileBg.setColor(android.graphics.Color.parseColor("#F2F2F7"));
++                        tileBg.setCornerRadius(16*dp);
++                        tile.setBackground(tileBg);
++                        tile.setClipToOutline(true);
++                        int tileW = (int)(110*dp);
++                        android.widget.LinearLayout.LayoutParams tileLp = new android.widget.LinearLayout.LayoutParams(tileW, tileW);
++                        tileLp.setMargins(0,0,(int)(10*dp),0);
++                        tile.setLayoutParams(tileLp);
++
++                        // Image
++                        ImageView tileImg = new ImageView(this);
++                        tileImg.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
++                                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
++                        tileImg.setScaleType(ImageView.ScaleType.CENTER_CROP);
++                        boolean imgLoaded = false;
++                        if (!varImgPath.isEmpty()) {
++                            android.graphics.Bitmap bm = getCachedThumbnail(varImgPath, 2);
++                            if (bm != null) { tileImg.setImageBitmap(bm); imgLoaded = true; }
++                        }
++                        if (!imgLoaded && p.localImagePath != null && !p.localImagePath.isEmpty()) {
++                            android.graphics.Bitmap bm = getCachedThumbnail(p.localImagePath, 2);
++                            if (bm != null) { tileImg.setImageBitmap(bm); imgLoaded = true; }
++                        }
++                        if (!imgLoaded) tileImg.setImageResource(android.R.drawable.ic_menu_gallery);
++                        tile.addView(tileImg);
++
++                        // Bottom gradient scrim with name + price
++                        android.widget.LinearLayout scrim = new android.widget.LinearLayout(this);
++                        scrim.setOrientation(LinearLayout.VERTICAL);
++                        scrim.setGravity(android.view.Gravity.BOTTOM);
++                        android.widget.FrameLayout.LayoutParams scrimFp = new android.widget.FrameLayout.LayoutParams(
++                                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT);
++                        scrim.setLayoutParams(scrimFp);
++                        android.graphics.drawable.GradientDrawable scrimBg = new android.graphics.drawable.GradientDrawable(
++                                android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
++                                new int[]{android.graphics.Color.parseColor("#DD000000"), android.graphics.Color.TRANSPARENT});
++                        scrim.setBackground(scrimBg);
++                        scrim.setPadding((int)(7*dp),(int)(6*dp),(int)(6*dp),(int)(6*dp));
++                        android.widget.TextView tileNameTv = new android.widget.TextView(this);
++                        tileNameTv.setText(varName);
++                        tileNameTv.setTextColor(android.graphics.Color.WHITE);
++                        tileNameTv.setTextSize(11);
++                        tileNameTv.setTypeface(null, android.graphics.Typeface.BOLD);
++                        tileNameTv.setSingleLine(true);
++                        tileNameTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
++                        scrim.addView(tileNameTv);
++                        android.widget.TextView tilePriceTv = new android.widget.TextView(this);
++                        tilePriceTv.setText("LKR " + String.format(Locale.getDefault(), "%,.0f", varPrice));
++                        tilePriceTv.setTextColor(android.graphics.Color.parseColor("#CCFFFFFF"));
++                        tilePriceTv.setTextSize(10);
++                        scrim.addView(tilePriceTv);
++                        tile.addView(scrim);
++
++                        // Stock badge top-right
++                        android.widget.TextView stockBadge = new android.widget.TextView(this);
++                        stockBadge.setText(vQty > 0 ? " " + vQty + " " : " 0 ");
++                        stockBadge.setTextColor(android.graphics.Color.WHITE);
++                        stockBadge.setTextSize(9);
++                        stockBadge.setTypeface(null, android.graphics.Typeface.BOLD);
++                        android.graphics.drawable.GradientDrawable sbBg = new android.graphics.drawable.GradientDrawable();
++                        sbBg.setColor(android.graphics.Color.parseColor(vQty > 0 ? "#34C759" : "#FF3B30"));
++                        sbBg.setCornerRadius(20*dp);
++                        stockBadge.setBackground(sbBg);
++                        android.widget.FrameLayout.LayoutParams sbLp = new android.widget.FrameLayout.LayoutParams(
++                                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
++                        sbLp.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
++                        sbLp.setMargins(0,(int)(6*dp),(int)(6*dp),0);
++                        stockBadge.setLayoutParams(sbLp);
++                        tile.addView(stockBadge);
++
++                        tileList.add(tile);
++                        tile.setOnClickListener(new View.OnClickListener() {
++                            @Override
++                            public void onClick(View v) {
++                                for (android.widget.FrameLayout t : tileList) {
++                                    android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
++                                    bg.setColor(android.graphics.Color.parseColor("#F2F2F7"));
++                                    bg.setCornerRadius(16*dp);
++                                    t.setBackground(bg);
++                                    t.setClipToOutline(true);
++                                }
++                                android.graphics.drawable.GradientDrawable selBg = new android.graphics.drawable.GradientDrawable();
++                                selBg.setColor(android.graphics.Color.parseColor("#F2F2F7"));
++                                selBg.setCornerRadius(16*dp);
++                                selBg.setStroke((int)(3*dp), android.graphics.Color.parseColor("#1C1C1E"));
++                                tile.setBackground(selBg);
++                                tile.setClipToOutline(true);
++                                boolean switched = false;
++                                if (!varImgPath.isEmpty()) {
++                                    android.graphics.Bitmap bm = getCachedThumbnail(varImgPath, 1);
++                                    if (bm != null) { zoomImage.setImageBitmap(bm); switched = true; }
++                                }
++                                if (!switched && p.localImagePath != null && !p.localImagePath.isEmpty()) {
++                                    android.graphics.Bitmap bm = getCachedThumbnail(p.localImagePath, 1);
++                                    if (bm != null) zoomImage.setImageBitmap(bm);
++                                }
++                                txtTitle.setText(p.name + "  \u203a  " + varName);
++                                txtPrice.setText("LKR " + String.format(Locale.getDefault(), "%,.2f", varPrice));
++                                if (vQty > 0) {
++                                    txtStock.setText(vQty + " Units");
++                                    txtStock.setTextColor(android.graphics.Color.parseColor("#30D158"));
++                                } else {
++                                    txtStock.setText("Out of Stock");
++                                    txtStock.setTextColor(android.graphics.Color.parseColor("#FF453A"));
++                                }
++                            }
++                        });
++                        varContainer.addView(tile);
++                    }
++                    root.addView(varScroll);
+                 }
+             } catch (Exception e) {
+-                android.util.Log.e("BillingActivity", "Error parsing variations spec: " + e.getMessage());
++                android.util.Log.e("BillingActivity", "QuickView variation error: " + e.getMessage());
+             }
+         }
+-        
+-        root.addView(specsLayout);
+ 
+-        // Buttons
+-        android.widget.Button btnClose = new android.widget.Button(this);
+-        btnClose.setText("Close Quick View");
+-        btnClose.setTextColor(android.graphics.Color.WHITE);
+-        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3B82F6")));
+-        
+-        root.addView(btnClose);
+         scrollView.addView(root);
+         builder.setView(scrollView);
+-        
++
+         final androidx.appcompat.app.AlertDialog dialog = builder.create();
+-        dialog.show();
+-        
+-        btnClose.setOnClickListener(new View.OnClickListener() {
++                dialog.show();
++        if (cardFloatingSearch != null) cardFloatingSearch.setVisibility(View.GONE);
++        if (layoutHeader != null) layoutHeader.setVisibility(View.GONE);
++        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
++            RecyclerView list1 = findViewById(R.id.gridProducts);
++            RecyclerView list2 = findViewById(R.id.lstProducts);
++            android.graphics.RenderEffect blur = android.graphics.RenderEffect.createBlurEffect(30f, 30f, android.graphics.Shader.TileMode.CLAMP);
++            if (list1 != null && list1.getVisibility() == View.VISIBLE) list1.setRenderEffect(blur);
++            if (list2 != null && list2.getVisibility() == View.VISIBLE) list2.setRenderEffect(blur);
++        }
++        dialog.setOnDismissListener(new android.content.DialogInterface.OnDismissListener() {
+             @Override
+-            public void onClick(View v) {
+-                dialog.dismiss();
++            public void onDismiss(android.content.DialogInterface d) {
++                if (layoutCartOverlay == null || layoutCartOverlay.getVisibility() != View.VISIBLE) {
++                    if (cardFloatingSearch != null) cardFloatingSearch.setVisibility(View.VISIBLE);
++                    if (layoutHeader != null) layoutHeader.setVisibility(View.VISIBLE);
++                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
++                        RecyclerView list1 = findViewById(R.id.gridProducts);
++                        RecyclerView list2 = findViewById(R.id.lstProducts);
++                        if (list1 != null) list1.setRenderEffect(null);
++                        if (list2 != null) list2.setRenderEffect(null);
++                    }
++                }
+             }
+         });
++
++        if (dialog.getWindow() != null) {
++            android.graphics.drawable.GradientDrawable winBg = new android.graphics.drawable.GradientDrawable();
++            winBg.setColor(android.graphics.Color.WHITE);
++            winBg.setCornerRadius(28*dp);
++            dialog.getWindow().setBackgroundDrawable(winBg);
++            dialog.getWindow().setLayout(dialogWidth, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
++        }
++
++        btnClose.setOnClickListener(new View.OnClickListener() {
++            @Override public void onClick(View v) { dialog.dismiss(); }
++        });
+     }
+ 
+     private void addQuickViewSpecRow(android.widget.LinearLayout container, java.lang.String label, java.lang.String value) {
+@@ -2606,202 +3475,274 @@ public class BillingActivity extends AppCompatActivity {
+         Toast.makeText(BillingActivity.this, p.name + " added to cart.", Toast.LENGTH_SHORT).show();
+     }
+ 
++    private boolean hasProductVariations(ProductModel p) {
++        if (p == null || p.variationsJson == null || p.variationsJson.isEmpty() || p.variationsJson.equals("null")) {
++            return false;
++        }
++        try {
++            org.json.JSONArray parsedVars = new org.json.JSONArray(p.variationsJson);
++            if (parsedVars.length() == 0) return false;
++            boolean hasValidVar = false;
++            for (int i = 0; i < parsedVars.length(); i++) {
++                org.json.JSONObject vObj = parsedVars.getJSONObject(i);
++                String name = vObj.optString("attribute", vObj.optString("option_name", ""));
++                if (name != null && !name.trim().isEmpty()) {
++                    hasValidVar = true;
++                    break;
++                }
++            }
++            return hasValidVar;
++        } catch (Exception e) {
++            return false;
++        }
++    }
++
+     private void showProductConfigDialog(final ProductModel p) {
+         showProductConfigDialog(p, null);
+     }
+ 
+     private void showProductConfigDialog(final ProductModel p, final CartItemModel existingItem) {
+         final androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+-        
+-        // Root container
++
++        final float dp = getResources().getDisplayMetrics().density;
++        int screenW = getResources().getDisplayMetrics().widthPixels;
++        int dialogWidth = (int) (screenW * 0.92f);
++
++        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
++        scrollView.setBackgroundColor(android.graphics.Color.WHITE);
++        scrollView.setVerticalScrollBarEnabled(false);
++
++        // Root container (Pure White, modern padding)
+         LinearLayout layout = new LinearLayout(this);
+         layout.setOrientation(LinearLayout.VERTICAL);
+-        layout.setPadding(48, 48, 48, 48);
+-        layout.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
++        layout.setPadding((int)(20*dp), (int)(20*dp), (int)(20*dp), (int)(20*dp));
++        layout.setBackgroundColor(android.graphics.Color.WHITE);
+ 
+-        // Header containing image and title details
++        // 1. HEADER BAR (Image left | Title + Price middle | Close button right)
+         LinearLayout headerLayout = new LinearLayout(this);
+         headerLayout.setOrientation(LinearLayout.HORIZONTAL);
+         headerLayout.setGravity(android.view.Gravity.CENTER_VERTICAL);
+-        headerLayout.setPadding(0, 0, 0, 16);
++        LinearLayout.LayoutParams headerLp = new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
++        headerLp.setMargins(0, 0, 0, (int)(16*dp));
++        headerLayout.setLayoutParams(headerLp);
++
++        // Product image in rounded light frame
++        FrameLayout imgFrame = new FrameLayout(this);
++        imgFrame.setBackground(createRoundedBackground("#F2F2F7", "#EBEBF0", 14));
++        imgFrame.setClipToOutline(true);
++        int imgSize = (int)(68*dp);
++        LinearLayout.LayoutParams imgFrameLp = new LinearLayout.LayoutParams(imgSize, imgSize);
++        imgFrame.setLayoutParams(imgFrameLp);
+ 
+-        // Product image
+         ImageView imgProduct = new ImageView(this);
+-        LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
+-                (int)(64 * getResources().getDisplayMetrics().density), 
+-                (int)(64 * getResources().getDisplayMetrics().density));
+-        imgProduct.setLayoutParams(imgParams);
+-        imgProduct.setScaleType(ImageView.ScaleType.FIT_CENTER);
++        imgProduct.setLayoutParams(new FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
++        imgProduct.setScaleType(ImageView.ScaleType.CENTER_CROP);
+         if (p.localImagePath != null && !p.localImagePath.isEmpty()) {
+-            java.io.File file = new java.io.File(p.localImagePath);
+-            if (file.exists()) {
+-                imgProduct.setImageBitmap(android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath()));
+-            } else {
+-                imgProduct.setImageResource(android.R.drawable.ic_menu_gallery);
+-            }
++            android.graphics.Bitmap bm = getCachedThumbnail(p.localImagePath, 1);
++            if (bm != null) imgProduct.setImageBitmap(bm);
++            else imgProduct.setImageResource(android.R.drawable.ic_menu_gallery);
+         } else {
+             imgProduct.setImageResource(android.R.drawable.ic_menu_gallery);
+         }
+-        headerLayout.addView(imgProduct);
++        imgFrame.addView(imgProduct);
++        headerLayout.addView(imgFrame);
+ 
+         // Title and price text container
+         LinearLayout titleTextLayout = new LinearLayout(this);
+         titleTextLayout.setOrientation(LinearLayout.VERTICAL);
+         LinearLayout.LayoutParams titleTextParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+-        titleTextParams.setMargins((int)(12 * getResources().getDisplayMetrics().density), 0, 0, 0);
++        titleTextParams.setMargins((int)(14 * dp), 0, (int)(8 * dp), 0);
+         titleTextLayout.setLayoutParams(titleTextParams);
+ 
+-        // Title
+         TextView txtTitle = new TextView(this);
+         txtTitle.setText(p.name);
+-        txtTitle.setTextColor(android.graphics.Color.WHITE);
+-        txtTitle.setTextSize(16);
++        txtTitle.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        txtTitle.setTextSize(19);
+         txtTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+         titleTextLayout.addView(txtTitle);
+ 
+-        // Subtitle
+         TextView txtSub = new TextView(this);
+-        txtSub.setText("Original Price: LKR " + String.format(Locale.getDefault(), "%,.2f", p.price.doubleValue()));
+-        txtSub.setTextColor(android.graphics.Color.parseColor("#CBD5E1"));
+-        txtSub.setTextSize(12);
+-        txtSub.setPadding(0, 4, 0, 0);
++        txtSub.setText("Wholesale: LKR " + String.format(Locale.getDefault(), "%,.2f", p.wholesalePrice.doubleValue()));
++        txtSub.setTextColor(android.graphics.Color.parseColor("#5856D6"));
++        txtSub.setTextSize(13);
++        txtSub.setTypeface(null, android.graphics.Typeface.BOLD);
++        txtSub.setPadding(0, (int)(4*dp), 0, 0);
+         titleTextLayout.addView(txtSub);
+ 
+         headerLayout.addView(titleTextLayout);
+-        layout.addView(headerLayout);
+ 
+-        // Selected Variation (if applicable)
+-        boolean hasVariations = (p.variationsJson != null && !p.variationsJson.isEmpty() && !p.variationsJson.equals("null"));
+-        final Spinner spinnerVar;
+-        if (hasVariations) {
+-            final List<String> variationList = new ArrayList<>();
+-            try {
+-                org.json.JSONArray vars = new org.json.JSONArray(p.variationsJson);
+-                for (int i = 0; i < vars.length(); i++) {
+-                    org.json.JSONObject vObj = vars.getJSONObject(i);
+-                    String opt = vObj.optString("option_name", "");
+-                    int qty = vObj.optInt("quantity_on_hand", 0);
+-                    variationList.add(opt + " (Stock: " + qty + ")");
+-                }
+-            } catch (Exception e) {
+-                android.util.Log.e("BillingActivity", "Error parsing variations in dialog: " + e.getMessage());
+-            }
++        // Top-right close circular button
++        android.widget.TextView btnCloseHeader = new android.widget.TextView(this);
++        btnCloseHeader.setText("\u2715");
++        btnCloseHeader.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        btnCloseHeader.setTextSize(16);
++        btnCloseHeader.setTypeface(null, android.graphics.Typeface.BOLD);
++        btnCloseHeader.setGravity(android.view.Gravity.CENTER);
++        btnCloseHeader.setBackground(createRoundedBackground("#F2F2F7", "#F2F2F7", 18));
++        LinearLayout.LayoutParams closeHeadLp = new LinearLayout.LayoutParams((int)(36*dp), (int)(36*dp));
++        btnCloseHeader.setLayoutParams(closeHeadLp);
++        headerLayout.addView(btnCloseHeader);
+ 
+-            if (!variationList.isEmpty()) {
+-                TextView lblVar = new TextView(this);
+-                lblVar.setText("SELECTED VARIATION:");
+-                lblVar.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
+-                lblVar.setTextSize(11);
+-                lblVar.setTypeface(null, android.graphics.Typeface.BOLD);
+-                lblVar.setPadding(0, 8, 0, 4);
+-                layout.addView(lblVar);
++        layout.addView(headerLayout);
+ 
+-                spinnerVar = new Spinner(this);
+-                spinnerVar.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+-                ArrayAdapter<String> varAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, variationList) {
+-                    @Override
+-                    public View getView(int position, View convertView, ViewGroup parent) {
+-                        View v = super.getView(position, convertView, parent);
+-                        if (v instanceof TextView) {
+-                            ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+-                            ((TextView) v).setTextSize(14);
+-                        }
+-                        return v;
+-                    }
+-                    @Override
+-                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+-                        View v = super.getDropDownView(position, convertView, parent);
+-                        if (v instanceof TextView) {
+-                            ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+-                            ((TextView) v).setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+-                            ((TextView) v).setTextSize(14);
+-                        }
+-                        return v;
+-                    }
+-                };
+-                spinnerVar.setAdapter(varAdapter);
+-                layout.addView(spinnerVar);
++        // Selected Variation (Horizontal Scroll View of Cards)
++        final boolean hasVariations = hasProductVariations(p);
++        final int[] selectedVarIndex = new int[]{-1};
++        final boolean[] itemAdded = new boolean[]{false};
+ 
++        org.json.JSONArray parsedVars = null;
++        if (hasVariations) {
++            try {
++                parsedVars = new org.json.JSONArray(p.variationsJson);
+                 if (existingItem != null && existingItem.selectedVariation != null && !existingItem.selectedVariation.isEmpty()) {
+-                    for (int i = 0; i < variationList.size(); i++) {
+-                        if (variationList.get(i).startsWith(existingItem.selectedVariation)) {
+-                            spinnerVar.setSelection(i);
++                    for (int i = 0; i < parsedVars.length(); i++) {
++                        org.json.JSONObject vObj = parsedVars.getJSONObject(i);
++                        String name = vObj.optString("attribute", vObj.optString("option_name", ""));
++                        if (name.equals(existingItem.selectedVariation)) {
++                            selectedVarIndex[0] = i;
+                             break;
+                         }
+                     }
+                 }
+-            } else {
+-                spinnerVar = null;
++            } catch (Exception e) {
++                android.util.Log.e("BillingActivity", "Error parsing variations JSON: " + e.getMessage());
+             }
+-        } else {
+-            spinnerVar = null;
+         }
++        final org.json.JSONArray vars = parsedVars;
++
++        HorizontalScrollView varScrollView = new HorizontalScrollView(this);
++        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
++            ViewGroup.LayoutParams.MATCH_PARENT, 
++            ViewGroup.LayoutParams.WRAP_CONTENT
++        );
++        scrollParams.setMargins(0, 0, 0, (int)(14 * dp));
++        varScrollView.setLayoutParams(scrollParams);
++        varScrollView.setHorizontalScrollBarEnabled(false);
++
++        final LinearLayout varLayout = new LinearLayout(this);
++        varLayout.setOrientation(LinearLayout.HORIZONTAL);
++        varLayout.setLayoutParams(new FrameLayout.LayoutParams(
++            ViewGroup.LayoutParams.WRAP_CONTENT, 
++            ViewGroup.LayoutParams.WRAP_CONTENT
++        ));
++        varScrollView.addView(varLayout);
++
++        if (hasVariations) {
++            TextView lblVar = new TextView(this);
++            lblVar.setText("SELECT A VARIATION");
++            lblVar.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++            lblVar.setTextSize(11);
++            lblVar.setTypeface(null, android.graphics.Typeface.BOLD);
++            lblVar.setPadding(0, 0, 0, (int)(8 * dp));
++            layout.addView(lblVar);
++            layout.addView(varScrollView);
++        }
++
++        // 2. UNIT PRICE OVERRIDE CARD
++        LinearLayout priceCard = new LinearLayout(this);
++        priceCard.setOrientation(LinearLayout.VERTICAL);
++        priceCard.setBackground(createRoundedBackground("#F8F8FB", "#EBEBF0", 16));
++        priceCard.setPadding((int)(16*dp), (int)(14*dp), (int)(16*dp), (int)(14*dp));
++        LinearLayout.LayoutParams priceCardLp = new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
++        priceCardLp.setMargins(0, 0, 0, (int)(12*dp));
++        priceCard.setLayoutParams(priceCardLp);
+ 
+-        // 1. Price override input
+         TextView lblOverride = new TextView(this);
+-        lblOverride.setText("UNIT PRICE (LKR):");
+-        lblOverride.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
++        lblOverride.setText("UNIT PRICE (LKR)");
++        lblOverride.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
+         lblOverride.setTextSize(11);
+         lblOverride.setTypeface(null, android.graphics.Typeface.BOLD);
+-        lblOverride.setPadding(0, 12, 0, 0);
+-        layout.addView(lblOverride);
++        lblOverride.setPadding(0, 0, 0, (int)(8*dp));
++        priceCard.addView(lblOverride);
+ 
+         final EditText edtOverridePrice = new EditText(this);
+         edtOverridePrice.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+-        edtOverridePrice.setTextColor(android.graphics.Color.WHITE);
+-        edtOverridePrice.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
+-        java.math.BigDecimal initialPrice = (existingItem != null && existingItem.customPrice.compareTo(java.math.BigDecimal.ZERO) > 0) ? existingItem.customPrice : p.price;
++        edtOverridePrice.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        edtOverridePrice.setHintTextColor(android.graphics.Color.parseColor("#AEAEB2"));
++        java.math.BigDecimal initialPrice = (existingItem != null && existingItem.customPrice.compareTo(java.math.BigDecimal.ZERO) > 0) ? existingItem.customPrice : p.wholesalePrice;
+         edtOverridePrice.setText(initialPrice.toPlainString());
+-        edtOverridePrice.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
+-        layout.addView(edtOverridePrice);
++        edtOverridePrice.setTextSize(17);
++        edtOverridePrice.setTypeface(null, android.graphics.Typeface.BOLD);
++        edtOverridePrice.setBackground(createRoundedBackground("#FFFFFF", "#E0E0E5", 10));
++        edtOverridePrice.setPadding((int)(12*dp), (int)(10*dp), (int)(12*dp), (int)(10*dp));
++        priceCard.addView(edtOverridePrice);
++        layout.addView(priceCard);
++
++        // 3. QUANTITY SELECTOR CARD (Apple/POS Stepper layout)
++        LinearLayout qtyCard = new LinearLayout(this);
++        qtyCard.setOrientation(LinearLayout.HORIZONTAL);
++        qtyCard.setGravity(android.view.Gravity.CENTER_VERTICAL);
++        qtyCard.setBackground(createRoundedBackground("#F8F8FB", "#EBEBF0", 16));
++        qtyCard.setPadding((int)(16*dp), (int)(14*dp), (int)(16*dp), (int)(14*dp));
++        LinearLayout.LayoutParams qtyCardLp = new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
++        qtyCardLp.setMargins(0, 0, 0, (int)(12*dp));
++        qtyCard.setLayoutParams(qtyCardLp);
++
++        LinearLayout qtyLeft = new LinearLayout(this);
++        qtyLeft.setOrientation(LinearLayout.VERTICAL);
++        qtyLeft.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+ 
+-        // 2. Quantity input
+         TextView lblQty = new TextView(this);
+-        lblQty.setText("QUANTITY:");
+-        lblQty.setTextColor(android.graphics.Color.parseColor("#3B82F6"));
+-        lblQty.setTextSize(11);
++        lblQty.setText("QUANTITY");
++        lblQty.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        lblQty.setTextSize(14);
+         lblQty.setTypeface(null, android.graphics.Typeface.BOLD);
+-        lblQty.setPadding(0, 12, 0, 0);
+-        layout.addView(lblQty);
+-
+-        LinearLayout qtyRow = new LinearLayout(this);
+-        qtyRow.setOrientation(LinearLayout.HORIZONTAL);
+-        qtyRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+-        qtyRow.setPadding(0, 4, 0, 4);
++        qtyLeft.addView(lblQty);
++
++        TextView lblQtyHint = new TextView(this);
++        lblQtyHint.setText("Tap or hold - / +");
++        lblQtyHint.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++        lblQtyHint.setTextSize(11);
++        lblQtyHint.setPadding(0, (int)(2*dp), 0, 0);
++        qtyLeft.addView(lblQtyHint);
++        qtyCard.addView(qtyLeft);
++
++        // Stepper container on right
++        LinearLayout stepperBox = new LinearLayout(this);
++        stepperBox.setOrientation(LinearLayout.HORIZONTAL);
++        stepperBox.setGravity(android.view.Gravity.CENTER_VERTICAL);
++        stepperBox.setBackground(createRoundedBackground("#EBEBF0", "#EBEBF0", 24));
++        stepperBox.setPadding((int)(4*dp), (int)(4*dp), (int)(4*dp), (int)(4*dp));
+ 
+         Button btnMinus = new Button(this);
+-        btnMinus.setText("???");
+-        btnMinus.setTextColor(android.graphics.Color.WHITE);
+-        btnMinus.setTextSize(18);
+-        btnMinus.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
+-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+-                (int)(48 * getResources().getDisplayMetrics().density), 
+-                (int)(48 * getResources().getDisplayMetrics().density));
++        btnMinus.setText("-");
++        btnMinus.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        btnMinus.setTextSize(20);
++        btnMinus.setTypeface(null, android.graphics.Typeface.BOLD);
++        btnMinus.setBackground(createRoundedBackground("#FFFFFF", "#FFFFFF", 20));
++        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams((int)(42*dp), (int)(42*dp));
+         btnMinus.setLayoutParams(btnParams);
+ 
+         final EditText edtQtyInput = new EditText(this);
+         edtQtyInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+-        edtQtyInput.setTextColor(android.graphics.Color.WHITE);
+-        edtQtyInput.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
++        edtQtyInput.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        edtQtyInput.setHintTextColor(android.graphics.Color.parseColor("#AEAEB2"));
+         int initialQty = existingItem != null ? existingItem.quantity : 1;
+         edtQtyInput.setText(String.valueOf(initialQty));
++        edtQtyInput.setTextSize(20);
++        edtQtyInput.setTypeface(null, android.graphics.Typeface.BOLD);
+         edtQtyInput.setGravity(android.view.Gravity.CENTER);
+-        edtQtyInput.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
+-        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+-        inputParams.setMargins((int)(12 * getResources().getDisplayMetrics().density), 0, (int)(12 * getResources().getDisplayMetrics().density), 0);
+-        edtQtyInput.setLayoutParams(inputParams);
++        edtQtyInput.setBackgroundColor(android.graphics.Color.TRANSPARENT);
++        LinearLayout.LayoutParams qtyInputLp = new LinearLayout.LayoutParams((int)(64*dp), ViewGroup.LayoutParams.WRAP_CONTENT);
++        edtQtyInput.setLayoutParams(qtyInputLp);
+ 
+         Button btnPlus = new Button(this);
+         btnPlus.setText("+");
+-        btnPlus.setTextColor(android.graphics.Color.WHITE);
+-        btnPlus.setTextSize(18);
+-        btnPlus.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
++        btnPlus.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        btnPlus.setTextSize(20);
++        btnPlus.setTypeface(null, android.graphics.Typeface.BOLD);
++        btnPlus.setBackground(createRoundedBackground("#FFFFFF", "#FFFFFF", 20));
+         btnPlus.setLayoutParams(btnParams);
+ 
+-        qtyRow.addView(btnMinus);
+-        qtyRow.addView(edtQtyInput);
+-        qtyRow.addView(btnPlus);
+-        layout.addView(qtyRow);
++        stepperBox.addView(btnMinus);
++        stepperBox.addView(edtQtyInput);
++        stepperBox.addView(btnPlus);
++        qtyCard.addView(stepperBox);
++        layout.addView(qtyCard);
+ 
+         final android.os.Handler autoIncrementHandler = new android.os.Handler();
+         class AutoRepeater implements View.OnTouchListener {
+@@ -2853,10 +3794,26 @@ public class BillingActivity extends AppCompatActivity {
+         btnMinus.setOnTouchListener(new AutoRepeater(-1));
+         btnPlus.setOnTouchListener(new AutoRepeater(1));
+ 
+-        // 3. Discount inputs
++        // 4. DISCOUNT CARD (Optional)
++        LinearLayout discountCard = new LinearLayout(this);
++        discountCard.setOrientation(LinearLayout.VERTICAL);
++        discountCard.setBackground(createRoundedBackground("#F8F8FB", "#EBEBF0", 16));
++        discountCard.setPadding((int)(16*dp), (int)(14*dp), (int)(16*dp), (int)(14*dp));
++        LinearLayout.LayoutParams discountCardLp = new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
++        discountCardLp.setMargins(0, 0, 0, (int)(14*dp));
++        discountCard.setLayoutParams(discountCardLp);
++
++        TextView lblDiscountHeader = new TextView(this);
++        lblDiscountHeader.setText("DISCOUNTS (OPTIONAL)");
++        lblDiscountHeader.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++        lblDiscountHeader.setTextSize(11);
++        lblDiscountHeader.setTypeface(null, android.graphics.Typeface.BOLD);
++        lblDiscountHeader.setPadding(0, 0, 0, (int)(10*dp));
++        discountCard.addView(lblDiscountHeader);
++
+         LinearLayout discountRow = new LinearLayout(this);
+         discountRow.setOrientation(LinearLayout.HORIZONTAL);
+-        discountRow.setPadding(0, 12, 0, 0);
+ 
+         // Percentage discount
+         LinearLayout colPct = new LinearLayout(this);
+@@ -2864,28 +3821,31 @@ public class BillingActivity extends AppCompatActivity {
+         colPct.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+ 
+         TextView lblPct = new TextView(this);
+-        lblPct.setText("DISCOUNT (%):");
+-        lblPct.setTextColor(android.graphics.Color.parseColor("#10B981"));
+-        lblPct.setTextSize(11);
++        lblPct.setText("DISCOUNT (%)");
++        lblPct.setTextColor(android.graphics.Color.parseColor("#636366"));
++        lblPct.setTextSize(10);
+         lblPct.setTypeface(null, android.graphics.Typeface.BOLD);
++        lblPct.setPadding(0, 0, 0, (int)(6*dp));
+         colPct.addView(lblPct);
+ 
+         final EditText edtDiscountPct = new EditText(this);
+         edtDiscountPct.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+-        edtDiscountPct.setTextColor(android.graphics.Color.WHITE);
+-        edtDiscountPct.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
++        edtDiscountPct.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        edtDiscountPct.setHintTextColor(android.graphics.Color.parseColor("#AEAEB2"));
+         edtDiscountPct.setHint("0.0%");
+         if (existingItem != null && existingItem.discountPercent.compareTo(java.math.BigDecimal.ZERO) > 0) {
+             edtDiscountPct.setText(existingItem.discountPercent.toPlainString());
+         }
+-        edtDiscountPct.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
++        edtDiscountPct.setTextSize(15);
++        edtDiscountPct.setTypeface(null, android.graphics.Typeface.BOLD);
++        edtDiscountPct.setBackground(createRoundedBackground("#FFFFFF", "#E0E0E5", 10));
++        edtDiscountPct.setPadding((int)(12*dp), (int)(10*dp), (int)(12*dp), (int)(10*dp));
+         colPct.addView(edtDiscountPct);
+-
+         discountRow.addView(colPct);
+ 
+         // Spacer
+         View spacer = new View(this);
+-        spacer.setLayoutParams(new LinearLayout.LayoutParams(24, 1));
++        spacer.setLayoutParams(new LinearLayout.LayoutParams((int)(16*dp), 1));
+         discountRow.addView(spacer);
+ 
+         // Amount discount
+@@ -2894,91 +3854,345 @@ public class BillingActivity extends AppCompatActivity {
+         colAmt.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+ 
+         TextView lblAmt = new TextView(this);
+-        lblAmt.setText("DISCOUNT (LKR):");
+-        lblAmt.setTextColor(android.graphics.Color.parseColor("#10B981"));
+-        lblAmt.setTextSize(11);
++        lblAmt.setText("DISCOUNT (LKR)");
++        lblAmt.setTextColor(android.graphics.Color.parseColor("#636366"));
++        lblAmt.setTextSize(10);
+         lblAmt.setTypeface(null, android.graphics.Typeface.BOLD);
++        lblAmt.setPadding(0, 0, 0, (int)(6*dp));
+         colAmt.addView(lblAmt);
+ 
+         final EditText edtDiscountAmt = new EditText(this);
+         edtDiscountAmt.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+-        edtDiscountAmt.setTextColor(android.graphics.Color.WHITE);
+-        edtDiscountAmt.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"));
+-        edtDiscountAmt.setHint("Rs 0.00");
++        edtDiscountAmt.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++        edtDiscountAmt.setHintTextColor(android.graphics.Color.parseColor("#AEAEB2"));
++        edtDiscountAmt.setHint("0.00");
+         if (existingItem != null && existingItem.discountAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+-            edtDiscountAmt.setText(existingItem.discountAmount.toPlainString());
+-        } else if (existingItem != null && existingItem.discountVal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+-            edtDiscountAmt.setText(existingItem.discountVal.toPlainString());
+-        }
+-        edtDiscountAmt.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155")));
+-        colAmt.addView(edtDiscountAmt);
+-
+-        discountRow.addView(colAmt);
+-        layout.addView(discountRow);
+-
+-        // Live Total Preview Label
+-        final TextView txtLiveTotal = new TextView(this);
+-        java.math.BigDecimal currentTotal = (existingItem != null) ? existingItem.total : p.price;
+-        txtLiveTotal.setText("TOTAL: " + CurrencyUtils.formatLKR(currentTotal));
+-        txtLiveTotal.setTextColor(android.graphics.Color.parseColor("#10B981"));
+-        txtLiveTotal.setTextSize(16);
+-        txtLiveTotal.setTypeface(null, android.graphics.Typeface.BOLD);
+-        txtLiveTotal.setPadding(0, 16, 0, 12);
+-        txtLiveTotal.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+-        layout.addView(txtLiveTotal);
+-
+-        builder.setView(layout);
++                            }
++                        })
++                        .setNegativeButton("Cancel", null)
++                        .show();
++                }
++            });
++        } else {
++            View spacerBtn = new View(this);
++            spacerBtn.setLayoutParams(new LinearLayout.LayoutParams((int)(12 * dp), 1));
++            btnRow.addView(spacerBtn);
++        }
++
++        final Button btnAction = new Button(this);
++        btnAction.setText(existingItem != null ? "Update" : "Add to Cart");
++        btnAction.setTextColor(android.graphics.Color.WHITE);
++        btnAction.setTextSize(15);
++        btnAction.setTypeface(null, android.graphics.Typeface.BOLD);
++        btnAction.setAllCaps(false);
++        btnAction.setBackground(createRoundedBackground("#1C1C1E", "#1C1C1E", 25));
++        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, (int)(50*dp), 1.5f);
++        btnAction.setLayoutParams(actionParams);
++        btnRow.addView(btnAction);
++        layout.addView(btnRow);
++
++        scrollView.addView(layout);
++        builder.setView(scrollView);
+         final androidx.appcompat.app.AlertDialog dialog = builder.create();
+-        dialog.show();
++                dialog.show();
++        if (cardFloatingSearch != null) cardFloatingSearch.setVisibility(View.GONE);
++        if (layoutHeader != null) layoutHeader.setVisibility(View.GONE);
++        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
++            RecyclerView list1 = findViewById(R.id.gridProducts);
++            RecyclerView list2 = findViewById(R.id.lstProducts);
++            android.graphics.RenderEffect blur = android.graphics.RenderEffect.createBlurEffect(30f, 30f, android.graphics.Shader.TileMode.CLAMP);
++            if (list1 != null && list1.getVisibility() == View.VISIBLE) list1.setRenderEffect(blur);
++            if (list2 != null && list2.getVisibility() == View.VISIBLE) list2.setRenderEffect(blur);
++        }
++        dialog.setOnDismissListener(new android.content.DialogInterface.OnDismissListener() {
++            @Override
++            public void onDismiss(android.content.DialogInterface d) {
++                if (layoutCartOverlay == null || layoutCartOverlay.getVisibility() != View.VISIBLE) {
++                    if (cardFloatingSearch != null) cardFloatingSearch.setVisibility(View.VISIBLE);
++                    if (layoutHeader != null) layoutHeader.setVisibility(View.VISIBLE);
++                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
++                        RecyclerView list1 = findViewById(R.id.gridProducts);
++                        RecyclerView list2 = findViewById(R.id.lstProducts);
++                        if (list1 != null) list1.setRenderEffect(null);
++                        if (list2 != null) list2.setRenderEffect(null);
++                    }
++                }
++            }
++        });
++
++        if (dialog.getWindow() != null) {
++            dialog.getWindow().setBackgroundDrawable(createRoundedBackground("#FFFFFF", "#FFFFFF", 28));
++            dialog.getWindow().setLayout(dialogWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
++        }
++
++        btnCloseHeader.setOnClickListener(new View.OnClickListener() {
++            @Override
++            public void onClick(View v) {
++                dialog.dismiss();
++            }
++        });
+ 
+-        edtQtyInput.requestFocus();
+-        edtQtyInput.postDelayed(new Runnable() {
++        // Control State Management
++        final Runnable updateControlsState = new Runnable() {
+             @Override
+             public void run() {
+-                edtQtyInput.selectAll();
+-                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+-                if (imm != null) {
+-                    imm.showSoftInput(edtQtyInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
++                boolean hasSelection = !hasVariations || selectedVarIndex[0] != -1;
++                
++                edtQtyInput.setEnabled(hasSelection);
++                btnMinus.setEnabled(hasSelection);
++                btnPlus.setEnabled(hasSelection);
++                edtDiscountPct.setEnabled(hasSelection);
++                edtDiscountAmt.setEnabled(hasSelection);
++                edtOverridePrice.setEnabled(hasSelection);
++                btnAction.setEnabled(hasSelection);
++                
++                if (!hasSelection) {
++                    btnAction.setText("Select a Variation");
++                    btnAction.setBackground(createRoundedBackground("#E5E5EA", "#E5E5EA", 25));
++                    btnAction.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++                    txtLiveTotal.setText("SELECT A VARIATION");
++                    txtLiveTotal.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
++                } else {
++                    btnAction.setText(existingItem != null ? "Update" : "Add to Cart");
++                    btnAction.setBackground(createRoundedBackground("#1C1C1E", "#1C1C1E", 25));
++                    btnAction.setTextColor(android.graphics.Color.WHITE);
++                    txtLiveTotal.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++                    
++                    if (hasVariations) {
++                        try {
++                            org.json.JSONObject vObj = vars.getJSONObject(selectedVarIndex[0]);
++                            String varName = vObj.optString("attribute", vObj.optString("option_name", ""));
++                            int totalStock = vObj.optInt("qty", vObj.optInt("quantity_on_hand", 0));
++                            int reservedStock = dbHelper.getVariationReservedQty(p.id, varName);
++                            int cartQty = 0;
++                            for (CartItemModel item : cartList) {
++                                if (item.productId == p.id && item.selectedVariation.equals(varName)) {
++                                    if (existingItem == null || !existingItem.selectedVariation.equals(varName)) {
++                                        cartQty += item.quantity;
++                                    }
++                                }
++                            }
++                            int available = totalStock - reservedStock - cartQty;
++                            if (available <= 0) {
++                                btnAction.setEnabled(false);
++                                btnAction.setText("Out of Stock");
++                                btnAction.setBackground(createRoundedBackground("#FF3B30", "#FF3B30", 25));
++                                btnAction.setTextColor(android.graphics.Color.WHITE);
++                            }
++                        } catch (Exception ignored) {}
++                    }
+                 }
+             }
+-        }, 150);
+-
+-        final boolean[] percentActiveHolder = new boolean[]{ existingItem != null && existingItem.isPercentDiscountActive };
++        };
+ 
+-        // live preview update helper
+-        final Runnable updatePreview = new Runnable() {
+-            private boolean isUpdating = false;
++        // Render variation tiles
++        final Runnable[] renderVariationTilesHolder = new Runnable[1];
++        renderVariationTilesHolder[0] = new Runnable() {
+             @Override
+             public void run() {
+-                if (isUpdating) return;
+-                isUpdating = true;
++                varLayout.removeAllViews();
++                if (!hasVariations || vars == null) return;
++                
+                 try {
+-                    String overridePriceStr = edtOverridePrice.getText().toString().trim();
+-                    java.math.BigDecimal uPrice = overridePriceStr.isEmpty() ? p.price : CurrencyUtils.toBigDecimal(overridePriceStr);
+-
+-                    String qtyStr = edtQtyInput.getText().toString().trim();
+-                    int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
+-
+-                    java.math.BigDecimal sub = uPrice.multiply(java.math.BigDecimal.valueOf(qty));
+-                    java.math.BigDecimal discountVal = java.math.BigDecimal.ZERO;
+-
+-                    String pctStr = edtDiscountPct.getText().toString().trim();
+-                    String amtStr = edtDiscountAmt.getText().toString().trim();
++                    for (int i = 0; i < vars.length(); i++) {
++                        final int index = i;
++                        final org.json.JSONObject vObj = vars.getJSONObject(i);
++                        final String varName = vObj.optString("attribute", vObj.optString("option_name", ""));
++                        final int totalStock = vObj.optInt("qty", vObj.optInt("quantity_on_hand", 0));
++                        double calculatedVarPrice = vObj.optDouble("wholesale_price", 0.0);
++                        if (calculatedVarPrice <= 0) {
++                            calculatedVarPrice = p.wholesalePrice.doubleValue();
++                        }
++                        if (calculatedVarPrice <= 0) {
++                            calculatedVarPrice = vObj.optDouble("price", 0.0);
++                        }
++                        final double varPrice = calculatedVarPrice;
+ 
+-                    if (edtDiscountPct.hasFocus()) {
+-                        percentActiveHolder[0] = true;
+-                        if (!pctStr.isEmpty()) {
+-                            java.math.BigDecimal pct = CurrencyUtils.toBigDecimal(pctStr);
+-                            discountVal = CurrencyUtils.calculatePercentage(sub, pct);
+-                            edtDiscountAmt.setText(String.format(Locale.getDefault(), "%.2f", discountVal));
++                        // Calculate real-time available stock
++                        int reservedStock = dbHelper.getVariationReservedQty(p.id, varName);
++                        int cartQty = 0;
++                        for (CartItemModel item : cartList) {
++                            if (item.productId == p.id && item.selectedVariation.equals(varName)) {
++                                if (existingItem == null || !existingItem.selectedVariation.equals(varName)) {
++                                    cartQty += item.quantity;
++                                }
++                            }
++                        }
++                        final int available = totalStock - reservedStock - cartQty;
++                        
++                        // Outer tile layout
++                        LinearLayout tile = new LinearLayout(BillingActivity.this);
++                        tile.setOrientation(LinearLayout.VERTICAL);
++                        tile.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
++                        
++                        LinearLayout.LayoutParams tileParams = new LinearLayout.LayoutParams(
++                            (int) (105 * dp),
++                            ViewGroup.LayoutParams.WRAP_CONTENT
++                        );
++                        tileParams.setMargins(0, 0, (int) (10 * dp), 0);
++                        tile.setLayoutParams(tileParams);
++                        tile.setPadding((int) (8 * dp), (int) (8 * dp), (int) (8 * dp), (int) (8 * dp));
++                        
++                        // Styling: light theme rounded card & selection border
++                        android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
++                        gd.setCornerRadius(14 * dp);
++                        if (selectedVarIndex[0] == index) {
++                            gd.setColor(android.graphics.Color.WHITE);
++                            gd.setStroke((int) (2 * dp), android.graphics.Color.parseColor("#1C1C1E"));
+                         } else {
+-                            edtDiscountAmt.setText("");
++                            gd.setColor(android.graphics.Color.parseColor("#F8F8FB"));
++                            gd.setStroke((int) (1 * dp), android.graphics.Color.parseColor("#EBEBF0"));
+                         }
+-                    } else if (edtDiscountAmt.hasFocus()) {
+-                        percentActiveHolder[0] = false;
+-                        if (!amtStr.isEmpty()) {
+-                            discountVal = CurrencyUtils.toBigDecimal(amtStr);
+-                            java.math.BigDecimal pct = sub.compareTo(java.math.BigDecimal.ZERO) > 0 ? discountVal.multiply(java.math.BigDecimal.valueOf(100)).divide(sub, 1, java.math.RoundingMode.HALF_UP) : java.math.BigDecimal.ZERO;
++                        tile.setBackground(gd);
++                        
++                        // 1. Variation Image
++                        ImageView imgVar = new ImageView(BillingActivity.this);
++                        LinearLayout.LayoutParams imgVarParams = new LinearLayout.LayoutParams(
++                            (int) (56 * dp),
++                            (int) (56 * dp)
++                        );
++                        imgVarParams.setMargins(0, 0, 0, (int) (6 * dp));
++                        imgVar.setLayoutParams(imgVarParams);
++                        imgVar.setScaleType(ImageView.ScaleType.FIT_CENTER);
++                        
++                        String varImgPath = vObj.optString("image_path", vObj.optString("image", ""));
++                        boolean loaded = false;
++                        if (!varImgPath.isEmpty()) {
++                            android.graphics.Bitmap bm = getCachedThumbnail(varImgPath, 2);
++                            if (bm != null) {
++                                imgVar.setImageBitmap(bm);
++                                loaded = true;
++                            }
++                        }
++                        if (!loaded && p.localImagePath != null && !p.localImagePath.isEmpty()) {
++                            android.graphics.Bitmap bm = getCachedThumbnail(p.localImagePath, 2);
++                            if (bm != null) {
++                                imgVar.setImageBitmap(bm);
++                                loaded = true;
++                            }
++                        }
++                        if (!loaded) {
++                            imgVar.setImageResource(android.R.drawable.ic_menu_gallery);
++                        }
++                        tile.addView(imgVar);
++                        
++                        // 2. Variation Name
++                        TextView txtVarName = new TextView(BillingActivity.this);
++                        txtVarName.setText(varName);
++                        txtVarName.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++                        txtVarName.setTextSize(12);
++                        txtVarName.setTypeface(null, android.graphics.Typeface.BOLD);
++                        txtVarName.setGravity(android.view.Gravity.CENTER);
++                        txtVarName.setSingleLine(true);
++                        txtVarName.setEllipsize(android.text.TextUtils.TruncateAt.END);
++                        tile.addView(txtVarName);
++                        
++                        // 3. Stock badge
++                        TextView txtStockBadge = new TextView(BillingActivity.this);
++                        txtStockBadge.setTextSize(10);
++                        txtStockBadge.setTypeface(null, android.graphics.Typeface.BOLD);
++                        txtStockBadge.setGravity(android.view.Gravity.CENTER);
++                        txtStockBadge.setPadding((int) (6 * dp), (int) (2 * dp), (int) (6 * dp), (int) (2 * dp));
++                        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
++                            ViewGroup.LayoutParams.WRAP_CONTENT,
++                            ViewGroup.LayoutParams.WRAP_CONTENT
++                        );
++                        badgeParams.setMargins(0, (int) (6 * dp), 0, 0);
++                        txtStockBadge.setLayoutParams(badgeParams);
++                        
++                        android.graphics.drawable.GradientDrawable bgBadge = new android.graphics.drawable.GradientDrawable();
++                        bgBadge.setCornerRadius(20 * dp);
++                        if (available <= 0) {
++                            txtStockBadge.setText("OUT OF STOCK");
++                            txtStockBadge.setTextColor(android.graphics.Color.WHITE);
++                            bgBadge.setColor(android.graphics.Color.parseColor("#FF3B30"));
++                        } else {
++                            txtStockBadge.setText("STOCK: " + available);
++                            txtStockBadge.setTextColor(android.graphics.Color.WHITE);
++                            bgBadge.setColor(android.graphics.Color.parseColor("#30D158"));
++                        }
++                        txtStockBadge.setBackground(bgBadge);
++                        tile.addView(txtStockBadge);
++                        
++                        tile.setOnClickListener(new View.OnClickListener() {
++                            @Override
++                            public void onClick(View v) {
++                                int oldSelection = selectedVarIndex[0];
++                                selectedVarIndex[0] = index;
++                                if (renderVariationTilesHolder[0] != null) renderVariationTilesHolder[0].run();
++                                updateControlsState.run();
++                                
++                                if (oldSelection != index) {
++                                    edtOverridePrice.setText(String.format(Locale.getDefault(), "%.2f", varPrice));
++                                    edtQtyInput.requestFocus();
++                                    edtQtyInput.selectAll();
++                                    android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
++                                    if (imm != null) {
++                                        imm.showSoftInput(edtQtyInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
++                                    }
++                                }
++                            }
++                        });
++                        
++                        varLayout.addView(tile);
++                    }
++                } catch (Exception e) {
++                    android.util.Log.e("BillingActivity", "Error rendering variations: " + e.getMessage());
++                }
++            }
++        };
++
++        // Focus & soft keyboard on launch if no variations
++        if (!hasVariations) {
++            edtQtyInput.requestFocus();
++            edtQtyInput.postDelayed(new Runnable() {
++                @Override
++                public void run() {
++                    edtQtyInput.selectAll();
++                    android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
++                    if (imm != null) {
++                        imm.showSoftInput(edtQtyInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
++                    }
++                }
++            }, 150);
++        }
++
++        final boolean[] percentActiveHolder = new boolean[]{ existingItem != null && existingItem.isPercentDiscountActive };
++
++        // Live preview update
++        final Runnable updatePreview = new Runnable() {
++            private boolean isUpdating = false;
++            @Override
++            public void run() {
++                if (isUpdating) return;
++                isUpdating = true;
++                try {
++                    String overridePriceStr = edtOverridePrice.getText().toString().trim();
++                    java.math.BigDecimal uPrice = overridePriceStr.isEmpty() ? p.wholesalePrice : CurrencyUtils.toBigDecimal(overridePriceStr);
++
++                    String qtyStr = edtQtyInput.getText().toString().trim();
++                    int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
++
++                    java.math.BigDecimal sub = uPrice.multiply(java.math.BigDecimal.valueOf(qty));
++                    java.math.BigDecimal discountVal = java.math.BigDecimal.ZERO;
++
++                    String pctStr = edtDiscountPct.getText().toString().trim();
++                    String amtStr = edtDiscountAmt.getText().toString().trim();
++
++                    if (edtDiscountPct.hasFocus()) {
++                        percentActiveHolder[0] = true;
++                        if (!pctStr.isEmpty()) {
++                            java.math.BigDecimal pct = CurrencyUtils.toBigDecimal(pctStr);
++                            discountVal = CurrencyUtils.calculatePercentage(sub, pct);
++                            edtDiscountAmt.setText(String.format(Locale.getDefault(), "%.2f", discountVal));
++                        } else {
++                            edtDiscountAmt.setText("");
++                        }
++                    } else if (edtDiscountAmt.hasFocus()) {
++                        percentActiveHolder[0] = false;
++                        if (!amtStr.isEmpty()) {
++                            discountVal = CurrencyUtils.toBigDecimal(amtStr);
++                            java.math.BigDecimal pct = sub.compareTo(java.math.BigDecimal.ZERO) > 0 ? discountVal.multiply(java.math.BigDecimal.valueOf(100)).divide(sub, 1, java.math.RoundingMode.HALF_UP) : java.math.BigDecimal.ZERO;
+                             edtDiscountPct.setText(String.format(Locale.getDefault(), "%.1f", pct));
+                         } else {
+                             edtDiscountPct.setText("");
+@@ -2998,13 +4212,17 @@ public class BillingActivity extends AppCompatActivity {
+ 
+                     java.math.BigDecimal finalTotal = sub.subtract(discountVal);
+                     if (finalTotal.compareTo(java.math.BigDecimal.ZERO) < 0) finalTotal = java.math.BigDecimal.ZERO;
+-                    txtLiveTotal.setText("TOTAL: " + CurrencyUtils.formatLKR(finalTotal));
++                    
++                    if (hasVariations && selectedVarIndex[0] == -1) {
++                        txtLiveTotal.setText("SELECT A VARIATION");
++                    } else {
++                        txtLiveTotal.setText("TOTAL: " + CurrencyUtils.formatLKR(finalTotal));
++                    }
+                 } catch (Exception ignored) {}
+                 isUpdating = false;
+             }
+         };
+ 
+-        // Textwatchers for interactive live calculations
+         android.text.TextWatcher watcher = new android.text.TextWatcher() {
+             @Override
+             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+@@ -3021,70 +4239,6 @@ public class BillingActivity extends AppCompatActivity {
+         edtDiscountPct.addTextChangedListener(watcher);
+         edtDiscountAmt.addTextChangedListener(watcher);
+ 
+-        // Buttons
+-        LinearLayout btnRow = new LinearLayout(this);
+-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+-        btnRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+-
+-        Button btnCancel = new Button(this);
+-        btnCancel.setText("Cancel");
+-        btnCancel.setTextColor(android.graphics.Color.WHITE);
+-        btnCancel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#94A3B8")));
+-        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+-        btnCancel.setLayoutParams(cancelParams);
+-        btnRow.addView(btnCancel);
+-
+-        if (existingItem != null) {
+-            Button btnRemove = new Button(this);
+-            btnRemove.setText("Remove");
+-            btnRemove.setTextColor(android.graphics.Color.WHITE);
+-            btnRemove.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#EF4444")));
+-            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+-            removeParams.setMargins((int)(8 * getResources().getDisplayMetrics().density), 0, (int)(8 * getResources().getDisplayMetrics().density), 0);
+-            btnRemove.setLayoutParams(removeParams);
+-            btnRow.addView(btnRemove);
+-
+-            btnRemove.setOnClickListener(new View.OnClickListener() {
+-                @Override
+-                public void onClick(View v) {
+-                    new androidx.appcompat.app.AlertDialog.Builder(BillingActivity.this)
+-                        .setTitle("Remove Item")
+-                        .setMessage("Remove this item from the cart?")
+-                        .setPositiveButton("Remove", new android.content.DialogInterface.OnClickListener() {
+-                            @Override
+-                            public void onClick(android.content.DialogInterface dialogConfirm, int which) {
+-                                cartList.remove(existingItem);
+-                                boolean checkoutMode = (layoutCartCheckoutMode != null && layoutCartCheckoutMode.getVisibility() == View.VISIBLE);
+-                                if (cartAdapter != null) {
+-                                    cartAdapter.notifyDataSetChanged();
+-                                }
+-                                recalculateCart();
+-                                showCartOverlay(checkoutMode);
+-                                dialogConfirm.dismiss();
+-                                dialog.dismiss();
+-                                Toast.makeText(BillingActivity.this, p.name + " removed from cart.", Toast.LENGTH_SHORT).show();
+-                            }
+-                        })
+-                        .setNegativeButton("Cancel", null)
+-                        .show();
+-                }
+-            });
+-        } else {
+-            View spacerBtn = new View(this);
+-            spacerBtn.setLayoutParams(new LinearLayout.LayoutParams((int)(16 * getResources().getDisplayMetrics().density), 1));
+-            btnRow.addView(spacerBtn);
+-        }
+-
+-        Button btnAction = new Button(this);
+-        btnAction.setText(existingItem != null ? "Update" : "Add to Cart");
+-        btnAction.setTextColor(android.graphics.Color.WHITE);
+-        btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#10B981")));
+-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f);
+-        btnAction.setLayoutParams(actionParams);
+-        btnRow.addView(btnAction);
+-
+-        layout.addView(btnRow);
+-
+         btnCancel.setOnClickListener(new View.OnClickListener() {
+             @Override
+             public void onClick(View v) {
+@@ -3097,7 +4251,7 @@ public class BillingActivity extends AppCompatActivity {
+             public void onClick(View v) {
+                 try {
+                     String overridePriceStr = edtOverridePrice.getText().toString().trim();
+-                    java.math.BigDecimal uPrice = overridePriceStr.isEmpty() ? p.price : CurrencyUtils.toBigDecimal(overridePriceStr);
++                    java.math.BigDecimal uPrice = overridePriceStr.isEmpty() ? p.wholesalePrice : CurrencyUtils.toBigDecimal(overridePriceStr);
+ 
+                     String qtyStr = edtQtyInput.getText().toString().trim();
+                     int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
+@@ -3111,13 +4265,45 @@ public class BillingActivity extends AppCompatActivity {
+                     if (!amtStr.isEmpty()) amt = CurrencyUtils.toBigDecimal(amtStr);
+ 
+                     String selectedVar = "";
+-                    if (hasVariations && spinnerVar != null) {
+-                        String selectedVarFull = spinnerVar.getSelectedItem().toString();
+-                        int idx = selectedVarFull.indexOf(" (Stock:");
+-                        selectedVar = idx != -1 ? selectedVarFull.substring(0, idx) : selectedVarFull;
++                    int selectedVarId = 0;
++                    if (hasVariations && selectedVarIndex[0] != -1 && vars != null) {
++                        org.json.JSONObject vObj = vars.getJSONObject(selectedVarIndex[0]);
++                        selectedVar = vObj.optString("attribute", vObj.optString("option_name", ""));
++                        selectedVarId = vObj.optInt("id", 0);
++                    }
++
++                    if (hasVariations && selectedVarIndex[0] == -1) {
++                        Toast.makeText(BillingActivity.this, "Please select a variation.", Toast.LENGTH_SHORT).show();
++                        return;
++                    }
++
++                    int left;
++                    if (hasVariations) {
++                        org.json.JSONObject vObj = vars.getJSONObject(selectedVarIndex[0]);
++                        int totalStock = vObj.optInt("qty", vObj.optInt("quantity_on_hand", 0));
++                        int reservedStock = dbHelper.getVariationReservedQty(p.id, selectedVar);
++                        int cartQty = 0;
++                        for (CartItemModel item : cartList) {
++                            if (item.productId == p.id && item.selectedVariation.equals(selectedVar)) {
++                                if (existingItem == null || !existingItem.selectedVariation.equals(selectedVar)) {
++                                    cartQty += item.quantity;
++                                }
++                            }
++                        }
++                        left = totalStock - reservedStock - cartQty;
++                    } else {
++                        left = p.qtyOnHand - p.qtyReserved;
++                        int cartQty = 0;
++                        for (CartItemModel item : cartList) {
++                            if (item.productId == p.id) {
++                                if (existingItem == null) {
++                                    cartQty += item.quantity;
++                                }
++                            }
++                        }
++                        left -= cartQty;
+                     }
+ 
+-                    int left = p.qtyOnHand - p.qtyReserved;
+                     int oldQty = existingItem != null ? existingItem.quantity : 0;
+                     if (left + oldQty <= 0) {
+                         Toast.makeText(BillingActivity.this, "Out of Stock.", Toast.LENGTH_SHORT).show();
+@@ -3140,6 +4326,13 @@ public class BillingActivity extends AppCompatActivity {
+                         existingItem.discountAmount = amt;
+                         existingItem.isPercentDiscountActive = percentActiveHolder[0];
+                         existingItem.selectedVariation = selectedVar;
++                        existingItem.variationOptionId = selectedVarId;
++                        
++                        if (hasVariations && !selectedVar.isEmpty()) {
++                            existingItem.name = p.name + " - " + selectedVar;
++                        } else {
++                            existingItem.name = p.name;
++                        }
+ 
+                         java.math.BigDecimal subItem = uPrice.multiply(java.math.BigDecimal.valueOf(qty));
+                         java.math.BigDecimal discountValItem = java.math.BigDecimal.ZERO;
+@@ -3157,28 +4350,182 @@ public class BillingActivity extends AppCompatActivity {
+                             cartAdapter.notifyDataSetChanged();
+                         }
+                         recalculateCart();
++                        checkAndPromptItemDiscountsOnAddToCart();
+                         showCartOverlay(checkoutMode);
+                         dialog.dismiss();
+                         Toast.makeText(BillingActivity.this, "Cart updated.", Toast.LENGTH_SHORT).show();
+                     } else {
+-                        // Add to cart with custom parameters
+-                        addToCartCustom(p, qty, uPrice, pct, amt, percentActiveHolder[0]);
+-                        if (hasVariations && !selectedVar.isEmpty()) {
+-                            // Find the newly added item and assign selected variation
+-                            for (CartItemModel item : cartList) {
+-                                if (item.productId == p.id) {
+-                                    item.selectedVariation = selectedVar;
+-                                    break;
++                        CartItemModel duplicate = null;
++                        for (CartItemModel item : cartList) {
++                            boolean matches = false;
++                            if (item.productId == p.id) {
++                                if (hasVariations) {
++                                    matches = item.selectedVariation != null && item.selectedVariation.equals(selectedVar);
++                                } else {
++                                    matches = (item.selectedVariation == null || item.selectedVariation.isEmpty());
+                                 }
+                             }
++                            if (matches) {
++                                duplicate = item;
++                                break;
++                            }
++                        }
++
++                        final String finalSelectedVar = selectedVar;
++                        final int finalSelectedVarId = selectedVarId;
++                        final java.math.BigDecimal finalUPrice = uPrice;
++                        final java.math.BigDecimal finalPct = pct;
++                        final java.math.BigDecimal finalAmt = amt;
++                        final boolean finalIsPercent = percentActiveHolder[0];
++                        final int finalQty = qty;
++
++                        if (duplicate != null) {
++                            androidx.appcompat.app.AlertDialog.Builder warnBuilder = new androidx.appcompat.app.AlertDialog.Builder(BillingActivity.this);
++                            
++                            LinearLayout warnLayout = new LinearLayout(BillingActivity.this);
++                            warnLayout.setOrientation(LinearLayout.VERTICAL);
++                            warnLayout.setPadding((int)(24*dp), (int)(24*dp), (int)(24*dp), (int)(24*dp));
++                            warnLayout.setBackgroundColor(android.graphics.Color.WHITE);
++                            
++                            TextView titleText = new TextView(BillingActivity.this);
++                            titleText.setText("Item Already in Cart");
++                            titleText.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++                            titleText.setTextSize(18);
++                            titleText.setTypeface(null, android.graphics.Typeface.BOLD);
++                            titleText.setPadding(0, 0, 0, (int)(12*dp));
++                            warnLayout.addView(titleText);
++                            
++                            TextView messageText = new TextView(BillingActivity.this);
++                            messageText.setText("This item is already in your cart. Would you like to merge the quantity into the existing item, keep both as separate line items, or cancel?");
++                            messageText.setTextColor(android.graphics.Color.parseColor("#636366"));
++                            messageText.setTextSize(14);
++                            messageText.setPadding(0, 0, 0, (int)(20*dp));
++                            warnLayout.addView(messageText);
++                            
++                            LinearLayout warnBtnRow = new LinearLayout(BillingActivity.this);
++                            warnBtnRow.setOrientation(LinearLayout.HORIZONTAL);
++                            
++                            Button btnMerge = new Button(BillingActivity.this);
++                            btnMerge.setText("Merge Qty");
++                            btnMerge.setAllCaps(false);
++                            btnMerge.setTextColor(android.graphics.Color.WHITE);
++                            btnMerge.setBackground(createRoundedBackground("#1C1C1E", "#1C1C1E", 20));
++                            LinearLayout.LayoutParams mergeParams = new LinearLayout.LayoutParams(0, (int)(46*dp), 1.0f);
++                            mergeParams.setMargins(0, 0, (int)(8*dp), 0);
++                            btnMerge.setLayoutParams(mergeParams);
++                            
++                            Button btnKeepBoth = new Button(BillingActivity.this);
++                            btnKeepBoth.setText("Keep Both");
++                            btnKeepBoth.setAllCaps(false);
++                            btnKeepBoth.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
++                            btnKeepBoth.setBackground(createRoundedBackground("#F2F2F7", "#F2F2F7", 20));
++                            LinearLayout.LayoutParams keepParams = new LinearLayout.LayoutParams(0, (int)(46*dp), 1.0f);
++                            keepParams.setMargins(0, 0, (int)(8*dp), 0);
++                            btnKeepBoth.setLayoutParams(keepParams);
++                            
++                            Button btnCancelWarn = new Button(BillingActivity.this);
++                            btnCancelWarn.setText("Cancel");
++                            btnCancelWarn.setAllCaps(false);
++                            btnCancelWarn.setTextColor(android.graphics.Color.parseColor("#636366"));
++                            btnCancelWarn.setBackground(createRoundedBackground("#FFFFFF", "#E5E5EA", 20));
++                            LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(0, (int)(46*dp), 1.0f);
++                            btnCancelWarn.setLayoutParams(cancelParams);
++                            
++                            warnBtnRow.addView(btnMerge);
++                            warnBtnRow.addView(btnKeepBoth);
++                            warnBtnRow.addView(btnCancelWarn);
++                            warnLayout.addView(warnBtnRow);
++                            
++                            warnBuilder.setView(warnLayout);
++                            final androidx.appcompat.app.AlertDialog warnDialog = warnBuilder.create();
++                            warnDialog.show();
++                            if (warnDialog.getWindow() != null) {
++                                warnDialog.getWindow().setBackgroundDrawable(createRoundedBackground("#FFFFFF", "#FFFFFF", 24));
++                            }
++                            
++                            btnMerge.setOnClickListener(new View.OnClickListener() {
++                                @Override
++                                public void onClick(View v) {
++                                    addToCartCustom(p, finalQty, finalUPrice, finalPct, finalAmt, finalIsPercent, finalSelectedVar, finalSelectedVarId, false);
++                                    
++                                    itemAdded[0] = true;
++                                    btnCancel.setText("Done");
++                                    edtQtyInput.setText("1");
++                                    edtDiscountPct.setText("");
++                                    edtDiscountAmt.setText("");
++                                    if (hasVariations) {
++                                        selectedVarIndex[0] = -1;
++                                        edtOverridePrice.setText(p.wholesalePrice.toPlainString());
++                                    }
++                                    if (renderVariationTilesHolder[0] != null) renderVariationTilesHolder[0].run();
++                                    updateControlsState.run();
++                                    updatePreview.run();
++                                    warnDialog.dismiss();
++                                    if (!hasVariations) {
++                                        dialog.dismiss();
++                                    }
++                                }
++                            });
++
++                            btnKeepBoth.setOnClickListener(new View.OnClickListener() {
++                                @Override
++                                public void onClick(View v) {
++                                    addToCartCustom(p, finalQty, finalUPrice, finalPct, finalAmt, finalIsPercent, finalSelectedVar, finalSelectedVarId, true);
++                                    
++                                    itemAdded[0] = true;
++                                    btnCancel.setText("Done");
++                                    edtQtyInput.setText("1");
++                                    edtDiscountPct.setText("");
++                                    edtDiscountAmt.setText("");
++                                    if (hasVariations) {
++                                        selectedVarIndex[0] = -1;
++                                        edtOverridePrice.setText(p.wholesalePrice.toPlainString());
++                                    }
++                                    if (renderVariationTilesHolder[0] != null) renderVariationTilesHolder[0].run();
++                                    updateControlsState.run();
++                                    updatePreview.run();
++                                    warnDialog.dismiss();
++                                    if (!hasVariations) {
++                                        dialog.dismiss();
++                                    }
++                                }
++                            });
++                            
++                            btnCancelWarn.setOnClickListener(new View.OnClickListener() {
++                                @Override
++                                public void onClick(View v) {
++                                    warnDialog.dismiss();
++                                }
++                            });
++                        } else {
++                            addToCartCustom(p, qty, uPrice, pct, amt, percentActiveHolder[0], selectedVar, selectedVarId, false);
++                            
++                            itemAdded[0] = true;
++                            btnCancel.setText("Done");
++                            edtQtyInput.setText("1");
++                            edtDiscountPct.setText("");
++                            edtDiscountAmt.setText("");
++                            if (hasVariations) {
++                                selectedVarIndex[0] = -1;
++                                edtOverridePrice.setText(p.wholesalePrice.toPlainString());
++                            }
++                            if (renderVariationTilesHolder[0] != null) renderVariationTilesHolder[0].run();
++                            updateControlsState.run();
++                            updatePreview.run();
++                            if (!hasVariations) {
++                                dialog.dismiss();
++                            }
+                         }
+-                        dialog.dismiss();
+                     }
+                 } catch (Exception e) {
+                     Toast.makeText(BillingActivity.this, "Invalid inputs entered.", Toast.LENGTH_SHORT).show();
+                 }
+             }
+         });
++
++        // Initialize state
++        if (renderVariationTilesHolder[0] != null) renderVariationTilesHolder[0].run();
++        updateControlsState.run();
+     }
+ 
+     private ProductModel getProductById(int prodId) {

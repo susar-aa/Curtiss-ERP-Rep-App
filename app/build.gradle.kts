@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -8,10 +9,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.curtiss"
-        minSdk = 24
+        minSdk = 22
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 18
+        versionName = "1.18.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -50,6 +51,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.google.material)
     implementation(libs.material)
     implementation(libs.androidx.swiperefreshlayout)
     implementation("org.mindrot:jbcrypt:0.4")
@@ -57,6 +59,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("androidx.biometric:biometric:1.1.0")
+    implementation("com.airbnb.android:lottie:6.3.0")
+    implementation("com.google.firebase:firebase-database:20.3.1")
+    implementation("com.google.firebase:firebase-common:20.4.3")
+    implementation("com.google.firebase:firebase-messaging:23.4.1") // Added FCM
     testImplementation(libs.junit)
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-inline:5.2.0")

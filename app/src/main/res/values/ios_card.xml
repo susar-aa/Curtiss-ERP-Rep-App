@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS-style light theme palette.
+  Merge these into your existing res/values/colors.xml (or keep as a separate file,
+  Android will merge all files inside res/values/ automatically).
+-->
+<resources>
+    <color name="ios_bg">#F2F2F7</color>          <!-- System grouped background -->
+    <color name="ios_card">#FFFFFF</color>         <!-- Card / surface -->
+    <color name="ios_blue">#007AFF</color>         <!-- Primary accent -->
+    <color name="ios_green">#34C759</color>        <!-- Success / positive -->
+    <color name="ios_red">#FF3B30</color>          <!-- Destructive -->
+    <color name="ios_orange">#FF9500</color>       <!-- Warning -->
+    <color name="ios_purple">#AF52DE</color>       <!-- Secondary accent -->
+    <color name="ios_teal">#32ADE6</color>         <!-- Secondary accent 2 -->
+    <color name="ios_label">#1C1C1E</color>        <!-- Primary text -->
+    <color name="ios_secondary_label">#8E8E93</color> <!-- Secondary text -->
+    <color name="ios_tertiary_label">#C7C7CC</color>  <!-- Placeholder / hint text -->
+    <color name="ios_separator">#E5E5EA</color>    <!-- Hairline dividers / strokes -->
+    <color name="ios_green_bg">#E6F9EC</color>     <!-- Light tint behind green pill -->
+    <color name="ios_orange_bg">#FFF3E0</color>    <!-- Light tint behind orange pill -->
+    <color name="ios_blue_bg">#E8F1FF</color>      <!-- Light tint behind blue icon squares -->
+    <color name="ios_purple_bg">#F5E9FC</color>
+    <color name="ios_teal_bg">#E6F6FC</color>
+</resources>
