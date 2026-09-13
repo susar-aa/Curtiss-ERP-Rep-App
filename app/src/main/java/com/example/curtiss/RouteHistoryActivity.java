@@ -6,7 +6,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -49,6 +52,8 @@ public class RouteHistoryActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private int userId;
     private String baseUrl;
+    private ExecutorService executorService;
+    private Handler mainHandler;
 
     private ArrayList<JSONObject> routesList = new ArrayList<>();
     private RouteAdapter adapter;
@@ -71,13 +76,23 @@ public class RouteHistoryActivity extends AppCompatActivity {
 
         prefs = SecurePreferences.getSessionPrefs(this);
         userId = prefs.getInt("user_id", 0);
-        baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
+        executorService = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
 
         initViews();
         setupListeners();
 
         // Initial load
         checkConnectionAndLoad(true);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
     }
 
     private void initViews() {
@@ -272,7 +287,7 @@ public class RouteHistoryActivity extends AppCompatActivity {
         }
 
         txtOfflineBanner.setVisibility(View.GONE);
-        new FetchHistoryTask(showOverlay).execute();
+        fetchHistoryAsync(showOverlay);
     }
 
     private void updatePaginationUi() {
@@ -293,107 +308,105 @@ public class RouteHistoryActivity extends AppCompatActivity {
         }
     }
 
-    // Task to fetch route history from server
-    private class FetchHistoryTask extends AsyncTask<Void, Void, String> {
-        private boolean showOverlay;
-
-        public FetchHistoryTask(boolean showOverlay) {
-            this.showOverlay = showOverlay;
+    private void fetchHistoryAsync(final boolean showOverlay) {
+        if (showOverlay) {
+            layoutLoadingOverlay.setVisibility(View.VISIBLE);
         }
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                String result = null;
+                try {
+                    StringBuilder urlBuilder = new StringBuilder(baseUrl);
+                    urlBuilder.append("/rep/RepDashboard/api_get_route_history");
+                    urlBuilder.append("?user_id=").append(userId);
+                    urlBuilder.append("&page=").append(currentPage);
+                    urlBuilder.append("&limit=").append(limit);
+                    urlBuilder.append("&search=").append(URLEncoder.encode(searchQuery, "UTF-8"));
+                    urlBuilder.append("&start_date=").append(URLEncoder.encode(startDate, "UTF-8"));
+                    urlBuilder.append("&end_date=").append(URLEncoder.encode(endDate, "UTF-8"));
 
-        @Override
-        protected void onPreExecute() {
-            if (showOverlay) {
-                layoutLoadingOverlay.setVisibility(View.VISIBLE);
-            }
-        }
+                    URL url = new URL(urlBuilder.toString());
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setRequestProperty("X-User-ID", String.valueOf(userId));
+                    String token = prefs.getString("api_token", "");
+                    if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
 
-        @Override
-        protected String doInBackground(Void... voids) {
-            HttpURLConnection conn = null;
-            try {
-                StringBuilder urlBuilder = new StringBuilder(baseUrl);
-                urlBuilder.append("/rep/RepDashboard/api_get_route_history");
-                urlBuilder.append("?user_id=").append(userId);
-                urlBuilder.append("&page=").append(currentPage);
-                urlBuilder.append("&limit=").append(limit);
-                urlBuilder.append("&search=").append(URLEncoder.encode(searchQuery, "UTF-8"));
-                urlBuilder.append("&start_date=").append(URLEncoder.encode(startDate, "UTF-8"));
-                urlBuilder.append("&end_date=").append(URLEncoder.encode(endDate, "UTF-8"));
-
-                URL url = new URL(urlBuilder.toString());
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("X-User-ID", String.valueOf(userId));
-                String token = prefs.getString("api_token", "");
-                if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        sb.append(line);
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = in.readLine()) != null) {
+                            if (Thread.currentThread().isInterrupted()) break;
+                            sb.append(line);
+                        }
+                        in.close();
+                        if (!Thread.currentThread().isInterrupted()) {
+                            result = sb.toString();
+                        }
+                    } else {
+                        result = "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
                     }
-                    in.close();
-                    return sb.toString();
-                } else {
-                    return "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
+                } catch (Exception e) {
+                    result = "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
+                } finally {
+                    if (conn != null) conn.disconnect();
                 }
-            } catch (Exception e) {
-                return "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }
 
-        @Override
-        protected void onPostExecute(String result) {
-            layoutLoadingOverlay.setVisibility(View.GONE);
-            swipeRefresh.setRefreshing(false);
+                final String finalResult = result;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        layoutLoadingOverlay.setVisibility(View.GONE);
+                        swipeRefresh.setRefreshing(false);
 
-            if (result == null) {
-                Toast.makeText(RouteHistoryActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
-                return;
-            }
+                        if (finalResult == null) {
+                            Toast.makeText(RouteHistoryActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
 
-            try {
-                JSONObject response = new JSONObject(result);
-                if (response.optBoolean("success", false)) {
-                    routesList.clear();
-                    JSONArray data = response.optJSONArray("data");
-                    if (data != null) {
-                        for (int i = 0; i < data.length(); i++) {
-                            routesList.add(data.getJSONObject(i));
+                        try {
+                            JSONObject response = new JSONObject(finalResult);
+                            if (response.optBoolean("success", false)) {
+                                routesList.clear();
+                                JSONArray data = response.optJSONArray("data");
+                                if (data != null) {
+                                    for (int i = 0; i < data.length(); i++) {
+                                        routesList.add(data.getJSONObject(i));
+                                    }
+                                }
+
+                                JSONObject pagination = response.optJSONObject("pagination");
+                                if (pagination != null) {
+                                    currentPage = pagination.optInt("page", 1);
+                                    totalPages = pagination.optInt("total_pages", 1);
+                                    if (totalPages <= 0) totalPages = 1;
+                                }
+
+                                adapter.notifyDataSetChanged();
+                                updatePaginationUi();
+
+                                if (routesList.isEmpty()) {
+                                    Toast.makeText(RouteHistoryActivity.this, "No route history records found.", Toast.LENGTH_SHORT).show();
+                                }
+                            } else {
+                                String msg = response.optString("message", "Error fetching data");
+                                Toast.makeText(RouteHistoryActivity.this, msg, Toast.LENGTH_LONG).show();
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("RouteHistoryActivity", "JSON Parsing error", e);
+                            Toast.makeText(RouteHistoryActivity.this, "Failed to parse server data", Toast.LENGTH_SHORT).show();
                         }
                     }
-
-                    JSONObject pagination = response.optJSONObject("pagination");
-                    if (pagination != null) {
-                        currentPage = pagination.optInt("page", 1);
-                        totalPages = pagination.optInt("total_pages", 1);
-                        if (totalPages <= 0) totalPages = 1;
-                    }
-
-                    adapter.notifyDataSetChanged();
-                    updatePaginationUi();
-
-                    if (routesList.isEmpty()) {
-                        Toast.makeText(RouteHistoryActivity.this, "No route history records found.", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    String msg = response.optString("message", "Error fetching data");
-                    Toast.makeText(RouteHistoryActivity.this, msg, Toast.LENGTH_LONG).show();
-                }
-            } catch (Exception e) {
-                android.util.Log.e("RouteHistoryActivity", "JSON Parsing error", e);
-                Toast.makeText(RouteHistoryActivity.this, "Failed to parse server data", Toast.LENGTH_SHORT).show();
+                });
             }
-        }
+        });
     }
 
     // List Adapter

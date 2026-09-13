@@ -15,14 +15,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.app.Dialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import androidx.appcompat.app.AppCompatActivity;
-import org.json.JSONObject;
 import org.mindrot.jbcrypt.BCrypt;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import com.example.curtiss.network.ApiClient;
+import com.example.curtiss.network.ApiService;
+import com.example.curtiss.network.models.LoginRequest;
+import com.example.curtiss.network.models.LoginResponse;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -141,14 +142,14 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void run() {
                 boolean authenticated = false;
-                JSONObject userObj = null;
+                LoginResponse userObj = null;
                 String errorMsg = "Unable to connect to server.";
 
                 // 1. Try saved base_url first (if set), otherwise fall back to sequence
                 if (isNetworkAvailable()) {
-                    String savedBaseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com").trim();
+                    String savedBaseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com").trim();
                     if (savedBaseUrl.isEmpty()) {
-                        savedBaseUrl = "https://curtiss.suzxlabs.com";
+                        savedBaseUrl = "https://falcon.trycurtiss.com";
                     }
                     try {
                         userObj = performNetworkLogin(username, password, savedBaseUrl + "/rep/RepDashboard/api_login?api_sync=1");
@@ -160,14 +161,14 @@ public class LoginActivity extends AppCompatActivity {
                         android.util.Log.e("LoginActivity", "Saved base URL auth failed: " + e.getMessage());
                         errorMsg = e.getMessage();
                         
-                        // Try production fallback direct "curtiss.suzxlabs.com"
-                        if (!savedBaseUrl.equalsIgnoreCase("https://curtiss.suzxlabs.com") && 
-                            !savedBaseUrl.equalsIgnoreCase("https://curtiss.suzxlabs.com/")) {
+                        // Try production fallback direct "falcon.trycurtiss.com"
+                        if (!savedBaseUrl.equalsIgnoreCase("https://falcon.trycurtiss.com") && 
+                            !savedBaseUrl.equalsIgnoreCase("https://falcon.trycurtiss.com/")) {
                             try {
-                                userObj = performNetworkLogin(username, password, "https://curtiss.suzxlabs.com/rep/RepDashboard/api_login?api_sync=1");
+                                userObj = performNetworkLogin(username, password, "https://falcon.trycurtiss.com/rep/RepDashboard/api_login?api_sync=1");
                                 if (userObj != null) {
                                     authenticated = true;
-                                    prefs.edit().putString("base_url", "https://curtiss.suzxlabs.com").apply();
+                                    prefs.edit().putString("base_url", "https://falcon.trycurtiss.com").apply();
                                 }
                             } catch (Exception ex3) {
                                 android.util.Log.e("LoginActivity", "Production auth fallback failed: " + ex3.getMessage());
@@ -188,8 +189,8 @@ public class LoginActivity extends AppCompatActivity {
                         public void run() {
                             setViewsEnabled(true);
                             if (localSuccess) {
-                                Toast.makeText(LoginActivity.this, "Offline Login Successful!", Toast.LENGTH_SHORT).show();
-                                navigateToSplash();
+                                Toast.makeText(LoginActivity.this, "Offline Login Successful", Toast.LENGTH_LONG).show();
+                                showSuccessDialog();
                             } else {
                                 txtSyncDetails.setText("Secure connection is encrypted using standard SSL/TLS.");
                                 Toast.makeText(LoginActivity.this, "Login Failed: " + finalError, Toast.LENGTH_LONG).show();
@@ -200,16 +201,16 @@ public class LoginActivity extends AppCompatActivity {
                 }
 
                 // 3. Online Success: Cache session details and launch SplashActivity for background sync
-                final JSONObject finalUserObj = userObj;
+                final LoginResponse finalUserObj = userObj;
                 mainHandler.post(new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            int repUserId = finalUserObj.getJSONObject("user").getInt("id");
-                            int employeeId = finalUserObj.getJSONObject("user").getInt("employee_id");
-                            String firstName = finalUserObj.getJSONObject("user").getString("first_name");
-                            String lastName = finalUserObj.getJSONObject("user").getString("last_name");
-                            String token = finalUserObj.optString("token", "");
+                            int repUserId = finalUserObj.user.id;
+                            int employeeId = finalUserObj.user.employeeId;
+                            String firstName = finalUserObj.user.firstName;
+                            String lastName = finalUserObj.user.lastName;
+                            String token = finalUserObj.token != null ? finalUserObj.token : "";
 
                             // Cache session locally in SharedPreferences
                             SharedPreferences.Editor editor = prefs.edit();
@@ -239,7 +240,7 @@ public class LoginActivity extends AppCompatActivity {
                             }
 
                             Toast.makeText(LoginActivity.this, "Welcome, " + firstName + " " + lastName + "!", Toast.LENGTH_LONG).show();
-                            navigateToSplash();
+                            showSuccessDialog();
 
                         } catch (Exception e) {
                             setViewsEnabled(true);
@@ -252,69 +253,55 @@ public class LoginActivity extends AppCompatActivity {
         }).start();
     }
 
+    private void showSuccessDialog() {
+        final Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_login_success);
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        dialog.setCancelable(false);
+
+        Button btnContinue = dialog.findViewById(R.id.btnContinue);
+        btnContinue.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                navigateToSplash();
+            }
+        });
+        dialog.show();
+    }
+
     private void navigateToSplash() {
         Intent intent = new Intent(this, SplashActivity.class);
         startActivity(intent);
         finish();
     }
 
-    private JSONObject performNetworkLogin(String username, String password, String endpoint) throws Exception {
+    private LoginResponse performNetworkLogin(String username, String password, String endpoint) throws Exception {
         boolean isLocal = endpoint.contains("10.0.2.2") || endpoint.contains("192.168.");
         int maxRetries = isLocal ? 1 : 3;
         int attempt = 0;
         Exception lastException = null;
+        
+        ApiService apiService = ApiClient.getClient(this).create(ApiService.class);
+        LoginRequest req = new LoginRequest(username, password);
 
         while (attempt < maxRetries) {
             attempt++;
-            HttpURLConnection conn = null;
             try {
-                URL url = new URL(endpoint);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(isLocal ? 2500 : 8000);
-                conn.setReadTimeout(isLocal ? 2500 : 8000);
-
-                JSONObject payload = new JSONObject();
-                payload.put("username", username);
-                payload.put("password", password);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(payload.toString().getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        sb.append(line);
-                    }
-                    in.close();
-
-                    String responseText = sb.toString();
-                    if (responseText.trim().startsWith("<!DOCTYPE") || responseText.trim().startsWith("<html")) {
-                        android.util.Log.e("LoginActivity", "Server returned HTML instead of JSON: " + responseText);
-                        throw new Exception("Plesk Server is offline (HTTP 503 Service Unavailable) or redirected.");
-                    }
-
-                    try {
-                        JSONObject res = new JSONObject(responseText);
-                        if (res.getBoolean("success")) {
-                            return res;
-                        } else {
-                            throw new Exception(res.optString("message", "Invalid credentials."));
-                        }
-                    } catch (org.json.JSONException je) {
-                        android.util.Log.e("LoginActivity", "JSON parsing failed for: " + responseText);
-                        throw new Exception("Invalid server JSON response.");
+                retrofit2.Response<LoginResponse> response = apiService.loginWithUrl(endpoint, req).execute();
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    LoginResponse res = response.body();
+                    if (res.success) {
+                        return res;
+                    } else {
+                        throw new Exception(res.message != null ? res.message : "Invalid credentials.");
                     }
                 } else {
-                    throw new Exception("HTTP Error: " + responseCode);
+                    if (response.code() == 503) {
+                        throw new Exception("Plesk Server is offline (HTTP 503 Service Unavailable) or redirected.");
+                    }
+                    throw new Exception("HTTP Error: " + response.code());
                 }
             } catch (Exception e) {
                 lastException = e;
@@ -330,11 +317,7 @@ public class LoginActivity extends AppCompatActivity {
                     Thread.sleep(2000);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    throw ie;
-                }
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
+                    throw new Exception("Login interrupted");
                 }
             }
         }
@@ -415,7 +398,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void showBaseUrlDialog() {
         final EditText input = new EditText(this);
-        String currentUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        String currentUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
         input.setText(currentUrl);
         input.setSelection(currentUrl.length());
 

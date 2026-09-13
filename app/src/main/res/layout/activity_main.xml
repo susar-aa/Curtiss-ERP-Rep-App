@@ -5,19 +5,14 @@
     android:background="#FFFFFF">
 
     <!-- List spans the entire screen behind the floating nav -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefreshLayout"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#FFFFFF"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#FFFFFF"
+        app:layout_constraintEnd_toEndOf="parent"
             android:scrollbars="none"
             android:fillViewport="true">
 
@@ -239,22 +234,12 @@
                         android:orientation="vertical"
                         android:padding="20dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="DAILY TRIP RADAR"
-                            android:textColor="#8E8E93"
-                            android:fontFamily="@font/sf_pro_display_semibold"
-                            android:letterSpacing="0.08"
-                            android:textSize="11sp" />
-
                         <!-- Route INACTIVE controls -->
                         <LinearLayout
                             android:id="@+id/layoutStartRoute"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:layout_marginTop="16dp"
                             android:visibility="visible">
 
                             <com.google.android.material.button.MaterialButton
@@ -271,93 +256,189 @@
 
                         </LinearLayout>
 
-                        <!-- Route ACTIVE controls -->
+                        <!-- Route ACTIVE controls (Summary Card) -->
                         <LinearLayout
                             android:id="@+id/layoutEndRoute"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:layout_marginTop="16dp"
-                            android:visibility="gone">
+                            android:visibility="gone"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:background="?attr/selectableItemBackground">
 
-                            <TextView
-                                android:id="@+id/txtActiveRouteName"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Active Route: Negombo Territory"
-                                android:textColor="#000000"
-                                android:fontFamily="@font/sf_pro_display_semibold"
-                                android:textSize="16sp"
-                                android:visibility="gone" />
-
-                            <TextView
-                                android:id="@+id/txtRouteStartTime"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Started At: 2026-05-29 08:30 AM"
-                                android:textColor="#8E8E93"
-                                android:fontFamily="@font/sf_pro_display_regular"
-                                android:textSize="13sp"
-                                android:layout_marginTop="4dp"
-                                android:visibility="gone" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Enter End Odometer (KM)"
-                                android:textColor="#000000"
-                                android:fontFamily="@font/sf_pro_display_medium"
-                                android:textSize="13sp"
-                                android:layout_marginTop="20dp"
-                                android:visibility="gone" />
-
-                            <EditText
-                                android:id="@+id/edtEndOdo"
+                            <RelativeLayout
                                 android:layout_width="match_parent"
-                                android:layout_height="54dp"
-                                android:layout_marginTop="8dp"
-                                android:background="#E5E5EA"
-                                android:paddingLeft="16dp"
-                                android:paddingRight="16dp"
-                                android:hint="e.g. 14350"
-                                android:inputType="numberDecimal"
-                                android:textColor="#000000"
-                                android:textColorHint="#8E8E93"
-                                android:fontFamily="@font/sf_pro_display_regular"
-                                android:textSize="16sp"
-                                android:visibility="gone" />
+                                android:layout_height="wrap_content"
+                                android:padding="8dp">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnEndRoute"
-                                android:layout_width="match_parent"
-                                android:layout_height="56dp"
-                                android:layout_marginTop="16dp"
-                                android:text="End Day"
-                                android:textAllCaps="false"
-                                android:fontFamily="@font/sf_pro_display_semibold"
-                                android:textSize="16sp"
-                                app:cornerRadius="16dp"
-                                app:backgroundTint="#000000"
-                                android:textColor="#FFFFFF" />
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:layout_alignParentStart="true"
+                                    android:layout_centerVertical="true">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnCancelRoute"
-                                android:layout_width="match_parent"
-                                android:layout_height="56dp"
-                                android:layout_marginTop="12dp"
-                                android:text="Cancel Route"
-                                android:textAllCaps="false"
-                                android:fontFamily="@font/sf_pro_display_semibold"
-                                android:textSize="16sp"
-                                app:cornerRadius="16dp"
-                                app:backgroundTint="#EF4444"
-                                android:textColor="#FFFFFF" />
+                                    <TextView
+                                        android:id="@+id/txtActiveRouteName"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Negombo"
+                                        android:textColor="#3B82F6"
+                                        android:fontFamily="@font/sf_pro_display_bold"
+                                        android:textSize="20sp" />
 
+                                    <TextView
+                                        android:id="@+id/txtRouteStartTime"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Started At: --"
+                                        android:textColor="#8E8E93"
+                                        android:fontFamily="@font/sf_pro_display_regular"
+                                        android:textSize="13sp"
+                                        android:layout_marginTop="4dp" />
+                                </LinearLayout>
+
+                                <!-- Right Arrow Indicator -->
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:layout_centerVertical="true"
+                                    android:text="➔"
+                                    android:textColor="#3B82F6"
+                                    android:textSize="20sp"
+                                    android:textStyle="bold" />
+                            </RelativeLayout>
                         </LinearLayout>
 
                     </LinearLayout>
 
                 </com.google.android.material.card.MaterialCardView>
+
+                <!-- NEW: Quick Actions Layout -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:baselineAligned="false"
+                    android:layout_marginBottom="16dp">
+
+                    <!-- Billing POS (Create Invoice) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navBilling"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#000000"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_shopping_cart"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Create Invoice"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Visual invoice catalog"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Unproductive Sales -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/navUnproductiveSales"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="#F2F2F7"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardBackgroundColor="#D97706"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_unproductive_visit"
+                                    app:tint="#FFFFFF" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Unproductive Sales"
+                                android:textColor="#000000"
+                                android:fontFamily="@font/sf_pro_display_semibold"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Log visit without order"
+                                android:textColor="#8E8E93"
+                                android:fontFamily="@font/sf_pro_display_regular"
+                                android:layout_marginTop="4dp"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
 
                 <!-- 4. Credit collections banner -->
                 <com.google.android.material.card.MaterialCardView
@@ -408,86 +489,12 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- 4.5. Rep Performance Insights Banner -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/navInsights"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:cardBackgroundColor="#0F172A"
-                    app:strokeWidth="0dp"
-                    android:layout_marginBottom="16dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:padding="20dp">
-
-                        <com.google.android.material.card.MaterialCardView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            app:cardCornerRadius="14dp"
-                            app:cardBackgroundColor="#3B82F6"
-                            app:cardElevation="0dp"
-                            android:layout_marginEnd="16dp">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:text="📈"
-                                android:textSize="22sp" />
-                        </com.google.android.material.card.MaterialCardView>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Rep Performance Insights"
-                                android:textColor="#FFFFFF"
-                                android:fontFamily="@font/sf_pro_display_bold"
-                                android:textSize="17sp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Interactive charts, KPIs &amp; rankings"
-                                android:textColor="#94A3B8"
-                                android:fontFamily="@font/sf_pro_display_regular"
-                                android:textSize="13sp"
-                                android:layout_marginTop="2dp" />
-
-                        </LinearLayout>
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="OPEN ➔"
-                            android:textColor="#3B82F6"
-                            android:fontFamily="@font/sf_pro_display_bold"
-                            android:textSize="13sp" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
                 <!-- 5. Primary navigation grid with Professional Icons -->
                 <GridLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:columnCount="2"
-                    android:rowCount="3"
+                    android:rowCount="2"
                     android:alignmentMode="alignMargins"
                     android:columnOrderPreserved="false"
                     android:layout_marginBottom="16dp">
@@ -542,64 +549,6 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Add &amp; tag customers"
-                                android:textColor="#8E8E93"
-                                android:fontFamily="@font/sf_pro_display_regular"
-                                android:layout_marginTop="4dp"
-                                android:textSize="12sp" />
-
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <!-- Billing POS -->
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/navBilling"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_rowWeight="1"
-                        android:layout_margin="6dp"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?attr/selectableItemBackground"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="0dp"
-                        app:cardBackgroundColor="#F2F2F7"
-                        app:strokeWidth="0dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="20dp">
-
-                            <com.google.android.material.card.MaterialCardView
-                                android:layout_width="44dp"
-                                android:layout_height="44dp"
-                                app:cardCornerRadius="14dp"
-                                app:cardBackgroundColor="#000000"
-                                app:cardElevation="0dp">
-
-                                <ImageView
-                                    android:layout_width="24dp"
-                                    android:layout_height="24dp"
-                                    android:layout_gravity="center"
-                                    android:src="@drawable/ic_shopping_cart"
-                                    app:tint="#FFFFFF" />
-                            </com.google.android.material.card.MaterialCardView>
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Create Invoice"
-                                android:textColor="#000000"
-                                android:fontFamily="@font/sf_pro_display_semibold"
-                                android:layout_marginTop="16dp"
-                                android:textSize="15sp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Visual invoice catalog"
                                 android:textColor="#8E8E93"
                                 android:fontFamily="@font/sf_pro_display_regular"
                                 android:layout_marginTop="4dp"
@@ -782,71 +731,85 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- Unproductive Sales -->
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/navUnproductiveSales"
-                        android:layout_width="0dp"
+                </GridLayout>
+
+                <!-- 6. Rep Performance Insights Banner (Moved to bottom) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/navInsights"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#0F172A"
+                    app:strokeWidth="0dp"
+                    android:layout_marginBottom="16dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_rowWeight="1"
-                        android:layout_margin="6dp"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?attr/selectableItemBackground"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="0dp"
-                        app:cardBackgroundColor="#F2F2F7"
-                        app:strokeWidth="0dp">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="14dp"
+                            app:cardBackgroundColor="#3B82F6"
+                            app:cardElevation="0dp"
+                            android:layout_marginEnd="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:text="📈"
+                                android:textSize="22sp" />
+                        </com.google.android.material.card.MaterialCardView>
 
                         <LinearLayout
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="20dp">
-
-                            <com.google.android.material.card.MaterialCardView
-                                android:layout_width="44dp"
-                                android:layout_height="44dp"
-                                app:cardCornerRadius="14dp"
-                                app:cardBackgroundColor="#D97706"
-                                app:cardElevation="0dp">
-
-                                <ImageView
-                                    android:layout_width="24dp"
-                                    android:layout_height="24dp"
-                                    android:layout_gravity="center"
-                                    android:src="@drawable/ic_unproductive_visit"
-                                    app:tint="#FFFFFF" />
-                            </com.google.android.material.card.MaterialCardView>
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Unproductive Sales"
-                                android:textColor="#000000"
-                                android:fontFamily="@font/sf_pro_display_semibold"
-                                android:layout_marginTop="16dp"
-                                android:textSize="15sp" />
+                                android:text="Rep Performance Insights"
+                                android:textColor="#FFFFFF"
+                                android:fontFamily="@font/sf_pro_display_bold"
+                                android:textSize="17sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Log visit without order"
-                                android:textColor="#8E8E93"
+                                android:text="Interactive charts, KPIs &amp; rankings"
+                                android:textColor="#94A3B8"
                                 android:fontFamily="@font/sf_pro_display_regular"
-                                android:layout_marginTop="4dp"
-                                android:textSize="12sp" />
+                                android:textSize="13sp"
+                                android:layout_marginTop="2dp" />
 
                         </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
 
-                </GridLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="OPEN ➔"
+                            android:textColor="#3B82F6"
+                            android:fontFamily="@font/sf_pro_display_bold"
+                            android:textSize="13sp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
 
         </ScrollView>
-
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Floating Stark Black Navigation Capsule with ConstraintLayout sizing rules -->
     <com.google.android.material.card.MaterialCardView

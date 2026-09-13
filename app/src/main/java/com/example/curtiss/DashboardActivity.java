@@ -5,7 +5,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -17,13 +20,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import org.json.JSONObject;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import com.example.curtiss.network.ApiClient;
+import com.example.curtiss.network.ApiService;
+import com.example.curtiss.network.models.DashboardAnalyticsResponse;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -33,7 +36,6 @@ import java.util.Locale;
 
 public class DashboardActivity extends AppCompatActivity {
 
-    private SwipeRefreshLayout swipeRefresh;
     private Spinner spinnerMonth;
     private TextView txtOfflineBanner;
     private RelativeLayout layoutLoadingOverlay;
@@ -68,6 +70,9 @@ public class DashboardActivity extends AppCompatActivity {
     private List<String> monthStartDates = new ArrayList<>();
     private List<String> monthEndDates = new ArrayList<>();
 
+    private ExecutorService executorService;
+    private Handler mainHandler;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,7 +80,9 @@ public class DashboardActivity extends AppCompatActivity {
 
         prefs = SecurePreferences.getSessionPrefs(this);
         userId = prefs.getInt("user_id", 0);
-        baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
+        executorService = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
 
         initViews();
         setupMonthSpinner();
@@ -83,8 +90,15 @@ public class DashboardActivity extends AppCompatActivity {
         setupBottomNavigation();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
+    }
+
     private void initViews() {
-        swipeRefresh = findViewById(R.id.swipeRefreshDashboard);
         spinnerMonth = findViewById(R.id.spinnerMonth);
         txtOfflineBanner = findViewById(R.id.txtOfflineBanner);
         layoutLoadingOverlay = findViewById(R.id.layoutLoadingOverlay);
@@ -178,12 +192,7 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                checkConnectionAndLoad(false);
-            }
-        });
+        // Removed SwipeRefreshLayout listener
     }
 
     private boolean isNetworkAvailable() {
@@ -215,123 +224,68 @@ public class DashboardActivity extends AppCompatActivity {
     private void checkConnectionAndLoad(boolean showOverlay) {
         if (!isNetworkAvailable()) {
             showOfflineWarning();
-            if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
             return;
         }
 
         txtOfflineBanner.setVisibility(View.GONE);
-        new FetchAnalyticsTask(showOverlay).execute();
+        fetchAnalyticsAsync(showOverlay);
     }
 
-    // 100% Online real-time analytics task
-    private class FetchAnalyticsTask extends AsyncTask<Void, Void, String> {
-        private boolean showOverlay;
-
-        public FetchAnalyticsTask(boolean showOverlay) {
-            this.showOverlay = showOverlay;
+    private void fetchAnalyticsAsync(final boolean showOverlay) {
+        if (showOverlay && layoutLoadingOverlay != null) {
+            layoutLoadingOverlay.setVisibility(View.VISIBLE);
         }
 
-        @Override
-        protected void onPreExecute() {
-            if (showOverlay && layoutLoadingOverlay != null) {
-                layoutLoadingOverlay.setVisibility(View.VISIBLE);
-            }
-        }
-
-        @Override
-        protected String doInBackground(Void... voids) {
-            HttpURLConnection conn = null;
-            try {
-                StringBuilder urlBuilder = new StringBuilder(baseUrl);
-                urlBuilder.append("/rep/RepDashboard/api_get_performance_analytics");
-                urlBuilder.append("?user_id=").append(userId);
-                if (startDate != null && !startDate.isEmpty()) {
-                    urlBuilder.append("&start_date=").append(URLEncoder.encode(startDate, "UTF-8"));
-                }
-                if (endDate != null && !endDate.isEmpty()) {
-                    urlBuilder.append("&end_date=").append(URLEncoder.encode(endDate, "UTF-8"));
-                }
-
-                URL url = new URL(urlBuilder.toString());
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("X-User-ID", String.valueOf(userId));
-                String token = prefs.getString("api_token", "");
-                if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        sb.append(line);
-                    }
-                    in.close();
-                    return sb.toString();
-                } else {
-                    return "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
-                }
-            } catch (Exception e) {
-                return "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            if (layoutLoadingOverlay != null) layoutLoadingOverlay.setVisibility(View.GONE);
-            if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
-
-            if (result == null) {
-                Toast.makeText(DashboardActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            try {
-                JSONObject response = new JSONObject(result);
-                if (response.optBoolean("success", false)) {
-                    JSONObject data = response.optJSONObject("data");
-                    if (data != null) {
-                        populateDashboard(data);
+        ApiService apiService = ApiClient.getClient(this).create(ApiService.class);
+        apiService.getPerformanceAnalytics(userId, startDate, endDate).enqueue(new Callback<DashboardAnalyticsResponse>() {
+            @Override
+            public void onResponse(Call<DashboardAnalyticsResponse> call, Response<DashboardAnalyticsResponse> response) {
+                if (layoutLoadingOverlay != null) layoutLoadingOverlay.setVisibility(View.GONE);
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    DashboardAnalyticsResponse res = response.body();
+                    if (res.success && res.data != null) {
+                        populateDashboard(res.data);
+                    } else {
+                        String msg = res.message != null ? res.message : "Failed to load dashboard data.";
+                        Toast.makeText(DashboardActivity.this, msg, Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    String msg = response.optString("message", "Failed to load dashboard data.");
-                    Toast.makeText(DashboardActivity.this, msg, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(DashboardActivity.this, "Server error: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
-            } catch (Exception e) {
-                Toast.makeText(DashboardActivity.this, "Error parsing server response", Toast.LENGTH_SHORT).show();
             }
-        }
+
+            @Override
+            public void onFailure(Call<DashboardAnalyticsResponse> call, Throwable t) {
+                if (layoutLoadingOverlay != null) layoutLoadingOverlay.setVisibility(View.GONE);
+                Toast.makeText(DashboardActivity.this, "Connection error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
-    private void populateDashboard(JSONObject data) {
+    private void populateDashboard(DashboardAnalyticsResponse.Data data) {
         // Overall Banner
-        double overallScore = data.optDouble("overall_score", 0.0);
+        double overallScore = data.overallScore;
         txtOverallScore.setText(String.format(Locale.US, "Score: %.0f%%", overallScore));
 
-        JSONObject payroll = data.optJSONObject("payroll");
-        double baseSalary = payroll != null ? payroll.optDouble("base_salary", 0.0) : 0.0;
-        double totalEarnings = payroll != null ? payroll.optDouble("total_earnings", 0.0) : 0.0;
+        DashboardAnalyticsResponse.Payroll payroll = data.payroll;
+        double baseSalary = payroll != null ? payroll.baseSalary : 0.0;
+        double totalEarnings = payroll != null ? payroll.totalEarnings : 0.0;
         txtTotalEarnings.setText(formatCurrency(totalEarnings));
         txtBaseSalary.setText("Base Salary: " + formatCurrency(baseSalary) + "/month");
 
         // Card 1: Net Sales
-        double netSales = data.optDouble("net_sales", 0.0);
-        int invCount = data.optInt("invoice_count", 0);
-        double returns = data.optDouble("total_returns", 0.0);
+        double netSales = data.netSales;
+        int invCount = data.invoiceCount;
+        double returns = data.totalReturns;
         txtNetSales.setText(formatCurrency(netSales));
-        txtNetSalesSub.setText(invCount + " invoices · Ret " + formatCurrency(returns));
+        txtNetSalesSub.setText(invCount + " invoices Â· Ret " + formatCurrency(returns));
 
         // Card 2: Sales Needed
-        double salesTarget = data.optDouble("sales_target", 0.0);
-        double salesNeeded = data.optDouble("sales_needed_for_target", Math.max(0.0, salesTarget - netSales));
+        double salesTarget = data.salesTarget;
+        double salesNeeded = data.salesNeededForTarget;
         if (salesTarget > 0 && salesNeeded <= 0) {
-            txtSalesNeeded.setText("✓ Achieved!");
+            txtSalesNeeded.setText("âœ“ Achieved!");
             txtSalesNeeded.setTextColor(0xFF10B981); // Emerald green
         } else {
             txtSalesNeeded.setText(formatCurrency(salesNeeded));
@@ -340,8 +294,8 @@ public class DashboardActivity extends AppCompatActivity {
         txtSalesNeededSub.setText("Target: " + formatCurrency(salesTarget));
 
         // Card 3: Avg Daily Sales Needed
-        double avgSalesDay = data.optDouble("avg_sales_needed_per_day", 0.0);
-        int remainingDays = data.optInt("remaining_working_days", 0);
+        double avgSalesDay = data.avgSalesNeededPerDay;
+        int remainingDays = data.remainingWorkingDays;
         if (salesNeeded <= 0) {
             txtAvgSalesDay.setText("Rs 0");
         } else {
@@ -350,17 +304,17 @@ public class DashboardActivity extends AppCompatActivity {
         txtAvgSalesDaySub.setText(remainingDays + " working days left");
 
         // Card 4: Total Collections
-        double collections = data.optDouble("total_collections", 0.0);
-        double efficiency = data.optDouble("collection_efficiency", 0.0);
+        double collections = data.totalCollections;
+        double efficiency = data.collectionEfficiency;
         txtCollections.setText(formatCurrency(collections));
         txtCollectionsSub.setText(String.format(Locale.US, "Efficiency: %.1f%%", efficiency));
 
         // Card 5: Collections Needed
-        double collNeeded = data.optDouble("collections_needed_for_target", 0.0);
-        double collTargetPct = data.optDouble("collection_target_pct", 80.0);
-        double targetCollAmount = data.optDouble("target_collection_amount", 0.0);
+        double collNeeded = data.collectionsNeededForTarget;
+        double collTargetPct = data.collectionTargetPct;
+        double targetCollAmount = data.targetCollectionAmount;
         if (targetCollAmount > 0 && collNeeded <= 0) {
-            txtCollectionsNeeded.setText("✓ Achieved!");
+            txtCollectionsNeeded.setText("âœ“ Achieved!");
             txtCollectionsNeeded.setTextColor(0xFF10B981);
         } else {
             txtCollectionsNeeded.setText(formatCurrency(collNeeded));
@@ -369,64 +323,64 @@ public class DashboardActivity extends AppCompatActivity {
         txtCollectionsNeededSub.setText(String.format(Locale.US, "Target: %.0f%% (%s)", collTargetPct, formatCurrency(targetCollAmount)));
 
         // Card 6: Total Credit Outstanding
-        double outstanding = data.optDouble("total_outstanding", 0.0);
+        double outstanding = data.totalOutstanding;
         txtTotalCredit.setText(formatCurrency(outstanding));
         txtTotalCreditSub.setText("Total Credit Outstanding");
 
         // Card 7: Productive Visits
-        int prodVisits = data.optInt("productive_visits", 0);
-        JSONObject targets = data.optJSONObject("targets");
-        int pvTarget = targets != null ? targets.optInt("productive_visits_target", 0) : 0;
+        int prodVisits = data.productiveVisits;
+        DashboardAnalyticsResponse.Targets targets = data.targets;
+        int pvTarget = targets != null ? targets.productiveVisitsTarget : 0;
         txtProdVisits.setText(String.valueOf(prodVisits));
         txtProdVisitsSub.setText("Target: " + pvTarget + " bills");
 
         // Card 8: Working Days
-        int workingDays = data.optInt("working_days", 0);
-        int wdTarget = targets != null ? targets.optInt("working_days_target", 0) : 0;
+        int workingDays = data.workingDays;
+        int wdTarget = targets != null ? targets.workingDaysTarget : 0;
         txtWorkingDays.setText(String.valueOf(workingDays));
         txtWorkingDaysSub.setText("Target: " + wdTarget + " days");
 
         // Earnings Breakdown Table
         if (payroll != null) {
-            double commAmount = payroll.optDouble("sales_commission", 0.0);
-            JSONObject pSettings = payroll.optJSONObject("settings");
-            double commRate = pSettings != null ? pSettings.optDouble("sales_commission_pct", 0.0) : 0.0;
+            double commAmount = payroll.salesCommission;
+            DashboardAnalyticsResponse.Settings pSettings = payroll.settings;
+            double commRate = pSettings != null ? pSettings.salesCommissionPct : 0.0;
             txtCommissionAmount.setText("+ " + formatCurrency(commAmount));
             txtCommissionDesc.setText(String.format(Locale.US, "%.2f%% of Collections", commRate));
 
-            double incAmount = payroll.optDouble("sales_incentive", 0.0);
-            double incRate = pSettings != null ? pSettings.optDouble("sales_incentive_pct", 0.0) : 0.0;
-            double incCap = pSettings != null ? pSettings.optDouble("sales_incentive_max_limit", 0.0) : 0.0;
+            double incAmount = payroll.salesIncentive;
+            double incRate = pSettings != null ? pSettings.salesIncentivePct : 0.0;
+            double incCap = pSettings != null ? pSettings.salesIncentiveMaxLimit : 0.0;
             txtIncentiveAmount.setText("+ " + formatCurrency(incAmount));
-            txtIncentiveDesc.setText(String.format(Locale.US, "Rate: %.2f%% · Cap: %s", incRate, formatCurrency(incCap)));
+            txtIncentiveDesc.setText(String.format(Locale.US, "Rate: %.2f%% Â· Cap: %s", incRate, formatCurrency(incCap)));
 
-            double pvBonus = payroll.optDouble("productive_visits_bonus", 0.0);
-            double pvBonusRate = payroll.optDouble("productive_visits_bonus_rate", 0.0);
+            double pvBonus = payroll.productiveVisitsBonus;
+            double pvBonusRate = payroll.productiveVisitsBonusRate;
             txtPvBonusAmount.setText("+ " + formatCurrency(pvBonus));
             if (pvTarget > 0 && prodVisits >= pvTarget) {
-                txtPvBonusDesc.setText("✓ Hit (" + prodVisits + "/" + pvTarget + " bills)");
+                txtPvBonusDesc.setText("âœ“ Hit (" + prodVisits + "/" + pvTarget + " bills)");
             } else if (pvTarget > 0) {
                 txtPvBonusDesc.setText("Short (" + prodVisits + "/" + pvTarget + " bills)");
             } else {
                 txtPvBonusDesc.setText("No target set");
             }
 
-            double wdBonus = payroll.optDouble("working_days_bonus", 0.0);
-            double wdBonusRate = payroll.optDouble("working_days_bonus_rate", 0.0);
+            double wdBonus = payroll.workingDaysBonus;
+            double wdBonusRate = payroll.workingDaysBonusRate;
             txtWdBonusAmount.setText("+ " + formatCurrency(wdBonus));
             if (wdTarget > 0 && workingDays >= wdTarget) {
-                txtWdBonusDesc.setText("✓ Hit (" + workingDays + "/" + wdTarget + " days)");
+                txtWdBonusDesc.setText("âœ“ Hit (" + workingDays + "/" + wdTarget + " days)");
             } else if (wdTarget > 0) {
                 txtWdBonusDesc.setText("Short (" + workingDays + "/" + wdTarget + " days)");
             } else {
                 txtWdBonusDesc.setText("No target set");
             }
 
-            double collBonus = payroll.optDouble("collection_bonus", 0.0);
-            double collBonusRate = payroll.optDouble("collection_bonus_rate", 0.0);
+            double collBonus = payroll.collectionBonus;
+            double collBonusRate = payroll.collectionBonusRate;
             txtCollBonusAmount.setText("+ " + formatCurrency(collBonus));
             if (collTargetPct > 0 && efficiency >= collTargetPct) {
-                txtCollBonusDesc.setText(String.format(Locale.US, "✓ Hit (%.1f%%/%.0f%%)", efficiency, collTargetPct));
+                txtCollBonusDesc.setText(String.format(Locale.US, "âœ“ Hit (%.1f%%/%.0f%%)", efficiency, collTargetPct));
             } else if (collTargetPct > 0) {
                 txtCollBonusDesc.setText(String.format(Locale.US, "Short (%.1f%%/%.0f%%)", efficiency, collTargetPct));
             } else {

@@ -172,82 +172,106 @@ public class HistoryActivity extends AppCompatActivity {
         loadInvoicesFromLocal("");
     }
 
-    private void loadInvoicesFromLocal(String filter) {
-        invoiceList.clear();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
+    private void loadInvoicesFromLocal(final String filter) {
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable() {
+            @Override
+            public void run() {
+                final List<InvoiceModel> loaded = new ArrayList<>();
+                SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        // Join query to fetch customer name mapping and payment term name
-        String query = "SELECT i.*, c.name AS customer_name, pt.name AS payment_term_name FROM invoices i " +
-                "LEFT JOIN customers c ON i.customer_id = c.id " +
-                "LEFT JOIN payment_terms pt ON i.payment_term_id = pt.id";
-        String[] args = null;
+                // Join query to fetch customer name mapping and payment term name
+                String query = "SELECT i.*, c.name AS customer_name, pt.name AS payment_term_name FROM invoices i " +
+                        "LEFT JOIN customers c ON i.customer_id = c.id " +
+                        "LEFT JOIN payment_terms pt ON i.payment_term_id = pt.id";
+                String[] args = null;
 
-        if (filter != null && !filter.trim().isEmpty()) {
-            query = "SELECT i.*, c.name AS customer_name, pt.name AS payment_term_name FROM invoices i " +
-                    "LEFT JOIN customers c ON i.customer_id = c.id " +
-                    "LEFT JOIN payment_terms pt ON i.payment_term_id = pt.id " +
-                    "WHERE i.invoice_number LIKE ? OR c.name LIKE ?";
-            args = new String[]{"%" + filter + "%", "%" + filter + "%"};
-        }
+                if (filter != null && !filter.trim().isEmpty()) {
+                    query = "SELECT i.*, c.name AS customer_name, pt.name AS payment_term_name FROM invoices i " +
+                            "LEFT JOIN customers c ON i.customer_id = c.id " +
+                            "LEFT JOIN payment_terms pt ON i.payment_term_id = pt.id " +
+                            "WHERE i.invoice_number LIKE ? OR c.name LIKE ?";
+                    args = new String[]{"%" + filter + "%", "%" + filter + "%"};
+                }
 
-        query += " ORDER BY i.id DESC";
+                query += " ORDER BY i.id DESC";
 
-        Cursor cursor = db.rawQuery(query, args);
-        while (cursor.moveToNext()) {
-            InvoiceModel inv = new InvoiceModel();
-            inv.id = DatabaseHelper.safeGetInt(cursor, "id", 0);
-            inv.serverId = DatabaseHelper.safeGetInt(cursor, "server_id", 0);
-            inv.invoiceNumber = DatabaseHelper.safeGetString(cursor, "invoice_number", "");
-            inv.customerName = DatabaseHelper.safeGetString(cursor, "customer_name", "Unknown Shop");
-            inv.date = DatabaseHelper.safeGetString(cursor, "invoice_date", "");
-            inv.subtotal = DatabaseHelper.safeGetDouble(cursor, "subtotal", 0.0);
-            inv.discount = DatabaseHelper.safeGetDouble(cursor, "discount", 0.0);
-            inv.discountType = DatabaseHelper.safeGetString(cursor, "discount_type", "Rs");
-            inv.discountRate = DatabaseHelper.safeGetDouble(cursor, "discount_rate", 0.0);
-            inv.tax = DatabaseHelper.safeGetDouble(cursor, "tax", 0.0);
-            inv.grandTotal = DatabaseHelper.safeGetDouble(cursor, "grand_total", 0.0);
-            String localTermName = DatabaseHelper.safeGetString(cursor, "payment_term_name", "");
-            if (localTermName == null || localTermName.isEmpty()) {
-                localTermName = DatabaseHelper.safeGetString(cursor, "payment_method", "Term");
+                Cursor cursor = db.rawQuery(query, args);
+                while (cursor.moveToNext()) {
+                    InvoiceModel inv = new InvoiceModel();
+                    inv.id = DatabaseHelper.safeGetInt(cursor, "id", 0);
+                    inv.serverId = DatabaseHelper.safeGetInt(cursor, "server_id", 0);
+                    inv.invoiceNumber = DatabaseHelper.safeGetString(cursor, "invoice_number", "");
+                    inv.customerName = DatabaseHelper.safeGetString(cursor, "customer_name", "Unknown Shop");
+                    inv.date = DatabaseHelper.safeGetString(cursor, "invoice_date", "");
+                    inv.subtotal = DatabaseHelper.safeGetDouble(cursor, "subtotal", 0.0);
+                    inv.discount = DatabaseHelper.safeGetDouble(cursor, "discount", 0.0);
+                    inv.discountType = DatabaseHelper.safeGetString(cursor, "discount_type", "Rs");
+                    inv.discountRate = DatabaseHelper.safeGetDouble(cursor, "discount_rate", 0.0);
+                    inv.tax = DatabaseHelper.safeGetDouble(cursor, "tax", 0.0);
+                    inv.grandTotal = DatabaseHelper.safeGetDouble(cursor, "grand_total", 0.0);
+                    String localTermName = DatabaseHelper.safeGetString(cursor, "payment_term_name", "");
+                    if (localTermName == null || localTermName.isEmpty()) {
+                        localTermName = DatabaseHelper.safeGetString(cursor, "payment_method", "Term");
+                    }
+                    inv.paymentMethod = localTermName;
+                    inv.isSynced = DatabaseHelper.safeGetInt(cursor, "is_synced", 0);
+                    loaded.add(inv);
+                }
+                cursor.close();
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isFinishing() || isDestroyed()) return;
+                        invoiceList.clear();
+                        invoiceList.addAll(loaded);
+                        if (invoiceAdapter == null) {
+                            invoiceAdapter = new InvoiceAdapter();
+                            lstInvoices.setAdapter(invoiceAdapter);
+                        } else {
+                            invoiceAdapter.notifyDataSetChanged();
+                        }
+                    }
+                });
             }
-            inv.paymentMethod = localTermName;
-            inv.isSynced = DatabaseHelper.safeGetInt(cursor, "is_synced", 0);
-            invoiceList.add(inv);
-        }
-        cursor.close();
-
-        if (invoiceAdapter == null) {
-            invoiceAdapter = new InvoiceAdapter();
-            lstInvoices.setAdapter(invoiceAdapter);
-        } else {
-            invoiceAdapter.notifyDataSetChanged();
-        }
+        });
     }
 
-    private void openInvoiceDetails(InvoiceModel inv) {
+    private void openInvoiceDetails(final InvoiceModel inv) {
         this.selectedInvoice = inv;
-        detailItemList.clear();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable() {
+            @Override
+            public void run() {
+                final List<InvoiceItemModel> loadedItems = new ArrayList<>();
+                SQLiteDatabase db = dbHelper.getReadableDatabase();
+                Cursor cursor = db.rawQuery("SELECT * FROM invoice_items WHERE invoice_id = ?", new String[]{String.valueOf(inv.id)});
+                while (cursor.moveToNext()) {
+                    InvoiceItemModel item = new InvoiceItemModel();
+                    item.productName = DatabaseHelper.safeGetString(cursor, "product_name", "");
+                    item.quantity = DatabaseHelper.safeGetInt(cursor, "quantity", 0);
+                    item.unitPrice = DatabaseHelper.safeGetDouble(cursor, "unit_price", 0.0);
+                    item.discountVal = DatabaseHelper.safeGetDouble(cursor, "discount_val", 0.0);
+                    item.discountType = DatabaseHelper.safeGetString(cursor, "discount_type", "Rs");
+                    item.discountRate = DatabaseHelper.safeGetDouble(cursor, "discount_rate", 0.0);
+                    item.total = DatabaseHelper.safeGetDouble(cursor, "total", 0.0);
+                    loadedItems.add(item);
+                }
+                cursor.close();
 
-        Cursor cursor = db.rawQuery("SELECT * FROM invoice_items WHERE invoice_id = ?", new String[]{String.valueOf(inv.id)});
-        while (cursor.moveToNext()) {
-            InvoiceItemModel item = new InvoiceItemModel();
-            item.productName = DatabaseHelper.safeGetString(cursor, "product_name", "");
-            item.quantity = DatabaseHelper.safeGetInt(cursor, "quantity", 0);
-            item.unitPrice = DatabaseHelper.safeGetDouble(cursor, "unit_price", 0.0);
-            item.discountVal = DatabaseHelper.safeGetDouble(cursor, "discount_val", 0.0);
-            item.discountType = DatabaseHelper.safeGetString(cursor, "discount_type", "Rs");
-            item.discountRate = DatabaseHelper.safeGetDouble(cursor, "discount_rate", 0.0);
-            item.total = DatabaseHelper.safeGetDouble(cursor, "total", 0.0);
-            detailItemList.add(item);
-        }
-        cursor.close();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isFinishing() || isDestroyed()) return;
+                        
+                        detailItemList.clear();
+                        detailItemList.addAll(loadedItems);
 
-        // Populate detail views
-        txtDetailInvNumber.setText("INVOICE: " + inv.invoiceNumber);
-        txtDetailInvCust.setText("Client Shop: " + inv.customerName);
-        txtDetailInvTerm.setText("Payment Term: " + inv.paymentMethod);
-        txtDetailSubtotal.setText(String.format(Locale.getDefault(), "LKR %.2f", inv.subtotal));
+                        // Populate detail views
+                        txtDetailInvNumber.setText("INVOICE: " + inv.invoiceNumber);
+                        txtDetailInvCust.setText("Client Shop: " + inv.customerName);
+                        txtDetailInvTerm.setText("Payment Term: " + inv.paymentMethod);
+                        txtDetailSubtotal.setText(String.format(Locale.getDefault(), "LKR %.2f", inv.subtotal));
         if ("%".equals(inv.discountType)) {
             txtDetailDiscount.setText(String.format(Locale.getDefault(), "LKR %.2f (%.1f%%)", inv.discount, inv.discountRate));
         } else {
@@ -264,6 +288,10 @@ public class HistoryActivity extends AppCompatActivity {
         }
 
         layoutInvoiceDetailOverlay.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
     }
 
     private void generateAndOpenInvoicePdf(InvoiceModel inv, List<InvoiceItemModel> items) {

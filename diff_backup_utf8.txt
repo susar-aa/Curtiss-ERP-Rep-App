@@ -1206,7 +1206,7 @@ index 9dd358c..6b37c90 100644
 +        });
  
          // Load QR Code in background thread
-         String qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + Uri.encode("https://curtiss.suzxlabs.com/sales/show/" + invoiceNum);
+         String qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + Uri.encode("https://falcon.trycurtiss.com/sales/show/" + invoiceNum);
 @@ -1431,58 +1722,81 @@ public class BillingActivity extends AppCompatActivity {
  
              // Resolve Customer

@@ -1,87 +1,195 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121824"
+    android:background="#FFFFFF"
     android:padding="24dp">
 
+    <!-- Top text -->
     <LinearLayout
+        android:id="@+id/headerTextContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="32dp"
         android:gravity="center_horizontal"
         android:orientation="vertical">
-
-        <!-- Header Icon & Title -->
-        <ImageView
-            android:id="@+id/imgUpdateLogo"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_marginTop="32dp"
-            android:layout_marginBottom="16dp"
-            android:src="@android:drawable/stat_sys_download"
-            android:tint="#3B82F6" />
 
         <TextView
             android:id="@+id/txtUpdateTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-medium"
-            android:text="New Update Available"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp"
+            android:text="Update Available"
+            android:textColor="#000000"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/txtUpdateVersion"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="sans-serif-light"
-            android:text="Version 1.0.1 is ready to download"
-            android:textColor="#CBD5E1"
-            android:textSize="14sp" />
-
-        <!-- Release Notes Section -->
-        <LinearLayout
-            android:id="@+id/releaseNotesCard"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="24dp"
-            android:background="#1E293B"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="sans-serif-light"
+            android:text="A new firmware is available for your device.\nThe update may take a few minutes."
+            android:gravity="center"
+            android:textColor="#333333"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp" />
+    </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="WHAT'S NEW"
-                android:textColor="#94A3B8"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05"
-                android:layout_marginBottom="8dp" />
+    <!-- Center Icon with Glowing Animation (Pure XML) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottomContainer"
+        android:layout_below="@id/headerTextContainer"
+        android:gravity="center">
 
-            <ScrollView
+        <!-- Glowing Spinning Rings -->
+        <ProgressBar
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_centerInParent="true"
+            android:indeterminateTint="#22000000"
+            style="?android:attr/progressBarStyleLarge" />
+        
+        <ProgressBar
+            android:layout_width="280dp"
+            android:layout_height="280dp"
+            android:layout_centerInParent="true"
+            android:indeterminateTint="#11000000"
+            style="?android:attr/progressBarStyleLarge" />
+
+        <!-- White device icon block -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/deviceCard"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:layout_centerInParent="true"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="30dp"
+            app:cardElevation="10dp">
+
+            <ImageView
+                android:id="@+id/imgUpdateLogo"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true">
+                android:padding="20dp">
+                
+                <View
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentTop="true"
+                    android:background="@drawable/green_dot" />
 
-                <TextView
-                    android:id="@+id/txtReleaseNotes"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif"
-                    android:textColor="#F1F5F9"
-                    android:textSize="14sp"
-                    android:lineSpacingExtra="4dp"
-                    android:text="• Small bug fixes and performance improvements." />
-            </ScrollView>
-        </LinearLayout>
+                <androidx.cardview.widget.CardView
+                    android:layout_width="70dp"
+                    android:layout_height="70dp"
+                    android:layout_centerInParent="true"
+                    app:cardBackgroundColor="#F1F5F9"
+                    app:cardCornerRadius="35dp"
+                    app:cardElevation="0dp">
+                    
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+                        
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="6dp"
+                            android:layout_height="6dp"
+                            android:layout_centerHorizontal="true"
+                            android:layout_marginTop="16dp"
+                            app:cardBackgroundColor="#000000"
+                            app:cardCornerRadius="3dp"
+                            app:cardElevation="0dp" />
 
-        <!-- Progress and Status Container -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerInParent="true"
+                            android:layout_marginTop="4dp"
+                            android:orientation="horizontal">
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="12dp"
+                                android:layout_height="12dp"
+                                android:layout_marginRight="8dp"
+                                app:cardBackgroundColor="#333333"
+                                app:cardCornerRadius="6dp"
+                                app:cardElevation="0dp" />
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="12dp"
+                                android:layout_height="12dp"
+                                android:layout_marginLeft="8dp"
+                                app:cardBackgroundColor="#333333"
+                                app:cardCornerRadius="6dp"
+                                app:cardElevation="0dp" />
+                        </LinearLayout>
+                    </RelativeLayout>
+                </androidx.cardview.widget.CardView>
+            </RelativeLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Update Icon overlay -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignRight="@id/deviceCard"
+            android:layout_alignBottom="@id/deviceCard"
+            android:layout_marginRight="-10dp"
+            android:layout_marginBottom="-10dp"
+            app:cardBackgroundColor="#000000"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/stat_sys_upload"
+                android:tint="#FFFFFF" />
+        </androidx.cardview.widget.CardView>
+
+    </RelativeLayout>
+
+    <!-- Bottom Container -->
+    <LinearLayout
+        android:id="@+id/bottomContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- What's New Button -->
+        <Button
+            android:id="@+id/btnWhatsNew"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:backgroundTint="#EF4444"
+            android:text="What's New?"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:cornerRadius="20dp"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp"
+            android:elevation="0dp"
+            android:stateListAnimator="@null"
+            android:drawableLeft="@android:drawable/ic_menu_info_details"
+            android:drawableTint="#FFFFFF"
+            android:drawablePadding="8dp" />
+
+        <!-- Progress Container -->
         <LinearLayout
             android:id="@+id/downloadProgressContainer"
             android:layout_width="match_parent"
@@ -95,51 +203,58 @@
                 android:id="@+id/downloadProgressBar"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="8dp"
                 android:max="100"
                 android:progress="0"
-                android:progressTint="#3B82F6"
-                android:progressBackgroundTint="#334155" />
+                android:progressTint="#000000"
+                android:progressBackgroundTint="#E2E8F0"
+                android:indeterminate="true"
+                android:indeterminateTint="#000000" />
 
             <TextView
                 android:id="@+id/txtDownloadStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:fontFamily="sans-serif-medium"
-                android:text="Downloading: 0%"
-                android:textColor="#3B82F6"
+                android:text="Preparing download..."
+                android:textColor="#000000"
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Action Buttons -->
+        <!-- Buttons -->
         <LinearLayout
             android:id="@+id/buttonContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginBottom="16dp">
+            android:orientation="vertical">
 
             <Button
                 android:id="@+id/btnUpdateNow"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:backgroundTint="#3B82F6"
-                android:text="UPDATE NOW"
+                android:layout_height="56dp"
+                android:backgroundTint="#000000"
+                android:text="Update now"
                 android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:cornerRadius="28dp" />
 
             <Button
                 android:id="@+id/btnUpdateLater"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:layout_marginTop="10dp"
-                android:backgroundTint="#334155"
-                android:text="LATER"
-                android:textColor="#CBD5E1"
-                android:textSize="14sp" />
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#00000000"
+                android:text="Later"
+                android:textColor="#666666"
+                android:textAllCaps="false"
+                android:textSize="14sp"
+                app:strokeColor="#00000000"
+                android:stateListAnimator="@null"
+                android:elevation="0dp" />
         </LinearLayout>
-
     </LinearLayout>
+
 </RelativeLayout>

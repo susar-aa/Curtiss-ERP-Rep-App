@@ -1341,7 +1341,7 @@ public class BillingActivity extends AppCompatActivity {
                 } else {
                     cleanPhone = "";
                 }
-                String msg = "Dear " + customerName + ", thank you for your business. Here is the link to view your invoice " + invoiceNum + " online: https://curtiss.suzxlabs.com/sales/show/" + invoiceNum;
+                String msg = "Dear " + customerName + ", thank you for your business. Here is the link to view your invoice " + invoiceNum + " online: https://falcon.trycurtiss.com/sales/show/" + invoiceNum;
                 try {
                     Intent intent = new Intent(Intent.ACTION_VIEW);
                     intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + Uri.encode(msg)));
@@ -1382,7 +1382,7 @@ public class BillingActivity extends AppCompatActivity {
         dialog.show();
 
         // Load QR Code in background thread
-        String qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + Uri.encode("https://curtiss.suzxlabs.com/sales/show/" + invoiceNum);
+        String qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + Uri.encode("https://falcon.trycurtiss.com/sales/show/" + invoiceNum);
         loadQrCode(qrApiUrl, imgQr);
     }
 

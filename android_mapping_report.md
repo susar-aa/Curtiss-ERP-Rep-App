@@ -140,7 +140,7 @@ When the user clicks the green **"Sync Offline Data"** button, the app initiates
 ```mermaid
 sequenceDiagram
     participant Mobile as Android Native App (SQLite)
-    participant Server as Plesk Server (https://curtiss.suzxlabs.com)
+    participant Server as Plesk Server (https://falcon.trycurtiss.com)
 
     Note over Mobile,Server: STEP 1: PULL (Download updates)
     Mobile->>Server: GET /rep/RepDashboard/sync_pull?api_sync=1

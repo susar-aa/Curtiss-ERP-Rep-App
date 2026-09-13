@@ -11,7 +11,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "curtiss_offline.db";
-    private static final int DATABASE_VERSION = 14;
+    private static final int DATABASE_VERSION = 15; // Bumped for Room Migration
 
     private static DatabaseHelper instance;
     private static boolean schemaHealed = false;
@@ -397,6 +397,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         android.util.Log.i("DatabaseHelper", "Upgrading database from version " + oldVersion + " to " + newVersion);
         for (int version = oldVersion + 1; version <= newVersion; version++) {
+            if (version == 15) {
+                // Version 15 is reserved for Room Database migration.
+                // Room creates the room_master_table internally. No schema changes here.
+                continue;
+            }
             upgradeToVersion(db, version);
         }
     }

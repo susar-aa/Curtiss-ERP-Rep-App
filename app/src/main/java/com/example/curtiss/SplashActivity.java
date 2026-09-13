@@ -6,7 +6,8 @@ import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.AsyncTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -34,6 +35,7 @@ public class SplashActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private DatabaseHelper dbHelper;
     private Handler mainHandler;
+    private ExecutorService executorService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,9 +50,18 @@ public class SplashActivity extends AppCompatActivity {
         prefs = SecurePreferences.getSessionPrefs(this);
         dbHelper = DatabaseHelper.getInstance(this);
         mainHandler = new Handler(Looper.getMainLooper());
+        executorService = Executors.newSingleThreadExecutor();
 
         // Check for app updates first if online
         checkForUpdates();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
     }
 
     private void runBackgroundCleanSync() {
@@ -205,11 +216,11 @@ public class SplashActivity extends AppCompatActivity {
         txtSplashStatus.setText("Checking for updates...");
         txtSplashDetail.setText("Contacting server...");
 
-        String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
         String apiUrl = baseUrl + "/rep/release/api_latest_version";
 
         android.util.Log.i("CurtissUpdate", "Checking for updates via API: " + apiUrl);
-        new CheckUpdateTask(baseUrl).execute(apiUrl);
+        checkUpdateAsync(baseUrl, apiUrl);
     }
 
     private void proceedToNextActivity() {
@@ -313,125 +324,127 @@ public class SplashActivity extends AppCompatActivity {
         return false;
     }
 
-    private class CheckUpdateTask extends AsyncTask<String, Void, String> {
-        private final String baseUrl;
-
-        public CheckUpdateTask(String baseUrl) {
-            this.baseUrl = baseUrl;
-        }
-
-        @Override
-        protected String doInBackground(String... urls) {
-            HttpURLConnection conn = null;
-            InputStream is = null;
-            try {
-                URL url = new URL(urls[0]);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setUseCaches(false);
-                conn.setDefaultUseCaches(false);
-                conn.setRequestProperty("Cache-Control", "no-cache");
-                conn.setRequestProperty("Pragma", "no-cache");
-                conn.setConnectTimeout(6000);
-                conn.setReadTimeout(6000);
-                conn.connect();
-
-                int responseCode = conn.getResponseCode();
-                android.util.Log.i("CurtissUpdate", "Server API responded with HTTP code: " + responseCode);
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    is = conn.getInputStream();
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        sb.append(line);
-                    }
-                    return sb.toString();
-                }
-            } catch (Exception e) {
-                android.util.Log.e("CurtissUpdate", "Error during background update check request", e);
-            } finally {
+    private void checkUpdateAsync(final String baseUrl, final String apiUrl) {
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                InputStream is = null;
+                String result = null;
                 try {
-                    if (is != null) is.close();
-                } catch (IOException ignored) {}
-                if (conn != null) conn.disconnect();
-            }
-            return null;
-        }
+                    URL url = new URL(apiUrl);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setUseCaches(false);
+                    conn.setDefaultUseCaches(false);
+                    conn.setRequestProperty("Cache-Control", "no-cache");
+                    conn.setRequestProperty("Pragma", "no-cache");
+                    conn.setConnectTimeout(6000);
+                    conn.setReadTimeout(6000);
+                    conn.connect();
 
-        @Override
-        protected void onPostExecute(String result) {
-            if (result != null) {
-                android.util.Log.i("CurtissUpdate", "Raw API Response JSON: " + result);
-                try {
-                    JSONObject json = new JSONObject(result);
-                    String latestVersion = json.getString("latestVersion");
-                    String apkUrl = json.getString("apkUrl");
-                    boolean forceUpdate = json.getBoolean("forceUpdate");
-                    JSONArray notesArray = json.getJSONArray("releaseNotes");
-                    String apkMd5 = json.optString("apkMd5", "");
-                    long serverCode = json.optLong("latestVersionCode", 0);
-                    long serverCodeNormalized = json.optLong("latestVersionCodeNormalized", 0);
+                    int responseCode = conn.getResponseCode();
+                    android.util.Log.i("CurtissUpdate", "Server API responded with HTTP code: " + responseCode);
 
-                    ArrayList<String> notes = new ArrayList<>();
-                    for (int i = 0; i < notesArray.length(); i++) {
-                        notes.add(notesArray.getString(i));
-                    }
-
-                    // Dynamically rewrite host domain if using custom local server URL
-                    if (apkUrl.startsWith("http")) {
-                        try {
-                            Uri parsedApk = Uri.parse(apkUrl);
-                            Uri parsedBase = Uri.parse(baseUrl);
-                            apkUrl = parsedBase.buildUpon()
-                                .path(parsedBase.getPath() + parsedApk.getPath())
-                                .build()
-                                .toString();
-                            apkUrl = apkUrl.replaceAll("(?<!https?:)/{2,}", "/");
-                        } catch (Exception ignored) {}
-                    }
-                    android.util.Log.i("CurtissUpdate", "Resolved APK URL: " + apkUrl);
-
-                    String currentVersion = getAppVersionName();
-                    long currentCode = getAppVersionCode();
-                    String currentPackage = getPackageName();
-                    String serverPackage = json.optString("packageName", "");
-
-                    android.util.Log.i("CurtissUpdate", "--- Update Diagnostics ---");
-                    android.util.Log.i("CurtissUpdate", "Local Package: " + currentPackage + " | Server Package: " + serverPackage);
-                    android.util.Log.i("CurtissUpdate", "Local Version Name: " + currentVersion + " | Server Version Name: " + latestVersion);
-                    android.util.Log.i("CurtissUpdate", "Local Version Code (Build): " + currentCode + " | Server Version Code (Build): " + serverCode);
-
-                    boolean updateNeeded = false;
-                    if (serverCode > currentCode) {
-                        if (serverPackage.isEmpty() || currentPackage.equalsIgnoreCase(serverPackage)) {
-                            android.util.Log.i("CurtissUpdate", "Update needed: Server build version code " + serverCode + " > installed " + currentCode);
-                            updateNeeded = true;
-                        } else {
-                            android.util.Log.i("CurtissUpdate", "Update bypassed: Package name mismatch (Local: " + currentPackage + " | Server: " + serverPackage + ")");
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        is = conn.getInputStream();
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (Thread.currentThread().isInterrupted()) break;
+                            sb.append(line);
                         }
-                    } else {
-                        android.util.Log.i("CurtissUpdate", "No update needed: Server build version code " + serverCode + " <= installed " + currentCode);
-                    }
-
-                    if (updateNeeded) {
-                        android.util.Log.i("CurtissUpdate", "New release detected. Launching UpdateActivity...");
-                        Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
-                        intent.putExtra("apk_url", apkUrl);
-                        intent.putExtra("force_update", forceUpdate);
-                        intent.putExtra("latest_version", latestVersion);
-                        intent.putStringArrayListExtra("release_notes", notes);
-                        startActivity(intent);
-                        finish();
-                        return;
+                        if (!Thread.currentThread().isInterrupted()) {
+                            result = sb.toString();
+                        }
                     }
                 } catch (Exception e) {
-                    android.util.Log.e("CurtissUpdate", "Failed to parse update check response JSON", e);
+                    android.util.Log.e("CurtissUpdate", "Error during background update check request", e);
+                } finally {
+                    try {
+                        if (is != null) is.close();
+                    } catch (IOException ignored) {}
+                    if (conn != null) conn.disconnect();
                 }
-            } else {
-                android.util.Log.w("CurtissUpdate", "API response was null (request failed or timed out).");
+
+                final String finalResult = result;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (finalResult != null) {
+                            android.util.Log.i("CurtissUpdate", "Raw API Response JSON: " + finalResult);
+                            try {
+                                JSONObject json = new JSONObject(finalResult);
+                                String latestVersion = json.getString("latestVersion");
+                                String apkUrl = json.getString("apkUrl");
+                                boolean forceUpdate = json.getBoolean("forceUpdate");
+                                JSONArray notesArray = json.getJSONArray("releaseNotes");
+                                String apkMd5 = json.optString("apkMd5", "");
+                                long serverCode = json.optLong("latestVersionCode", 0);
+                                long serverCodeNormalized = json.optLong("latestVersionCodeNormalized", 0);
+
+                                ArrayList<String> notes = new ArrayList<>();
+                                for (int i = 0; i < notesArray.length(); i++) {
+                                    notes.add(notesArray.getString(i));
+                                }
+
+                                // Dynamically rewrite host domain if using custom local server URL
+                                if (apkUrl.startsWith("http")) {
+                                    try {
+                                        Uri parsedApk = Uri.parse(apkUrl);
+                                        Uri parsedBase = Uri.parse(baseUrl);
+                                        apkUrl = parsedBase.buildUpon()
+                                            .path(parsedBase.getPath() + parsedApk.getPath())
+                                            .build()
+                                            .toString();
+                                        apkUrl = apkUrl.replaceAll("(?<!https?:)/{2,}", "/");
+                                    } catch (Exception ignored) {}
+                                }
+                                android.util.Log.i("CurtissUpdate", "Resolved APK URL: " + apkUrl);
+
+                                String currentVersion = getAppVersionName();
+                                long currentCode = getAppVersionCode();
+                                String currentPackage = getPackageName();
+                                String serverPackage = json.optString("packageName", "");
+
+                                android.util.Log.i("CurtissUpdate", "--- Update Diagnostics ---");
+                                android.util.Log.i("CurtissUpdate", "Local Package: " + currentPackage + " | Server Package: " + serverPackage);
+                                android.util.Log.i("CurtissUpdate", "Local Version Name: " + currentVersion + " | Server Version Name: " + latestVersion);
+                                android.util.Log.i("CurtissUpdate", "Local Version Code (Build): " + currentCode + " | Server Version Code (Build): " + serverCode);
+
+                                boolean updateNeeded = false;
+                                if (serverCode > currentCode) {
+                                    if (serverPackage.isEmpty() || currentPackage.equalsIgnoreCase(serverPackage)) {
+                                        android.util.Log.i("CurtissUpdate", "Update needed: Server build version code " + serverCode + " > installed " + currentCode);
+                                        updateNeeded = true;
+                                    } else {
+                                        android.util.Log.i("CurtissUpdate", "Update bypassed: Package name mismatch (Local: " + currentPackage + " | Server: " + serverPackage + ")");
+                                    }
+                                } else {
+                                    android.util.Log.i("CurtissUpdate", "No update needed: Server build version code " + serverCode + " <= installed " + currentCode);
+                                }
+
+                                if (updateNeeded) {
+                                    android.util.Log.i("CurtissUpdate", "New release detected. Launching UpdateActivity...");
+                                    Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
+                                    intent.putExtra("apk_url", apkUrl);
+                                    intent.putExtra("force_update", forceUpdate);
+                                    intent.putExtra("latest_version", latestVersion);
+                                    intent.putStringArrayListExtra("release_notes", notes);
+                                    startActivity(intent);
+                                    finish();
+                                    return;
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.e("CurtissUpdate", "Failed to parse update check response JSON", e);
+                            }
+                        } else {
+                            android.util.Log.w("CurtissUpdate", "API response was null (request failed or timed out).");
+                        }
+                        proceedToNextActivity();
+                    }
+                });
             }
-            proceedToNextActivity();
-        }
+        });
     }
 }

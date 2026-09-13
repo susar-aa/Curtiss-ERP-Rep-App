@@ -154,7 +154,7 @@ public class ImageDownloadManager {
                 }
             } else {
                 android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
-                String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+                String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
                 // Remove trailing slash if present in baseUrl
                 if (baseUrl.endsWith("/")) {
                     baseUrl = baseUrl.substring(0, baseUrl.length() - 1);

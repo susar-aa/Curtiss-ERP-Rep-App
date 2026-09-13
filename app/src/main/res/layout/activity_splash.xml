@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121824"
-    android:padding="24dp">
+    android:background="#FFFFFF"
+    android:padding="32dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,45 +12,67 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <!-- App Logo & Title Container -->
-        <ImageView
-            android:id="@+id/imgSplashLogo"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_marginBottom="24dp"
-            android:src="@android:drawable/sym_def_app_icon"
-            android:tint="#3B82F6" />
+        <!-- App Logo & Animated Ring Container -->
+        <RelativeLayout
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginBottom="32dp">
+            
+            <!-- Animated outer ring (Spinner) -->
+            <ProgressBar
+                android:layout_width="150dp"
+                android:layout_height="150dp"
+                android:layout_centerInParent="true"
+                android:indeterminate="true"
+                android:indeterminateTint="#000000" />
+                
+            <!-- Inner Solid Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_centerInParent="true"
+                app:cardBackgroundColor="#000000"
+                app:cardCornerRadius="32dp"
+                app:cardElevation="0dp">
+
+                <ImageView
+                    android:id="@+id/imgSplashLogo"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/stat_notify_sync"
+                    android:tint="#FFFFFF" />
+            </androidx.cardview.widget.CardView>
+        </RelativeLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:text="CURTISS ERP"
-            android:textColor="#FFFFFF"
+            android:fontFamily="@font/sf_pro_display_bold"
+            android:text="Curtiss ERP"
+            android:textColor="#000000"
             android:textSize="32sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.05" />
+            android:letterSpacing="-0.02" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:layout_marginBottom="48dp"
-            android:fontFamily="sans-serif-light"
+            android:fontFamily="@font/sf_pro_display_medium"
             android:text="Real-Time Field Portal"
-            android:textColor="#CBD5E1"
-            android:textSize="15sp"
-            android:letterSpacing="0.1" />
+            android:textColor="#8E8E93"
+            android:textSize="16sp"
+            android:letterSpacing="0.05" />
 
-        <!-- Sync Progress Card -->
+        <!-- Sync Progress Card (Light Theme) -->
         <LinearLayout
             android:id="@+id/syncCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#1E293B"
-            android:elevation="6dp"
+            android:background="@drawable/bg_splash_card_light"
             android:orientation="vertical"
-            android:padding="24dp"
+            android:padding="28dp"
             android:gravity="center"
             android:visibility="visible">
 
@@ -58,20 +80,21 @@
                 android:id="@+id/splashProgress"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="8dp"
-                android:layout_marginBottom="20dp"
+                android:layout_height="6dp"
+                android:layout_marginBottom="24dp"
                 android:indeterminate="true"
-                android:progressTint="#3B82F6"
+                android:progressTint="#000000"
+                android:progressBackgroundTint="#D1D1D6"
                 android:max="100" />
 
             <TextView
                 android:id="@+id/txtSplashStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/sf_pro_display_bold"
                 android:text="Syncing offline database..."
-                android:textColor="#F1F5F9"
-                android:textSize="16sp"
+                android:textColor="#000000"
+                android:textSize="17sp"
                 android:gravity="center" />
 
             <TextView
@@ -79,10 +102,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:fontFamily="sans-serif"
+                android:fontFamily="@font/sf_pro_display_medium"
                 android:text="Checking local changes..."
-                android:textColor="#CBD5E1"
-                android:textSize="13sp"
+                android:textColor="#8E8E93"
+                android:textSize="14sp"
                 android:gravity="center" />
 
         </LinearLayout>
@@ -91,11 +114,13 @@
             android:id="@+id/txtSplashFooter"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="48dp"
+            android:layout_marginTop="56dp"
             android:gravity="center"
-            android:text="Secure connection encrypted with SSL/TLS"
-            android:textColor="#94A3B8"
-            android:textSize="11sp" />
+            android:text="Secure connection encrypted with SSL/TLS\nAutomated Data Sync"
+            android:textColor="#A1A1A6"
+            android:lineSpacingExtra="4dp"
+            android:fontFamily="@font/sf_pro_display_regular"
+            android:textSize="12sp" />
 
     </LinearLayout>
 </RelativeLayout>

@@ -45,6 +45,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.lifecycle.Observer;
+import com.example.curtiss.viewmodel.BillingViewModel;
 
 public class BillingActivity extends AppCompatActivity {
 
@@ -124,6 +127,8 @@ public class BillingActivity extends AppCompatActivity {
     private View cardCartBadge;
     private TextView txtCartCount;
     private boolean isCurrentlyCheckoutMode = false;
+    
+    private BillingViewModel viewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -135,6 +140,7 @@ public class BillingActivity extends AppCompatActivity {
         setContentView(R.layout.activity_billing);
 
         dbHelper = DatabaseHelper.getInstance(this);
+        viewModel = new ViewModelProvider(this).get(BillingViewModel.class);
 
         // Bind layouts
         layoutBillingLoading = findViewById(R.id.layoutBillingLoading);
@@ -203,7 +209,7 @@ public class BillingActivity extends AppCompatActivity {
         // Bind redesigned layouts and controls
         // Note: layoutExpandedSearch, btnSearchToggle, btnClearSearch are removed from the
         // new XML (search is always visible in the floating capsule). They resolve to null
-        // and are already guarded by null checks below — no crash will occur.
+        // and are already guarded by null checks below â€” no crash will occur.
         layoutExpandedSearch = null;
         btnSearchToggle = null;
         btnClearSearch = null;
@@ -212,7 +218,7 @@ public class BillingActivity extends AppCompatActivity {
         txtCartCount = findViewById(R.id.txtCartCount);
 
         txtCartOverlayTitle = findViewById(R.id.txtCartOverlayTitle);
-        // layoutCartViewMode / layoutCartCheckoutMode removed in redesign — single unified overlay now
+        // layoutCartViewMode / layoutCartCheckoutMode removed in redesign â€” single unified overlay now
         layoutCartViewMode = null;
         txtOverlayCustomerName = findViewById(R.id.txtOverlayCustomerName);
         txtOverlayCustomerBalance = findViewById(R.id.txtOverlayCustomerBalance);
@@ -371,7 +377,7 @@ public class BillingActivity extends AppCompatActivity {
         // Setup dynamic categories first, then let it trigger catalog loading
         setupCategorySpinner();
 
-        // 🚨 Immediately trigger Customer Selection Dialog or draft resume at startup
+        // ðŸš¨ Immediately trigger Customer Selection Dialog or draft resume at startup
         long incomingEditId = getIntent().getLongExtra("edit_invoice_id", -1);
         if (incomingEditId != -1) {
             editInvoiceId = incomingEditId;
@@ -1092,7 +1098,7 @@ public class BillingActivity extends AppCompatActivity {
                 checkoutLongitude = longitude;
                 dismissGlobalLoadingDialog();
                 if (isFallback) {
-                    Toast.makeText(BillingActivity.this, "⚠️ GPS unavailable. Invoice location set to default.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(BillingActivity.this, "âš ï¸ GPS unavailable. Invoice location set to default.", Toast.LENGTH_LONG).show();
                 }
                 processDiscountPromptsAndCheckout();
             }
@@ -1121,6 +1127,7 @@ public class BillingActivity extends AppCompatActivity {
             android.util.Log.i("BillingActivity", "Displaying Item Discount Prompt [" + (index + 1) + "/" + itemDiscounts.size() + "]: Rule ID=" + rule.ruleId + ", Name='" + rule.name + "', Type=" + rule.ruleType + ", Reward=" + rule.rewardType);
 
             androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+            builder.setCancelable(false);
 
             if ("percentage".equalsIgnoreCase(rule.rewardType)) {
                 builder.setTitle("Promotional Discount Offer!");
@@ -1239,6 +1246,7 @@ public class BillingActivity extends AppCompatActivity {
 
             if (currentDiscount == 0.0) {
                 androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setCancelable(false);
                 builder.setTitle("Global Bill Discount Offer!");
                 builder.setMessage("Your subtotal qualifies for a " + String.format(Locale.getDefault(), "%.1f", billDiscount.rewardVal) + "% global bill discount under \"" + billDiscount.name + "\".\n\nWould you like to accept and apply this discount to the final bill?");
                 builder.setPositiveButton("Accept", new android.content.DialogInterface.OnClickListener() {
@@ -1277,6 +1285,9 @@ public class BillingActivity extends AppCompatActivity {
 
     private void executeDatabaseCheckout() {
         if (!LocationHelper.checkAndShowLocationSettings(this)) {
+            if (btnConfirmCheckout != null) {
+                btnConfirmCheckout.setEnabled(true);
+            }
             return;
         }
         showGlobalLoadingDialog("Recording invoice in local database...");
@@ -1643,7 +1654,7 @@ public class BillingActivity extends AppCompatActivity {
         if (txtTotal != null) txtTotal.setText(CurrencyUtils.formatLKR(grandTotal));
 
         // Construct Self-Contained Encoded Digital Invoice URL for QR and WhatsApp Sharing
-        String constructedUrl = "https://curtiss.suzxlabs.com/sales/show/" + invoiceNum;
+        String constructedUrl = "https://falcon.trycurtiss.com/sales/show/" + invoiceNum;
         try {
             org.json.JSONObject payload = new org.json.JSONObject();
             payload.put("inv", invoiceNum);
@@ -1684,7 +1695,7 @@ public class BillingActivity extends AppCompatActivity {
 
             String jsonString = payload.toString();
             String encodedData = android.util.Base64.encodeToString(jsonString.getBytes("UTF-8"), android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
-            constructedUrl = "https://curtiss.suzxlabs.com/sales/show/" + invoiceNum + "?data=" + Uri.encode(encodedData);
+            constructedUrl = "https://falcon.trycurtiss.com/sales/show/" + invoiceNum + "?data=" + Uri.encode(encodedData);
         } catch (Exception e) {
             android.util.Log.e("BillingActivity", "Error building digital invoice payload", e);
         }
@@ -1707,9 +1718,9 @@ public class BillingActivity extends AppCompatActivity {
                     StringBuilder msg = new StringBuilder();
                     msg.append("Dear ").append(customerName != null ? customerName : "Customer").append(",\n\n");
                     msg.append("Thank you for your business with Curtiss!\n");
-                    msg.append("📄 *Invoice No:* ").append(invoiceNum).append("\n");
-                    msg.append("💰 *Total Amount:* ").append(CurrencyUtils.formatLKR(grandTotal != null ? grandTotal : java.math.BigDecimal.ZERO)).append("\n\n");
-                    msg.append("🌐 *View Your Digital Invoice:*\n").append(digitalInvoiceUrl).append("\n\n");
+                    msg.append("ðŸ“„ *Invoice No:* ").append(invoiceNum).append("\n");
+                    msg.append("ðŸ’° *Total Amount:* ").append(CurrencyUtils.formatLKR(grandTotal != null ? grandTotal : java.math.BigDecimal.ZERO)).append("\n\n");
+                    msg.append("ðŸŒ *View Your Digital Invoice:*\n").append(digitalInvoiceUrl).append("\n\n");
                     msg.append("Thank you!");
 
                     try {
@@ -2267,7 +2278,7 @@ public class BillingActivity extends AppCompatActivity {
 
         // Floating close button top-right
         android.widget.TextView btnClose = new android.widget.TextView(this);
-        btnClose.setText("✕");
+        btnClose.setText("âœ•");
         btnClose.setTextColor(android.graphics.Color.parseColor("#1C1C1E"));
         btnClose.setTextSize(16);
         btnClose.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -2315,7 +2326,7 @@ public class BillingActivity extends AppCompatActivity {
 
         if (p.brand != null && !p.brand.isEmpty()) {
             android.widget.TextView brandTxt = new android.widget.TextView(this);
-            brandTxt.setText("   •   " + p.brand);
+            brandTxt.setText("   â€¢   " + p.brand);
             brandTxt.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
             brandTxt.setTextSize(11);
             metaRow.addView(brandTxt);
@@ -2328,7 +2339,7 @@ public class BillingActivity extends AppCompatActivity {
         String skuText = (p.sku != null && !p.sku.isEmpty()) ? ("SKU: " + p.sku) : "";
         String sampleText = (p.sampleCode != null && !p.sampleCode.isEmpty()) ? ("SAMPLE: " + p.sampleCode) : "";
         String rightMeta = "";
-        if (!skuText.isEmpty() && !sampleText.isEmpty()) rightMeta = skuText + "   •   " + sampleText;
+        if (!skuText.isEmpty() && !sampleText.isEmpty()) rightMeta = skuText + "   â€¢   " + sampleText;
         else if (!skuText.isEmpty()) rightMeta = skuText;
         else if (!sampleText.isEmpty()) rightMeta = sampleText;
 
@@ -2466,7 +2477,7 @@ public class BillingActivity extends AppCompatActivity {
                     varHeaderTxt.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                     varHeader.addView(varHeaderTxt);
                     android.widget.TextView varCount = new android.widget.TextView(this);
-                    varCount.setText(vars.length() + " options  •  tap to select");
+                    varCount.setText(vars.length() + " options  â€¢  tap to select");
                     varCount.setTextColor(android.graphics.Color.parseColor("#8E8E93"));
                     varCount.setTextSize(11);
                     varHeader.addView(varCount);
@@ -2806,21 +2817,21 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     public static class CustomerModel {
-        int id, serverId;
-        String name;
-        String phone;
-        String whatsapp;
-        String address;
-        String territory;
-        java.math.BigDecimal outstanding = java.math.BigDecimal.ZERO;
-        int mcaId;
-        String mcaName;
-        String email;
-        java.math.BigDecimal creditLimit = java.math.BigDecimal.ZERO;
-        String customerType;
-        String notes;
-        double latitude;
-        double longitude;
+        public int id, serverId;
+        public String name;
+        public String phone;
+        public String whatsapp;
+        public String address;
+        public String territory;
+        public java.math.BigDecimal outstanding = java.math.BigDecimal.ZERO;
+        public int mcaId;
+        public String mcaName;
+        public String email;
+        public java.math.BigDecimal creditLimit = java.math.BigDecimal.ZERO;
+        public String customerType;
+        public String notes;
+        public double latitude;
+        public double longitude;
     }
 
     public static class ProductModel {
@@ -4415,69 +4426,52 @@ public class BillingActivity extends AppCompatActivity {
     }
 
     private void setupCategorySpinner() {
-        categoryList.clear();
-        categoryList.add("All Categories");
-
-        try {
-            SQLiteDatabase db = dbHelper.getReadableDatabase();
-            // Try querying the dedicated categories table loaded directly from item_categories
-            Cursor cursor = db.rawQuery("SELECT name FROM categories WHERE status = 'active' ORDER BY name ASC", null);
-            while (cursor.moveToNext()) {
-                categoryList.add(cursor.getString(0));
-            }
-            cursor.close();
-
-            // Fallback to distinct product category names if categories table is not yet seeded
-            if (categoryList.size() <= 1) {
-                cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' AND category_name != 'null' AND status = 'active' ORDER BY category_name ASC", null);
-                while (cursor.moveToNext()) {
-                    categoryList.add(cursor.getString(0));
-                }
-                cursor.close();
-            }
-        } catch (Exception e) {
-            android.util.Log.e("BillingCategory", "Error loading categories: " + e.getMessage());
-        }
-
-        ArrayAdapter<String> catAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, categoryList) {
+        viewModel.getCategories().observe(this, new Observer<List<String>>() {
             @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View v = super.getView(position, convertView, parent);
-                if (v instanceof TextView) {
-                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
-                    ((TextView) v).setTextSize(14);
+            public void onChanged(List<String> categories) {
+                categoryList.clear();
+                categoryList.addAll(categories);
+                
+                ArrayAdapter<String> catAdapter = new ArrayAdapter<String>(BillingActivity.this, android.R.layout.simple_spinner_item, categoryList) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        View v = super.getView(position, convertView, parent);
+                        if (v instanceof TextView) {
+                            ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                            ((TextView) v).setTextSize(14);
+                        }
+                        return v;
+                    }
+
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        View v = super.getDropDownView(position, convertView, parent);
+                        if (v instanceof TextView) {
+                            ((TextView) v).setTextColor(android.graphics.Color.WHITE);
+                            v.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+                            v.setPadding(16, 16, 16, 16);
+                        }
+                        return v;
+                    }
+                };
+                catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                if (spinnerCategory != null) {
+                    spinnerCategory.setAdapter(catAdapter);
+                    spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            loadCatalogItems(edtProductSearch.getText().toString());
+                        }
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {}
+                    });
                 }
-                return v;
+
+                setupHorizontalCategories();
             }
-
-            @Override
-            public View getDropDownView(int position, View convertView, ViewGroup parent) {
-                View v = super.getDropDownView(position, convertView, parent);
-                if (v instanceof TextView) {
-                    ((TextView) v).setTextColor(android.graphics.Color.WHITE);
-                    v.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
-                    v.setPadding(16, 16, 16, 16);
-                }
-                return v;
-            }
-        };
-        catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        if (spinnerCategory != null) {
-            spinnerCategory.setAdapter(catAdapter);
-            spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    loadCatalogItems(edtProductSearch.getText().toString());
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {}
-            });
-        }
-
-        setupHorizontalCategories();
+        });
     }
-
     private void setupHorizontalCategories() {
         final LinearLayout layoutHorizontalCategories = findViewById(R.id.layoutHorizontalCategories);
         if (layoutHorizontalCategories == null) return;
@@ -5113,34 +5107,31 @@ public class BillingActivity extends AppCompatActivity {
         };
         lstCustomerSelect.setAdapter(selectAdapter);
 
-        // Load customers in background thread so dialog displays instantly
-        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable() {
+        // Load customers via ViewModel
+        viewModel.getCustomers().observe(BillingActivity.this, new Observer<List<CustomerModel>>() {
             @Override
-            public void run() {
-                loadCustomers();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (BillingActivity.this.isFinishing() || BillingActivity.this.isDestroyed() || !dialog.isShowing()) {
-                            return;
-                        }
-                        if (layoutCustomerLoading != null) {
-                            layoutCustomerLoading.setVisibility(View.GONE);
-                        }
-                        if (txtSubtitle != null && !customerList.isEmpty() && customerList.get(0).territory != null && !customerList.get(0).territory.isEmpty()) {
-                            txtSubtitle.setText("Active Route: " + customerList.get(0).territory);
-                        }
-                        filteredList.clear();
-                        filteredList.addAll(customerList);
-                        selectAdapter.notifyDataSetChanged();
-                        if (lblCount != null) {
-                            lblCount.setText(filteredList.size() + " Shops");
-                        }
-                        if (layoutNoCustomers != null) {
-                            layoutNoCustomers.setVisibility(filteredList.isEmpty() ? View.VISIBLE : View.GONE);
-                        }
-                    }
-                });
+            public void onChanged(List<CustomerModel> customers) {
+                customerList.clear();
+                customerList.addAll(customers);
+                
+                if (BillingActivity.this.isFinishing() || BillingActivity.this.isDestroyed() || !dialog.isShowing()) {
+                    return;
+                }
+                if (layoutCustomerLoading != null) {
+                    layoutCustomerLoading.setVisibility(View.GONE);
+                }
+                if (txtSubtitle != null && !customerList.isEmpty() && customerList.get(0).territory != null && !customerList.get(0).territory.isEmpty()) {
+                    txtSubtitle.setText("Active Route: " + customerList.get(0).territory);
+                }
+                filteredList.clear();
+                filteredList.addAll(customerList);
+                selectAdapter.notifyDataSetChanged();
+                if (lblCount != null) {
+                    lblCount.setText(filteredList.size() + " Shops");
+                }
+                if (layoutNoCustomers != null) {
+                    layoutNoCustomers.setVisibility(filteredList.isEmpty() ? View.VISIBLE : View.GONE);
+                }
             }
         });
 

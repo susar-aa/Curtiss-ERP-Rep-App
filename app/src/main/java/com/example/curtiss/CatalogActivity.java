@@ -280,48 +280,67 @@ public class CatalogActivity extends AppCompatActivity {
         }
     }
 
+    private ArrayAdapter<String> categoryAdapter;
+
     private void setupCategorySpinner() {
-        categoryList.clear();
-        categoryList.add("All Categories");
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(new Runnable() {
+            @Override
+            public void run() {
+                final List<String> loadedCategories = new ArrayList<>();
+                loadedCategories.add("All Categories");
 
-        try {
-            SQLiteDatabase db = dbHelper.getReadableDatabase();
-            Cursor cursor = db.rawQuery("SELECT name FROM categories WHERE status = 'active' ORDER BY name ASC", null);
-            while (cursor.moveToNext()) {
-                categoryList.add(cursor.getString(0));
-            }
-            cursor.close();
-
-            if (categoryList.size() <= 1) {
-                cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' AND category_name != 'null' AND status = 'active' ORDER BY category_name ASC", null);
-                while (cursor.moveToNext()) {
-                    categoryList.add(cursor.getString(0));
-                }
-                cursor.close();
-            }
-        } catch (Exception e) {
-            android.util.Log.e("CatalogActivity", "Error loading categories: " + e.getMessage());
-        }
-
-        if (spinnerCategory != null) {
-            ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
-            catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerCategory.setAdapter(catAdapter);
-
-            spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (edtProductSearch != null) {
-                        loadCatalogItems(edtProductSearch.getText().toString());
+                try {
+                    SQLiteDatabase db = dbHelper.getReadableDatabase();
+                    Cursor cursor = db.rawQuery("SELECT name FROM categories WHERE status = 'active' ORDER BY name ASC", null);
+                    while (cursor.moveToNext()) {
+                        loadedCategories.add(cursor.getString(0));
                     }
+                    cursor.close();
+
+                    if (loadedCategories.size() <= 1) {
+                        cursor = db.rawQuery("SELECT DISTINCT category_name FROM products WHERE category_name IS NOT NULL AND category_name != '' AND category_name != 'null' AND status = 'active' ORDER BY category_name ASC", null);
+                        while (cursor.moveToNext()) {
+                            loadedCategories.add(cursor.getString(0));
+                        }
+                        cursor.close();
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("CatalogActivity", "Error loading categories: " + e.getMessage());
                 }
 
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {}
-            });
-        }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isFinishing() || isDestroyed()) return;
+                        categoryList.clear();
+                        categoryList.addAll(loadedCategories);
 
-        setupHorizontalCategories();
+                        if (spinnerCategory != null) {
+                            if (categoryAdapter == null) {
+                                categoryAdapter = new ArrayAdapter<>(CatalogActivity.this, android.R.layout.simple_spinner_item, categoryList);
+                                categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                                spinnerCategory.setAdapter(categoryAdapter);
+                            } else {
+                                categoryAdapter.notifyDataSetChanged();
+                            }
+
+                            spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                                @Override
+                                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                                    if (edtProductSearch != null) {
+                                        loadCatalogItems(edtProductSearch.getText().toString());
+                                    }
+                                }
+
+                                @Override
+                                public void onNothingSelected(AdapterView<?> parent) {}
+                            });
+                        }
+                        setupHorizontalCategories();
+                    }
+                });
+            }
+        });
     }
 
     private void setupHorizontalCategories() {

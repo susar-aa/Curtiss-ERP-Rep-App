@@ -135,10 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
         layoutStartRoute = findViewById(R.id.layoutStartRoute);
         layoutEndRoute = findViewById(R.id.layoutEndRoute);
-        edtEndOdo = findViewById(R.id.edtEndOdo);
         btnStartRoute = findViewById(R.id.btnStartRoute);
-        btnEndRoute = findViewById(R.id.btnEndRoute);
-        btnCancelRoute = findViewById(R.id.btnCancelRoute);
         btnSyncNow = findViewById(R.id.btnSyncNow);
         // progressSync = findViewById(R.id.progressSync);
         bottomNavigation = findViewById(R.id.bottom_navigation);
@@ -194,24 +191,16 @@ public class MainActivity extends AppCompatActivity {
         btnStartRoute.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showStartRouteDialog();
+                startActivity(new Intent(MainActivity.this, StartRouteActivity.class));
             }
         });
 
-        // Odometer End Route Trigger
-        btnEndRoute.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showEndRouteDialog();
-            }
-        });
-
-        // Cancel Route Trigger
-        if (btnCancelRoute != null) {
-            btnCancelRoute.setOnClickListener(new View.OnClickListener() {
+        // Odometer Active Route Summary Card Trigger
+        if (layoutEndRoute != null) {
+            layoutEndRoute.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    cancelActiveRoute();
+                    startActivity(new Intent(MainActivity.this, ActiveRouteDetailsActivity.class));
                 }
             });
         }
@@ -228,42 +217,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Pull to Refresh Implementation
-        final androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
-        if (swipeRefreshLayout != null) {
-            swipeRefreshLayout.setOnRefreshListener(new androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener() {
-                @Override
-                public void onRefresh() {
-                    SyncManager.getInstance(MainActivity.this).startPullSync(
-                            MainActivity.this,
-                            representativeUserId,
-                            new SyncManager.SyncListener() {
-                                @Override
-                                public void onSyncStarted() {
-                                    if (txtSyncStatus != null) { txtSyncStatus.setText("Pulling fresh catalog data on pull-to-refresh..."); }
-                                }
 
-                                @Override
-                                public void onSyncProgress(String message) {}
-
-                                @Override
-                                public void onSyncCompleted(boolean success, String message) {
-                                    swipeRefreshLayout.setRefreshing(false);
-                                    if (success) {
-                                        if (txtSyncStatus != null) { txtSyncStatus.setText("Last synced: Just Now (Pull)"); }
-                                        Toast.makeText(MainActivity.this, "Pull Sync Complete!", Toast.LENGTH_SHORT).show();
-                                    } else {
-                                        if (txtSyncStatus != null) { txtSyncStatus.setText("Sync Failed"); }
-                                        Toast.makeText(MainActivity.this, "Pull Sync Failed: " + message, Toast.LENGTH_SHORT).show();
-                                    }
-                                    refreshDashboardState();
-                                }
-                            },
-                            false
-                    );
-                }
-            });
-        }
     }
 
     private long lastAutoSyncTime = 0;
@@ -295,147 +249,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             // Ignore safely
         }
-    }
-
-    private void showStartRouteDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-        LayoutInflater inflater = getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.dialog_start_route, null);
-        builder.setView(dialogView);
-
-        final AlertDialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.show();
-
-        // Bind dialog views
-        final EditText edtRouteSearch = dialogView.findViewById(R.id.edtRouteSearch);
-        final ListView lstRoutes = dialogView.findViewById(R.id.lstRoutes);
-        final TextView txtSelectedRoute = dialogView.findViewById(R.id.txtSelectedRoute);
-        final EditText edtStartOdoDialog = dialogView.findViewById(R.id.edtStartOdoDialog);
-        Button btnCancelDialog = dialogView.findViewById(R.id.btnCancelDialog);
-        Button btnStartTripDialog = dialogView.findViewById(R.id.btnStartTripDialog);
-
-        // Load route items
-        final List<String> allRoutes = dbHelper.getTerritories();
-        final List<String> filteredRoutes = new ArrayList<>(allRoutes);
-
-        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(MainActivity.this, R.layout.item_route, filteredRoutes) {
-            @NonNull
-            @Override
-            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
-                TextView text = view.findViewById(R.id.txtRouteName);
-                if (text == null && view instanceof TextView) {
-                    text = (TextView) view;
-                }
-                if (text != null) {
-                    text.setText(getItem(position));
-                }
-                return view;
-            }
-        };
-        lstRoutes.setAdapter(adapter);
-
-        // Search logic
-        edtRouteSearch.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filteredRoutes.clear();
-                String filter = s.toString().toLowerCase().trim();
-                for (String r : allRoutes) {
-                    if (r.toLowerCase().contains(filter)) {
-                        filteredRoutes.add(r);
-                    }
-                }
-                adapter.notifyDataSetChanged();
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-
-        // Item selection
-        final String[] selectedRouteHolder = { "" };
-        lstRoutes.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                selectedRouteHolder[0] = filteredRoutes.get(position);
-                txtSelectedRoute.setText("Selected: " + selectedRouteHolder[0]);
-            }
-        });
-
-        btnCancelDialog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-
-        btnStartTripDialog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                final String selectedRoute = selectedRouteHolder[0];
-                final String odoStr = edtStartOdoDialog.getText().toString().trim();
-
-                if (selectedRoute.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Please select a territory route from the list.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                if (odoStr.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Please enter the starting odometer mileage.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                if (odoStr.length() > 6) {
-                    Toast.makeText(MainActivity.this, "Odometer mileage must be at most 6 digits.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                double startOdo = Double.parseDouble(odoStr);
-                String startTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-
-                if (!LocationHelper.checkAndShowLocationSettings(MainActivity.this)) {
-                    return;
-                }
-
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 101);
-                    return;
-                }
-
-                showProgressDialog("Acquiring GPS location...");
-                final double finalStartOdo = startOdo;
-                final String finalStartTime = startTime;
-                LocationHelper.captureCurrentLocation(MainActivity.this, new LocationHelper.LocationResultListener() {
-                    private boolean hasExecuted = false;
-
-                    @Override
-                    public void onLocationResult(double latitude, double longitude, boolean isFallback) {
-                        synchronized (this) {
-                            if (hasExecuted) return;
-                            hasExecuted = true;
-                        }
-                        dismissProgressDialog();
-                        if (isFallback) {
-                            Toast.makeText(MainActivity.this, "⚠️ GPS unavailable. Route start location set to default.", Toast.LENGTH_LONG).show();
-                        }
-                        long localId = dbHelper.startRouteOffline(selectedRoute, finalStartOdo, finalStartTime, latitude, longitude);
-                        if (localId > 0) {
-                            Toast.makeText(MainActivity.this, "Daily Route Started Offline!\n" + selectedRoute + " (Odo: " + odoStr + " KM)", Toast.LENGTH_LONG).show();
-                            LocationTrackingService.startService(MainActivity.this);
-                            dialog.dismiss();
-                            refreshDashboardState();
-                        } else {
-                            Toast.makeText(MainActivity.this, "Error starting route offline.", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-            }
-        });
     }
 
     private void setupNavigationGrid() {
@@ -487,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onClick(android.content.DialogInterface dialog, int which) {
                                 // Call server logout API in a background thread
-                                final String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+                                final String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
                                 final int userId = prefs.getInt("user_id", 0);
                                 new Thread(new Runnable() {
                                     @Override
@@ -612,8 +425,8 @@ public class MainActivity extends AppCompatActivity {
             String routeName = cursor.getString(cursor.getColumnIndexOrThrow("route_name"));
             String startTime = cursor.getString(cursor.getColumnIndexOrThrow("start_time"));
 
-            txtActiveRouteName.setText("Active: " + routeName);
-            txtRouteStartTime.setText("Started: " + startTime);
+            txtActiveRouteName.setText(routeName);
+            txtRouteStartTime.setText("Started At: " + startTime);
 
             layoutStartRoute.setVisibility(View.GONE);
             layoutEndRoute.setVisibility(View.VISIBLE);
@@ -704,193 +517,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-    }
-
-    private void cancelActiveRoute() {
-        if (activeRouteLocalId == -1) {
-            Toast.makeText(this, "No active route to cancel.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Check if any invoice has been created on this route
-        int invoicesCount = dbHelper.getRouteInvoicesCount(activeRouteLocalId);
-        if (invoicesCount > 0) {
-            new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Cannot Cancel Route")
-                .setMessage("You cannot cancel this route because " + invoicesCount + " invoice(s) have already been created on it. Please end today's route instead.")
-                .setPositiveButton("OK", null)
-                .show();
-            return;
-        }
-
-        // Show confirmation dialog before deleting/cancelling the route
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Cancel Started Route?")
-            .setMessage("Are you sure you want to cancel the started route? This will delete the active route record from your device.")
-            .setPositiveButton("Yes, Cancel", new android.content.DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(android.content.DialogInterface dialog, int which) {
-                    SQLiteDatabase db = dbHelper.getWritableDatabase();
-                    // Delete the active route record from daily_routes
-                    int rowsDeleted = db.delete("daily_routes", "id = ? AND status = ?", new String[]{String.valueOf(activeRouteLocalId), "Active"});
-                    if (rowsDeleted > 0) {
-                        Toast.makeText(MainActivity.this, "Route Cancelled successfully!", Toast.LENGTH_SHORT).show();
-                        refreshDashboardState();
-                    } else {
-                        Toast.makeText(MainActivity.this, "Error cancelling route.", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            })
-            .setNegativeButton("No", null)
-            .show();
-    }
-
-    private void showEndRouteDialog() {
-        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this);
-        builder.setTitle("END DAILY ROUTE");
-        builder.setMessage("Enter the ending odometer mileage to complete and finalize today's route:");
-
-        final EditText input = new EditText(MainActivity.this);
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        input.setHint("Ending Odometer (KM)");
-        input.setGravity(android.view.Gravity.CENTER);
-        
-        // Limit to 6 digits
-        input.setFilters(new android.text.InputFilter[] { new android.text.InputFilter.LengthFilter(6) });
-        builder.setView(input);
-
-        // Fetch starting odometer to validate
-        double startOdoTemp = 0.0;
-        Cursor cRoute = dbHelper.getActiveRoute();
-        if (cRoute.moveToFirst()) {
-            startOdoTemp = cRoute.getDouble(cRoute.getColumnIndexOrThrow("start_meter"));
-        }
-        cRoute.close();
-        final double startOdo = startOdoTemp;
-
-        builder.setPositiveButton("Finalize Trip", new android.content.DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(android.content.DialogInterface dialog, int which) {
-                String endOdoStr = input.getText().toString().trim();
-                if (endOdoStr.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Please enter ending odometer mileage.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                double endOdo = Double.parseDouble(endOdoStr);
-                if (endOdo < startOdo) {
-                    Toast.makeText(MainActivity.this, "Error: Ending mileage cannot be less than starting mileage (" + startOdo + " KM).", Toast.LENGTH_LONG).show();
-                    return;
-                }
-
-                String endTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-
-                if (!LocationHelper.checkAndShowLocationSettings(MainActivity.this)) {
-                    return;
-                }
-
-                showProgressDialog("Acquiring GPS location...");
-                final double finalEndOdo = endOdo;
-                final String finalEndTime = endTime;
-                LocationHelper.captureCurrentLocation(MainActivity.this, new LocationHelper.LocationResultListener() {
-                    private boolean hasExecuted = false;
-
-                    @Override
-                    public void onLocationResult(double latitude, double longitude, boolean isFallback) {
-                        synchronized (this) {
-                            if (hasExecuted) return;
-                            hasExecuted = true;
-                        }
-                        dismissProgressDialog();
-                        if (isFallback) {
-                            Toast.makeText(MainActivity.this, "⚠️ GPS unavailable. Route end location set to default.", Toast.LENGTH_LONG).show();
-                        }
-                        showRouteSummaryDialog(activeRouteLocalId, startOdo, finalEndOdo, finalEndTime, latitude, longitude);
-                    }
-                });
-            }
-        });
-        builder.setNegativeButton("Cancel", null);
-        builder.show();
-    }
-
-    private void showRouteSummaryDialog(final long routeId, final double startOdo, final double endOdo, final String endTime, final double endLat, final double endLng) {
-        String routeName = "Unknown";
-        String startTime = "N/A";
-        Cursor cRoute = dbHelper.getActiveRoute();
-        if (cRoute.moveToFirst()) {
-            routeName = cRoute.getString(cRoute.getColumnIndexOrThrow("route_name"));
-            startTime = cRoute.getString(cRoute.getColumnIndexOrThrow("start_time"));
-        }
-        cRoute.close();
-
-        double totalDistance = endOdo - startOdo;
-        int invoicesCount = dbHelper.getRouteInvoicesCount(routeId);
-        int unproductiveCount = dbHelper.getRouteUnproductiveVisitsCount(routeId);
-        double totalSales = dbHelper.getRouteSalesTotal(routeId);
-
-        // Fetch payment method breakdown from payments table (actual collections)
-        double cashSum = 0, chequeSum = 0, bankSum = 0;
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        
-        long serverRouteId = 0;
-        Cursor cRouteServer = db.rawQuery("SELECT server_id FROM daily_routes WHERE id = ?", new String[]{String.valueOf(routeId)});
-        if (cRouteServer.moveToFirst()) {
-            serverRouteId = cRouteServer.getLong(0);
-        }
-        cRouteServer.close();
-
-        Cursor cursor = db.rawQuery("SELECT payment_method, COALESCE(SUM(amount), 0.0) FROM payments WHERE local_route_id = ? OR (server_route_id = ? AND ? > 0) GROUP BY payment_method", 
-                new String[]{String.valueOf(routeId), String.valueOf(serverRouteId), String.valueOf(serverRouteId)});
-        while (cursor.moveToNext()) {
-            String method = cursor.getString(0);
-            double total = cursor.getDouble(1);
-            if ("Cash".equalsIgnoreCase(method)) cashSum = total;
-            else if ("Cheque".equalsIgnoreCase(method)) chequeSum = total;
-            else if ("Bank Transfer".equalsIgnoreCase(method)) bankSum = total;
-        }
-        cursor.close();
-
-        // Build detailed formatted message
-        StringBuilder summary = new StringBuilder();
-        summary.append("🗺️ Territory Route: ").append(routeName).append("\n\n");
-        summary.append("🏁 Start Odometer: ").append(String.format(Locale.getDefault(), "%.1f KM", startOdo)).append("\n");
-        summary.append("🏁 End Odometer: ").append(String.format(Locale.getDefault(), "%.1f KM", endOdo)).append("\n");
-        summary.append("🚗 Total Distance: ").append(String.format(Locale.getDefault(), "%.1f KM", totalDistance)).append("\n\n");
-        summary.append("⏱️ Start Time: ").append(startTime).append("\n");
-        summary.append("⏱️ End Time: ").append(endTime).append("\n\n");
-        summary.append("📄 Invoices Generated: ").append(invoicesCount).append(" Bills").append("\n");
-        summary.append("🚫 Unproductive Visits: ").append(unproductiveCount).append(" Visits").append("\n");
-        summary.append("💰 Gross Sales Total: ").append(String.format(Locale.getDefault(), "LKR %.2f", totalSales)).append("\n\n");
-        summary.append("💳 Payment Mode Summary:\n");
-        summary.append("   • Cash Collected: ").append(String.format(Locale.getDefault(), "LKR %.2f", cashSum)).append("\n");
-        summary.append("   • Cheques Received: ").append(String.format(Locale.getDefault(), "LKR %.2f", chequeSum)).append("\n");
-        summary.append("   • Bank Transfers: ").append(String.format(Locale.getDefault(), "LKR %.2f", bankSum)).append("\n\n");
-        summary.append("Click 'Complete' to instantly finalize, upload to ERP, and close.");
-
-        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this);
-        builder.setTitle("📋 ROUTE AUDIT SUMMARY");
-        builder.setMessage(summary.toString());
-        builder.setPositiveButton("Complete", new android.content.DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(android.content.DialogInterface dialog, int which) {
-                // Save ended route details to local database first
-                dbHelper.endRouteOffline(routeId, endOdo, endTime, endLat, endLng);
-                LocationTrackingService.stopService(MainActivity.this);
-                Toast.makeText(MainActivity.this, "Route saved offline. Opening manual sync screen...", Toast.LENGTH_LONG).show();
-                if (txtSyncStatus != null) {
-                    txtSyncStatus.setText("Offline Mode (Pending Upload)");
-                }
-                
-                // Open the manual sync progress screen (SyncProgressActivity)
-                Intent intent = new Intent(MainActivity.this, SyncProgressActivity.class);
-                startActivity(intent);
-                
-                refreshDashboardState();
-            }
-        });
-        builder.setCancelable(false);
-        builder.show();
     }
 
     private void showCreditBillsDialog() {

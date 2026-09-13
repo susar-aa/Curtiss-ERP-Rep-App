@@ -82,16 +82,11 @@
 
         </LinearLayout>
 
-        <!-- SwipeRefresh and Scrollable Dashboard -->
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-            android:id="@+id/swipeRefreshDashboard"
+        <!-- Scrollable Dashboard -->
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:fillViewport="true">
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -746,9 +741,7 @@
 
                 </LinearLayout>
 
-            </ScrollView>
-
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </ScrollView>
 
     </LinearLayout>
 

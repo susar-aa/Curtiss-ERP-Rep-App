@@ -170,7 +170,7 @@ implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
 // CertificatePinner.kt
 val certificatePinner = CertificatePinner.Builder()
-    .add("curtiss.suzxlabs.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+    .add("falcon.trycurtiss.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
     .build()
 
 val client = OkHttpClient.Builder()

@@ -1,10 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/txtRouteName"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardRouteItem"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:textColor="#FFFFFF"
-    android:textSize="14sp"
-    android:padding="12dp"
-    android:background="#1E293B"
-    android:gravity="center_vertical"/>
+    app:cardCornerRadius="20dp"
+    app:cardBackgroundColor="#F2F2F7"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="20dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/imgRouteIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_map"
+            app:tint="#8E8E93"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/txtRouteName"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textColor="#000000"
+            android:fontFamily="@font/sf_pro_display_semibold"
+            android:textSize="16sp"
+            android:letterSpacing="-0.01" />
+
+
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

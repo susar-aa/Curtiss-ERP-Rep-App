@@ -151,7 +151,7 @@ public class SyncManager {
         }
 
         android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
-        String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
         String lastSyncTimestamp = prefs.getString("last_sync_timestamp", "2000-01-01 00:00:00");
         String urlString = baseUrl + "/rep/RepDashboard/sync_pull?api_sync=1";
         try {
@@ -164,13 +164,9 @@ public class SyncManager {
             Log.e(TAG, "URLEncoder failed for lastSyncTimestamp: " + e.getMessage());
         }
 
-        int maxRetries = 3;
-        int attempt = 0;
-        while (attempt < maxRetries) {
-            attempt++;
-            HttpURLConnection conn = null;
-            try {
-                Log.d(TAG, "Pull Sync attempt " + attempt + " of " + maxRetries + " to URL: " + urlString);
+        HttpURLConnection conn = null;
+        try {
+            Log.d(TAG, "Pull Sync started to URL: " + urlString);
                 URL url = new URL(urlString);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
@@ -210,59 +206,8 @@ public class SyncManager {
                             // Trigger queued image downloads
                             ImageDownloadManager.getInstance(context).startQueueDownload(context);
 
-                            // Perform monitoring asynchronously to prevent blocking the sync completion
-                            if (listener != null) {
-                                new Thread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            int totalImagesToDownload = 0;
-                                            SQLiteDatabase db = dbHelper.getReadableDatabase();
-                                            Cursor cursorImg = db.rawQuery(
-                                                    "SELECT COUNT(*) FROM image_download_queue WHERE status = 'downloading'",
-                                                    null);
-                                            if (cursorImg.moveToFirst()) {
-                                                totalImagesToDownload = cursorImg.getInt(0);
-                                            }
-                                            cursorImg.close();
-
-                                            if (totalImagesToDownload > 0) {
-                                                Log.d(TAG, "Pull sync (Async Image Monitor): " + totalImagesToDownload
-                                                        + " images currently downloading.");
-                                                int remaining = totalImagesToDownload;
-                                                int loopCount = 0;
-                                                int maxLoops = 300; // 300 * 300ms = 90 seconds safety timeout
-                                                while (remaining > 0 && loopCount < maxLoops) {
-                                                    loopCount++;
-                                                    try {
-                                                        Thread.sleep(300);
-                                                    } catch (InterruptedException e) {
-                                                        Thread.currentThread().interrupt();
-                                                        break;
-                                                    }
-
-                                                    remaining = 0;
-                                                    Cursor cursorImg2 = db.rawQuery(
-                                                            "SELECT COUNT(*) FROM image_download_queue WHERE status = 'downloading'",
-                                                            null);
-                                                    if (cursorImg2.moveToFirst()) {
-                                                        remaining = cursorImg2.getInt(0);
-                                                    }
-                                                    cursorImg2.close();
-
-                                                    int downloaded = totalImagesToDownload - remaining;
-                                                    int percent = (downloaded * 100) / totalImagesToDownload;
-                                                    updateProgress(listener, "Downloading images: " + downloaded + " / "
-                                                            + totalImagesToDownload + " (" + percent + "%)");
-                                                }
-                                            }
-                                        } catch (Exception imgEx) {
-                                            Log.e(TAG, "Error waiting for images to download asynchronously: "
-                                                    + imgEx.getMessage());
-                                        }
-                                    }
-                                }).start();
-                            }
+                            // Image monitoring loop removed.
+                            // ImageDownloadManager handles downloads asynchronously in the background.
                         } catch (Exception imgEx) {
                             Log.e(TAG, "Error starting image queue download: " + imgEx.getMessage());
                         }
@@ -299,25 +244,15 @@ public class SyncManager {
                     throw new Exception("HTTP Response Code " + responseCode + " - Error: "
                             + (errText.length() > 200 ? errText.substring(0, 200) : errText));
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Pull Sync connection attempt " + attempt + " failed: " + e.getMessage(), e);
-                lastSyncError = e.getMessage();
-                if (attempt >= maxRetries) {
-                    return false;
-                }
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
+        } catch (Exception e) {
+            Log.e(TAG, "Pull Sync connection failed: " + e.getMessage(), e);
+            lastSyncError = e.getMessage();
+            return false;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
             }
         }
-        return false;
     }
 
     private boolean parseAndSaveSyncData(Context context, InputStream inputStream, int userId, SyncListener listener) {
@@ -1165,8 +1100,8 @@ public class SyncManager {
         if (isSynced || token.isEmpty())
             return;
 
-        android.content.SharedPreferences sessionPrefs = SecurePreferences.getSessionPrefs(context);
-        String baseUrl = sessionPrefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        android.content.SharedPreferences appPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE);
+        String baseUrl = appPrefs.getString("base_url", "https://falcon.trycurtiss.com");
         String urlString = baseUrl + "/rep/RepDashboard/update_fcm_token";
 
         try {
@@ -1528,7 +1463,7 @@ public class SyncManager {
 
             // POST unified payload to Plesk Sync API
             android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
-            String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+            String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
             String urlString = baseUrl + "/rep/RepDashboard/sync_push?api_sync=1";
             Log.d(TAG, "Starting Push Sync POST to: " + urlString);
             // S-02 Fix: Only log full payload in debug builds to prevent customer data
@@ -1544,12 +1479,10 @@ public class SyncManager {
             int attempt = 0;
             byte[] jsonBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
 
-            while (attempt < maxRetries) {
-                attempt++;
-                HttpURLConnection conn = null;
-                try {
-                    Log.d(TAG, "Push Sync attempt " + attempt + " of " + maxRetries + " to URL: " + urlString);
-                    URL url = new URL(urlString);
+            HttpURLConnection conn = null;
+            try {
+                Log.d(TAG, "Push Sync started to URL: " + urlString);
+                URL url = new URL(urlString);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
@@ -1612,7 +1545,6 @@ public class SyncManager {
                                         + (resText.length() > 60 ? resText.substring(0, 60) : resText));
                             }
                             responseBody = resText;
-                            break;
                         } else {
                             if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED
                                     || responseCode == HttpURLConnection.HTTP_FORBIDDEN || responseCode == 419) {
@@ -1628,22 +1560,13 @@ public class SyncManager {
                         throw new Exception("HTTP Response Code " + responseCode + " (No response stream available)");
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "Push Sync connection attempt " + attempt + " failed: " + e.getMessage(), e);
-                    if (attempt >= maxRetries) {
-                        return false;
-                    }
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return false;
-                    }
+                    Log.e(TAG, "Push Sync connection failed: " + e.getMessage(), e);
+                    throw new Exception("Push Sync connection failed: " + e.getMessage());
                 } finally {
                     if (conn != null) {
                         conn.disconnect();
                     }
                 }
-            }
 
             if (responseBody == null) {
                 return false;
@@ -2112,7 +2035,7 @@ public class SyncManager {
             payload.put("user_id", userId);
 
             android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(context);
-            String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+            String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
             String urlString = baseUrl + "/rep/RepDashboard/sync_verify?api_sync=1";
 
             byte[] jsonBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
@@ -2516,8 +2439,8 @@ public class SyncManager {
                             Context.MODE_PRIVATE);
                     int lastEventId = prefs.getInt("last_stock_event_id", 0);
 
-                    android.content.SharedPreferences sessionPrefs = SecurePreferences.getSessionPrefs(context);
-                    String baseUrl = sessionPrefs.getString("base_url", "https://curtiss.suzxlabs.com");
+                    android.content.SharedPreferences appPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE);
+                    String baseUrl = appPrefs.getString("base_url", "https://falcon.trycurtiss.com");
 
                     String urlString = baseUrl + "/StockEvents/pull?api_sync=1&last_event_id=" + lastEventId;
 

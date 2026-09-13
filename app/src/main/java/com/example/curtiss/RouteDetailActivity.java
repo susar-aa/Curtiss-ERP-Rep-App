@@ -4,7 +4,10 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -57,6 +60,9 @@ public class RouteDetailActivity extends AppCompatActivity {
     private ArrayList<JSONObject> invoicePaymentsList = new ArrayList<>();
     private InvoicePaymentsAdapter paymentsAdapter;
 
+    private ExecutorService executorService;
+    private Handler mainHandler;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -64,8 +70,10 @@ public class RouteDetailActivity extends AppCompatActivity {
 
         prefs = SecurePreferences.getSessionPrefs(this);
         userId = prefs.getInt("user_id", 0);
-        baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
         routeId = getIntent().getIntExtra("route_id", 0);
+        executorService = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
 
         if (routeId <= 0) {
             Toast.makeText(this, "Invalid route selected", Toast.LENGTH_SHORT).show();
@@ -78,6 +86,14 @@ public class RouteDetailActivity extends AppCompatActivity {
 
         // Load route details
         checkConnectionAndLoad();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
     }
 
     private void initViews() {
@@ -149,7 +165,7 @@ public class RouteDetailActivity extends AppCompatActivity {
                 JSONObject bill = billsList.get(position);
                 int invoiceId = bill.optInt("id", 0);
                 if (invoiceId > 0) {
-                    new FetchInvoiceDetailsTask(invoiceId).execute();
+                    fetchInvoiceDetailsAsync(invoiceId);
                 }
             }
         });
@@ -188,238 +204,231 @@ public class RouteDetailActivity extends AppCompatActivity {
         }
 
         txtOfflineBanner.setVisibility(View.GONE);
-        new FetchRouteDetailsTask().execute();
+        fetchRouteDetailsAsync();
     }
 
-    // Task to fetch route details from server
-    private class FetchRouteDetailsTask extends AsyncTask<Void, Void, String> {
-        @Override
-        protected void onPreExecute() {
-            layoutLoadingOverlay.setVisibility(View.VISIBLE);
-        }
+    private void fetchRouteDetailsAsync() {
+        layoutLoadingOverlay.setVisibility(View.VISIBLE);
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                String result = null;
+                try {
+                    String urlStr = baseUrl + "/rep/RepDashboard/api_route_details?user_id=" + userId + "&route_id=" + routeId;
+                    URL url = new URL(urlStr);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setRequestProperty("X-User-ID", String.valueOf(userId));
+                    String token = prefs.getString("api_token", "");
+                    if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
 
-        @Override
-        protected String doInBackground(Void... voids) {
-            HttpURLConnection conn = null;
-            try {
-                String urlStr = baseUrl + "/rep/RepDashboard/api_route_details?user_id=" + userId + "&route_id=" + routeId;
-                URL url = new URL(urlStr);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("X-User-ID", String.valueOf(userId));
-                String token = prefs.getString("api_token", "");
-                if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        sb.append(line);
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = in.readLine()) != null) {
+                            if (Thread.currentThread().isInterrupted()) break;
+                            sb.append(line);
+                        }
+                        in.close();
+                        if (!Thread.currentThread().isInterrupted()) {
+                            result = sb.toString();
+                        }
+                    } else {
+                        result = "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
                     }
-                    in.close();
-                    return sb.toString();
-                } else {
-                    return "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
+                } catch (Exception e) {
+                    result = "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
+                } finally {
+                    if (conn != null) conn.disconnect();
                 }
-            } catch (Exception e) {
-                return "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }
 
-        @Override
-        protected void onPostExecute(String result) {
-            layoutLoadingOverlay.setVisibility(View.GONE);
-            if (result == null) {
-                Toast.makeText(RouteDetailActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            try {
-                JSONObject response = new JSONObject(result);
-                if (response.optBoolean("success", false)) {
-                    JSONObject route = response.optJSONObject("route");
-                    if (route != null) {
-                        // Populate Route Meta Data
-                        String name = route.optString("route_name", "Unknown Route");
-                        int id = route.optInt("id", 0);
-                        txtRouteDetailTitle.setText("#RT-" + id + " Details");
-                        txtRouteName.setText("#RT-" + id + ": " + name);
-
-                        String start = route.optString("start_time", "");
-                        String end = route.optString("end_time", "");
-                        if (!end.isEmpty() && !end.equals("null")) {
-                            txtRouteDuration.setText("Started: " + start + " | Ended: " + end);
-                        } else {
-                            txtRouteDuration.setText("Started: " + start + " | Status: " + route.optString("status"));
+                final String finalResult = result;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        layoutLoadingOverlay.setVisibility(View.GONE);
+                        if (finalResult == null) {
+                            Toast.makeText(RouteDetailActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
+                            return;
                         }
 
-                        // Odometer values
-                        double startOdo = route.optDouble("start_meter", 0.0);
-                        double endOdo = route.optDouble("end_meter", 0.0);
-                        txtStartOdo.setText(String.format(Locale.getDefault(), "%,.1f KM", startOdo));
-                        if (endOdo > 0) {
-                            txtEndOdo.setText(String.format(Locale.getDefault(), "%,.1f KM", endOdo));
-                        } else {
-                            txtEndOdo.setText("In Progress");
+                        try {
+                            JSONObject response = new JSONObject(finalResult);
+                            if (response.optBoolean("success", false)) {
+                                JSONObject route = response.optJSONObject("route");
+                                if (route != null) {
+                                    String name = route.optString("route_name", "Unknown Route");
+                                    int id = route.optInt("id", 0);
+                                    txtRouteDetailTitle.setText("#RT-" + id + " Details");
+                                    txtRouteName.setText("#RT-" + id + ": " + name);
+
+                                    String start = route.optString("start_time", "");
+                                    String end = route.optString("end_time", "");
+                                    if (!end.isEmpty() && !end.equals("null")) {
+                                        txtRouteDuration.setText("Started: " + start + " | Ended: " + end);
+                                    } else {
+                                        txtRouteDuration.setText("Started: " + start + " | Status: " + route.optString("status"));
+                                    }
+
+                                    double startOdo = route.optDouble("start_meter", 0.0);
+                                    double endOdo = route.optDouble("end_meter", 0.0);
+                                    txtStartOdo.setText(String.format(Locale.getDefault(), "%,.1f KM", startOdo));
+                                    if (endOdo > 0) {
+                                        txtEndOdo.setText(String.format(Locale.getDefault(), "%,.1f KM", endOdo));
+                                    } else {
+                                        txtEndOdo.setText("In Progress");
+                                    }
+
+                                    double totalSales = route.optDouble("total_sales", 0.0);
+                                    int totalBills = route.optInt("total_bills", 0);
+                                    txtSalesTotal.setText(String.format(Locale.getDefault(), "LKR %,.2f", totalSales));
+                                    txtBillsCount.setText(totalBills + " Invoices");
+
+                                    double cash = route.optDouble("cash_collections", 0.0);
+                                    double cheque = route.optDouble("cheque_collections", 0.0);
+                                    double bank = route.optDouble("bank_collections", 0.0);
+                                    double totalCol = route.optDouble("total_collections", 0.0);
+
+                                    txtCashCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", cash));
+                                    txtChequeCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", cheque));
+                                    txtBankCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", bank));
+                                    txtTotalCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", totalCol));
+                                }
+
+                                billsList.clear();
+                                JSONArray bills = response.optJSONArray("bills");
+                                if (bills != null) {
+                                    for (int i = 0; i < bills.length(); i++) {
+                                        billsList.add(bills.getJSONObject(i));
+                                    }
+                                }
+                                billsAdapter.notifyDataSetChanged();
+                            } else {
+                                String msg = response.optString("message", "Error loading details");
+                                Toast.makeText(RouteDetailActivity.this, msg, Toast.LENGTH_LONG).show();
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("RouteDetailActivity", "JSON Parse error", e);
+                            Toast.makeText(RouteDetailActivity.this, "Failed to parse route data", Toast.LENGTH_SHORT).show();
                         }
-
-                        // Financial totals
-                        double totalSales = route.optDouble("total_sales", 0.0);
-                        int totalBills = route.optInt("total_bills", 0);
-                        txtSalesTotal.setText(String.format(Locale.getDefault(), "LKR %,.2f", totalSales));
-                        txtBillsCount.setText(totalBills + " Invoices");
-
-                        // Collections breakdown
-                        double cash = route.optDouble("cash_collections", 0.0);
-                        double cheque = route.optDouble("cheque_collections", 0.0);
-                        double bank = route.optDouble("bank_collections", 0.0);
-                        double totalCol = route.optDouble("total_collections", 0.0);
-
-                        txtCashCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", cash));
-                        txtChequeCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", cheque));
-                        txtBankCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", bank));
-                        txtTotalCollected.setText(String.format(Locale.getDefault(), "LKR %,.2f", totalCol));
                     }
-
-                    // Bills list
-                    billsList.clear();
-                    JSONArray bills = response.optJSONArray("bills");
-                    if (bills != null) {
-                        for (int i = 0; i < bills.length(); i++) {
-                            billsList.add(bills.getJSONObject(i));
-                        }
-                    }
-                    billsAdapter.notifyDataSetChanged();
-                } else {
-                    String msg = response.optString("message", "Error loading details");
-                    Toast.makeText(RouteDetailActivity.this, msg, Toast.LENGTH_LONG).show();
-                }
-            } catch (Exception e) {
-                android.util.Log.e("RouteDetailActivity", "JSON Parse error", e);
-                Toast.makeText(RouteDetailActivity.this, "Failed to parse route data", Toast.LENGTH_SHORT).show();
+                });
             }
-        }
+        });
     }
 
-    // Task to fetch invoice details and overlay
-    private class FetchInvoiceDetailsTask extends AsyncTask<Void, Void, String> {
-        private int invoiceId;
+    private void fetchInvoiceDetailsAsync(final int invoiceId) {
+        layoutLoadingOverlay.setVisibility(View.VISIBLE);
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                String result = null;
+                try {
+                    String urlStr = baseUrl + "/rep/RepDashboard/api_invoice_details?user_id=" + userId + "&invoice_id=" + invoiceId;
+                    URL url = new URL(urlStr);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setRequestProperty("X-User-ID", String.valueOf(userId));
+                    String token = prefs.getString("api_token", "");
+                    if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
 
-        public FetchInvoiceDetailsTask(int invoiceId) {
-            this.invoiceId = invoiceId;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            layoutLoadingOverlay.setVisibility(View.VISIBLE);
-        }
-
-        @Override
-        protected String doInBackground(Void... voids) {
-            HttpURLConnection conn = null;
-            try {
-                String urlStr = baseUrl + "/rep/RepDashboard/api_invoice_details?user_id=" + userId + "&invoice_id=" + invoiceId;
-                URL url = new URL(urlStr);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("X-User-ID", String.valueOf(userId));
-                String token = prefs.getString("api_token", "");
-                if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        sb.append(line);
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = in.readLine()) != null) {
+                            if (Thread.currentThread().isInterrupted()) break;
+                            sb.append(line);
+                        }
+                        in.close();
+                        if (!Thread.currentThread().isInterrupted()) {
+                            result = sb.toString();
+                        }
+                    } else {
+                        result = "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
                     }
-                    in.close();
-                    return sb.toString();
-                } else {
-                    return "{\"success\":false,\"message\":\"Server responded with code " + responseCode + "\"}";
+                } catch (Exception e) {
+                    result = "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
+                } finally {
+                    if (conn != null) conn.disconnect();
                 }
-            } catch (Exception e) {
-                return "{\"success\":false,\"message\":\"Connection error: " + e.getMessage() + "\"}";
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }
 
-        @Override
-        protected void onPostExecute(String result) {
-            layoutLoadingOverlay.setVisibility(View.GONE);
-            if (result == null) {
-                Toast.makeText(RouteDetailActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            try {
-                JSONObject response = new JSONObject(result);
-                if (response.optBoolean("success", false)) {
-                    JSONObject inv = response.optJSONObject("invoice");
-                    if (inv != null) {
-                        txtDetailInvNumber.setText("INVOICE: " + inv.optString("invoice_number", "INV-XXXX"));
-                        txtDetailInvDate.setText(inv.optString("invoice_date", ""));
-                        txtDetailInvCust.setText(inv.optString("customer_name") + " (" + inv.optString("customer_code") + ")");
-                        txtDetailInvContact.setText("Address: " + inv.optString("customer_address", "-") + " | Phone: " + inv.optString("customer_phone", "-"));
-                        
-                        String termName = inv.optString("payment_term_name", "");
-                        if (termName.isEmpty()) {
-                            termName = inv.optString("payment_method", "Credit");
+                final String finalResult = result;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        layoutLoadingOverlay.setVisibility(View.GONE);
+                        if (finalResult == null) {
+                            Toast.makeText(RouteDetailActivity.this, "Empty response from server", Toast.LENGTH_SHORT).show();
+                            return;
                         }
-                        txtDetailInvTerm.setText("Payment Term: " + termName);
 
-                        // Summaries
-                        txtDetailSubtotal.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("subtotal", 0.0)));
-                        txtDetailDiscount.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("discount", 0.0)));
-                        txtDetailTax.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("tax", 0.0)));
-                        txtDetailGrandTotal.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("grand_total", 0.0)));
-                        txtDetailPaid.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("paid_amount", 0.0)));
-                        txtDetailBalance.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("balance", 0.0)));
-                    }
+                        try {
+                            JSONObject response = new JSONObject(finalResult);
+                            if (response.optBoolean("success", false)) {
+                                JSONObject inv = response.optJSONObject("invoice");
+                                if (inv != null) {
+                                    txtDetailInvNumber.setText("INVOICE: " + inv.optString("invoice_number", "INV-XXXX"));
+                                    txtDetailInvDate.setText(inv.optString("invoice_date", ""));
+                                    txtDetailInvCust.setText(inv.optString("customer_name") + " (" + inv.optString("customer_code") + ")");
+                                    txtDetailInvContact.setText("Address: " + inv.optString("customer_address", "-") + " | Phone: " + inv.optString("customer_phone", "-"));
+                                    
+                                    String termName = inv.optString("payment_term_name", "");
+                                    if (termName.isEmpty()) {
+                                        termName = inv.optString("payment_method", "Credit");
+                                    }
+                                    txtDetailInvTerm.setText("Payment Term: " + termName);
 
-                    // Populate Items
-                    invoiceItemsList.clear();
-                    JSONArray items = response.optJSONArray("items");
-                    if (items != null) {
-                        for (int i = 0; i < items.length(); i++) {
-                            invoiceItemsList.add(items.getJSONObject(i));
+                                    txtDetailSubtotal.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("subtotal", 0.0)));
+                                    txtDetailDiscount.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("discount", 0.0)));
+                                    txtDetailTax.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("tax", 0.0)));
+                                    txtDetailGrandTotal.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("grand_total", 0.0)));
+                                    txtDetailPaid.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("paid_amount", 0.0)));
+                                    txtDetailBalance.setText(String.format(Locale.getDefault(), "LKR %,.2f", inv.optDouble("balance", 0.0)));
+                                }
+
+                                invoiceItemsList.clear();
+                                JSONArray items = response.optJSONArray("items");
+                                if (items != null) {
+                                    for (int i = 0; i < items.length(); i++) {
+                                        invoiceItemsList.add(items.getJSONObject(i));
+                                    }
+                                }
+                                itemsAdapter.notifyDataSetChanged();
+
+                                invoicePaymentsList.clear();
+                                JSONArray payments = response.optJSONArray("payments");
+                                if (payments != null) {
+                                    for (int i = 0; i < payments.length(); i++) {
+                                        invoicePaymentsList.add(payments.getJSONObject(i));
+                                    }
+                                }
+                                paymentsAdapter.notifyDataSetChanged();
+
+                                layoutInvoiceDetailOverlay.setVisibility(View.VISIBLE);
+                            } else {
+                                String msg = response.optString("message", "Error loading details");
+                                Toast.makeText(RouteDetailActivity.this, msg, Toast.LENGTH_LONG).show();
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("RouteDetailActivity", "JSON Parsing invoice details failed", e);
+                            Toast.makeText(RouteDetailActivity.this, "Failed to load invoice details", Toast.LENGTH_SHORT).show();
                         }
                     }
-                    itemsAdapter.notifyDataSetChanged();
-
-                    // Populate Payments
-                    invoicePaymentsList.clear();
-                    JSONArray payments = response.optJSONArray("payments");
-                    if (payments != null) {
-                        for (int i = 0; i < payments.length(); i++) {
-                            invoicePaymentsList.add(payments.getJSONObject(i));
-                        }
-                    }
-                    paymentsAdapter.notifyDataSetChanged();
-
-                    // Show Overlay Modal
-                    layoutInvoiceDetailOverlay.setVisibility(View.VISIBLE);
-                } else {
-                    String msg = response.optString("message", "Error loading details");
-                    Toast.makeText(RouteDetailActivity.this, msg, Toast.LENGTH_LONG).show();
-                }
-            } catch (Exception e) {
-                android.util.Log.e("RouteDetailActivity", "JSON Parsing invoice details failed", e);
-                Toast.makeText(RouteDetailActivity.this, "Failed to load invoice details", Toast.LENGTH_SHORT).show();
+                });
             }
-        }
+        });
     }
 
     // Adapters

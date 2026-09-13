@@ -194,8 +194,8 @@ public class StatsActivity extends AppCompatActivity {
         txtInstalledVersionInfo.setText("v" + versionName + " (Code: " + versionCode + ")");
 
         // Request update status from ERP server
-        android.content.SharedPreferences sessionPrefs = SecurePreferences.getSessionPrefs(this);
-        String baseUrl = sessionPrefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        android.content.SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
         String apiUrl = baseUrl + "/rep/release/api_latest_version";
 
         txtServerVersionInfo.setText("Fetching...");

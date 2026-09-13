@@ -2,7 +2,10 @@ package com.example.curtiss;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.os.AsyncTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -50,10 +53,15 @@ public class InsightDetailActivity extends AppCompatActivity {
     private TextView txtDetailEmpty;
     private LinearLayout layoutDetailContainer;
 
+    private ExecutorService executorService;
+    private Handler mainHandler;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_insight_detail);
+        executorService = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
 
         if (getIntent() != null) {
             insightType = getIntent().getStringExtra(EXTRA_INSIGHT_TYPE);
@@ -100,6 +108,14 @@ public class InsightDetailActivity extends AppCompatActivity {
         loadRealtimeAnalytics();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
+    }
+
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
@@ -124,7 +140,7 @@ public class InsightDetailActivity extends AppCompatActivity {
     private void loadRealtimeAnalytics() {
         if (!isNetworkAvailable()) {
             swipeRefreshDetail.setRefreshing(false);
-            txtDetailStatus.setText("⚠️ Offline: Internet connection required for live server insights");
+            txtDetailStatus.setText("âš ï¸ Offline: Internet connection required for live server insights");
             txtDetailStatus.setBackgroundColor(0xFFEF4444);
             txtDetailEmpty.setVisibility(View.VISIBLE);
             txtDetailEmpty.setText("No network connection available. Please connect to internet.");
@@ -132,32 +148,29 @@ public class InsightDetailActivity extends AppCompatActivity {
             return;
         }
 
-        txtDetailStatus.setText("🟢 Real-Time Server Analytics (100% Online)");
+        txtDetailStatus.setText("ðŸŸ¢ Real-Time Server Analytics (100% Online)");
         txtDetailStatus.setBackgroundColor(0xFF3B82F6);
         txtDetailEmpty.setVisibility(View.VISIBLE);
         txtDetailEmpty.setText("Fetching live performance analytics from server...");
 
         final android.content.SharedPreferences prefs = SecurePreferences.getSessionPrefs(this);
         final int userId = prefs.getInt("user_id", 0);
-        final String baseUrl = prefs.getString("base_url", "https://curtiss.suzxlabs.com");
+        final String baseUrl = prefs.getString("base_url", "https://falcon.trycurtiss.com");
 
-        new AsyncTask<Void, Void, String>() {
+        swipeRefreshDetail.setRefreshing(true);
+        executorService.execute(new Runnable() {
             @Override
-            protected void onPreExecute() {
-                swipeRefreshDetail.setRefreshing(true);
-            }
-
-            @Override
-            protected String doInBackground(Void... voids) {
+            public void run() {
                 HttpURLConnection conn = null;
+                String result = null;
                 try {
                     String urlStr = baseUrl + "/rep/RepDashboard/api_get_performance_analytics?user_id=" + userId + "&start_date=" + startDate + "&end_date=" + endDate;
                     URL url = new URL(urlStr);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
                     conn.setRequestProperty("X-User-ID", String.valueOf(userId));
-                String token = prefs.getString("api_token", "");
-                if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
+                    String token = prefs.getString("api_token", "");
+                    if (!token.isEmpty()) { conn.setRequestProperty("Authorization", "Bearer " + token); }
                     conn.setConnectTimeout(10000);
                     conn.setReadTimeout(15000);
 
@@ -167,47 +180,52 @@ public class InsightDetailActivity extends AppCompatActivity {
                         StringBuilder sb = new StringBuilder();
                         String line;
                         while ((line = br.readLine()) != null) {
+                            if (Thread.currentThread().isInterrupted()) break;
                             sb.append(line);
                         }
                         br.close();
-                        return sb.toString();
+                        if (!Thread.currentThread().isInterrupted()) {
+                            result = sb.toString();
+                        }
                     }
                 } catch (Exception e) {
-                    return null;
+                    result = null;
                 } finally {
                     if (conn != null) {
                         conn.disconnect();
                     }
                 }
-                return null;
-            }
 
-            @Override
-            protected void onPostExecute(String result) {
-                swipeRefreshDetail.setRefreshing(false);
-                if (result == null || result.isEmpty()) {
-                    txtDetailEmpty.setText("Failed to load server analytics. Please try again.");
-                    Toast.makeText(InsightDetailActivity.this, "Network error loading analytics", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                try {
-                    JSONObject json = new JSONObject(result);
-                    if (json.optBoolean("success", false)) {
-                        JSONObject data = json.optJSONObject("data");
-                        if (data != null) {
-                            txtDetailEmpty.setVisibility(View.GONE);
-                            renderInsightData(data);
+                final String finalResult = result;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        swipeRefreshDetail.setRefreshing(false);
+                        if (finalResult == null || finalResult.isEmpty()) {
+                            txtDetailEmpty.setText("Failed to load server analytics. Please try again.");
+                            Toast.makeText(InsightDetailActivity.this, "Network error loading analytics", Toast.LENGTH_SHORT).show();
                             return;
                         }
+
+                        try {
+                            JSONObject json = new JSONObject(finalResult);
+                            if (json.optBoolean("success", false)) {
+                                JSONObject data = json.optJSONObject("data");
+                                if (data != null) {
+                                    txtDetailEmpty.setVisibility(View.GONE);
+                                    renderInsightData(data);
+                                    return;
+                                }
+                            }
+                            String msg = json.optString("message", "Could not load insight data");
+                            txtDetailEmpty.setText(msg);
+                        } catch (Exception e) {
+                            txtDetailEmpty.setText("Error parsing analytics JSON from server.");
+                        }
                     }
-                    String msg = json.optString("message", "Could not load insight data");
-                    txtDetailEmpty.setText(msg);
-                } catch (Exception e) {
-                    txtDetailEmpty.setText("Error parsing analytics JSON from server.");
-                }
+                });
             }
-        }.execute();
+        });
     }
 
     private void renderInsightData(JSONObject data) {
@@ -325,10 +343,10 @@ public class InsightDetailActivity extends AppCompatActivity {
 
         progressBarKpi.setProgress((int) Math.min(100, Math.round(percentage)));
         if (percentage >= 100) {
-            txtKpiNotes.setText("✓ Target Achieved! Maximum points earned.");
+            txtKpiNotes.setText("âœ“ Target Achieved! Maximum points earned.");
             txtKpiNotes.setTextColor(0xFF10B981);
         } else {
-            txtKpiNotes.setText("In progress — keep pushing to reach " + (int) weight + " points.");
+            txtKpiNotes.setText("In progress â€” keep pushing to reach " + (int) weight + " points.");
             txtKpiNotes.setTextColor(0xFF94A3B8);
         }
 
@@ -466,7 +484,7 @@ public class InsightDetailActivity extends AppCompatActivity {
         txtSummaryMain.setText("Top Buyers & SKUs");
         txtSummarySub.setText("Ranked performance for " + periodLabel);
 
-        addSectionHeader("👑 TOP BUYING CUSTOMERS");
+        addSectionHeader("ðŸ‘‘ TOP BUYING CUSTOMERS");
         if (topCust != null && topCust.length() > 0) {
             for (int i = 0; i < topCust.length(); i++) {
                 JSONObject c = topCust.optJSONObject(i);
@@ -480,7 +498,7 @@ public class InsightDetailActivity extends AppCompatActivity {
             addEmptyRow("No customer rankings available.");
         }
 
-        addSectionHeader("📦 TOP SELLING PRODUCTS");
+        addSectionHeader("ðŸ“¦ TOP SELLING PRODUCTS");
         if (topProd != null && topProd.length() > 0) {
             for (int i = 0; i < topProd.length(); i++) {
                 JSONObject p = topProd.optJSONObject(i);
